@@ -1209,6 +1209,12 @@ export default class GameScene extends Phaser.Scene {
         if (fireball.innerCircle) {
             fireball.innerCircle.destroy();
         }
+        // Stop animations
+        this.tweens.killTweensOf([fireball, fireball.innerCircle]);
+        // Clear delayed destruction timer if it exists
+        if (fireball.destructionTimer) {
+            fireball.destructionTimer.remove();
+        }
         fireball.destroy();
         enemy.destroy();
         this.score += 50;
@@ -1218,6 +1224,12 @@ export default class GameScene extends Phaser.Scene {
     hitPlatformWithFireball(fireball, platform) {
         if (fireball.innerCircle) {
             fireball.innerCircle.destroy();
+        }
+        // Stop animations
+        this.tweens.killTweensOf([fireball, fireball.innerCircle]);
+        // Clear delayed destruction timer if it exists
+        if (fireball.destructionTimer) {
+            fireball.destructionTimer.remove();
         }
         fireball.destroy();
     }
@@ -1250,31 +1262,27 @@ export default class GameScene extends Phaser.Scene {
         
         this.fireballs.add(fireball);
         
-        // Animate fireball - rotation and pulsing effect
+        // Animate fireball - combined rotation and pulsing effect
         this.tweens.add({
             targets: [fireball, fireballInner],
             rotation: Math.PI * 2,
-            duration: 300,
-            repeat: -1
-        });
-        
-        // Pulsing effect for more dynamic look
-        this.tweens.add({
-            targets: [fireball, fireballInner],
             scaleX: 1.2,
             scaleY: 1.2,
-            duration: 200,
+            duration: 300,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.easeInOut'
         });
         
         // Destroy after 3 seconds
-        this.time.delayedCall(3000, () => {
-            if (fireball.innerCircle) {
-                fireball.innerCircle.destroy();
+        fireball.destructionTimer = this.time.delayedCall(3000, () => {
+            if (fireball && fireball.active) {
+                if (fireball.innerCircle && fireball.innerCircle.active) {
+                    fireball.innerCircle.destroy();
+                }
+                this.tweens.killTweensOf([fireball, fireball.innerCircle]);
+                fireball.destroy();
             }
-            fireball.destroy();
         });
     }
 
