@@ -41,6 +41,9 @@ export default class GameScene extends Phaser.Scene {
         this.invincibleTimer2 = null;
         // Constants
         this.FALL_OFF_THRESHOLD = 50;
+        // Game stats tracking
+        this.coinsCollected = 0;
+        this.enemiesDefeated = 0;
     }
 
     create() {
@@ -55,6 +58,10 @@ export default class GameScene extends Phaser.Scene {
         // Get current level and score from registry
         const currentLevel = this.registry.get('currentLevel') || 1;
         this.score = this.registry.get('score') || 0;
+        
+        // Restore game stats
+        this.coinsCollected = this.registry.get('coinsCollected') || 0;
+        this.enemiesDefeated = this.registry.get('enemiesDefeated') || 0;
         
         // Restore power-up state for player 1
         this.isPoweredUp = this.registry.get('isPoweredUp') || false;
@@ -85,8 +92,10 @@ export default class GameScene extends Phaser.Scene {
         // Create level-specific layouts
         if (currentLevel === 1) {
             this.createLevel1Platforms();
-        } else {
+        } else if (currentLevel === 2) {
             this.createLevel2Platforms();
+        } else {
+            this.createLevel3Platforms();
         }
 
         // Create player 1
@@ -117,7 +126,7 @@ export default class GameScene extends Phaser.Scene {
         this.createEnemies();
         
         // Create finish flag or boss
-        if (currentLevel === 2) {
+        if (currentLevel === 2 || currentLevel === 3) {
             this.createBoss();
         } else {
             this.createFinishFlag();
@@ -294,9 +303,44 @@ export default class GameScene extends Phaser.Scene {
         this.createPlatform(2200, 420, 120, 32, 0x228B22);
         this.createPlatform(2400, 460, 120, 32, 0x228B22);
         
-        // Final section
+        // Boss arena section
         this.createPlatform(2650, 480, 150, 32, 0x228B22);
+        // Ledge for jumping on boss (twice Mario's height)
+        this.createPlatform(2750, 380, 100, 32, 0x228B22);
+        
+        // Flag area after boss
         this.createPlatform(2900, 450, 100, 32, 0x228B22);
+    }
+    
+    createLevel3Platforms() {
+        const height = this.cameras.main.height;
+        
+        // Level 3 - Most challenging layout with boss arena
+        // First section - quick ascent
+        this.createPlatform(150, 520, 100, 32, 0x228B22);
+        this.createPlatform(320, 470, 100, 32, 0x228B22);
+        this.createPlatform(490, 420, 100, 32, 0x228B22);
+        this.createPlatform(660, 370, 100, 32, 0x228B22);
+        
+        // Second section - wide gaps
+        this.createPlatform(900, 400, 80, 32, 0x228B22);
+        this.createPlatform(1120, 450, 80, 32, 0x228B22);
+        this.createPlatform(1340, 400, 80, 32, 0x228B22);
+        this.createPlatform(1560, 480, 80, 32, 0x228B22);
+        
+        // Third section - precision jumps
+        this.createPlatform(1800, 420, 100, 32, 0x228B22);
+        this.createPlatform(1980, 380, 100, 32, 0x228B22);
+        this.createPlatform(2160, 440, 100, 32, 0x228B22);
+        this.createPlatform(2340, 400, 100, 32, 0x228B22);
+        
+        // Boss arena section
+        this.createPlatform(2600, 500, 180, 32, 0x228B22);
+        // Ledge for jumping on boss (elevated platform, twice Mario's height from ground)
+        this.createPlatform(2700, 350, 120, 32, 0x228B22);
+        
+        // Flag area after boss defeat
+        this.createPlatform(2900, 480, 120, 32, 0x228B22);
     }
 
     createPlatform(x, y, width, height, color) {
@@ -348,15 +392,21 @@ export default class GameScene extends Phaser.Scene {
                 { x: 1875, y: 320, type: 'star' },         // Centered above platform at (1800, 420)
                 { x: 2375, y: 350, type: 'mushroom' }      // Centered above platform at (2300, 450)
             ];
-        } else {
+        } else if (currentLevel === 2) {
             // Level 2 boxes centered on platforms
-            // Platform centers: (200+60=260, 500), (380+60=440, 450), (560+60=620, 400)
-            // (850+50=900, 480), (1050+50=1100, 450), (1750+60=1810, 480), (2400+60=2460, 460)
             blockPositions = [
                 { x: 440, y: 350, type: 'mushroom' },      // Centered above platform at (380, 450)
                 { x: 1100, y: 350, type: 'flower' },       // Centered above platform at (1050, 450)
                 { x: 1810, y: 380, type: 'star' },         // Centered above platform at (1750, 480)
-                { x: 2460, y: 360, type: 'mushroom' }      // Centered above platform at (2400, 460)
+                { x: 2700, y: 380, type: 'mushroom' }      // Centered above ledge platform
+            ];
+        } else {
+            // Level 3 boxes centered on platforms
+            blockPositions = [
+                { x: 490, y: 320, type: 'mushroom' },      // Centered above platform at (490, 420)
+                { x: 1120, y: 350, type: 'flower' },       // Centered above platform at (1120, 450)
+                { x: 1980, y: 280, type: 'star' },         // Centered above platform at (1980, 380)
+                { x: 2700, y: 250, type: 'flower' }        // Centered above ledge platform
             ];
         }
         
@@ -432,6 +482,8 @@ export default class GameScene extends Phaser.Scene {
         this.registry.set('hasFirePower', false);
         this.registry.set('isPoweredUp2', false);
         this.registry.set('hasFirePower2', false);
+        this.registry.set('coinsCollected', 0);
+        this.registry.set('enemiesDefeated', 0);
         
         // Restore game mode and player names
         this.registry.set('gameMode', gameMode);
@@ -644,7 +696,7 @@ export default class GameScene extends Phaser.Scene {
                 { x: 2600, y: 370 }, { x: 2660, y: 370 },
                 { x: 2850, y: 430 }, { x: 2910, y: 430 }
             ];
-        } else {
+        } else if (currentLevel === 2) {
             // Level 2 coins - single row, well spaced
             coinPositions = [
                 // First section
@@ -664,12 +716,34 @@ export default class GameScene extends Phaser.Scene {
                 
                 // Fourth section
                 { x: 2200, y: 370 }, { x: 2260, y: 370 },
-                { x: 2400, y: 410 }, { x: 2460, y: 410 },
+                { x: 2650, y: 430 }, { x: 2710, y: 430 }
+            ];
+        } else {
+            // Level 3 coins - challenging collection
+            coinPositions = [
+                // First section - ascending
+                { x: 150, y: 470 }, { x: 210, y: 470 },
+                { x: 320, y: 420 }, { x: 380, y: 420 }, { x: 440, y: 420 },
+                { x: 490, y: 370 }, { x: 550, y: 370 },
+                { x: 660, y: 320 }, { x: 720, y: 320 },
+                
+                // Second section - gaps
+                { x: 900, y: 350 }, { x: 960, y: 350 },
+                { x: 1120, y: 400 }, { x: 1180, y: 400 },
+                { x: 1340, y: 350 }, { x: 1400, y: 350 },
+                { x: 1560, y: 430 }, { x: 1620, y: 430 },
+                
+                // Third section - precision
+                { x: 1800, y: 370 }, { x: 1860, y: 370 },
+                { x: 1980, y: 330 }, { x: 2040, y: 330 }, { x: 2100, y: 330 },
+                { x: 2160, y: 390 }, { x: 2220, y: 390 },
+                { x: 2340, y: 350 }, { x: 2400, y: 350 },
                 
                 // Final section
-                { x: 2650, y: 430 }, { x: 2710, y: 430 },
-                { x: 2900, y: 400 }, { x: 2960, y: 400 }
+                { x: 2600, y: 450 }, { x: 2660, y: 450 },
+                { x: 2900, y: 430 }, { x: 2960, y: 430 }
             ];
+        }
         }
 
         coinPositions.forEach(pos => {
@@ -725,7 +799,7 @@ export default class GameScene extends Phaser.Scene {
                 { x: 2150, y: 450, speed: -80 },
                 { x: 2500, y: 500, speed: 70 }
             ];
-        } else {
+        } else if (currentLevel === 2) {
             // Level 2 - more enemies
             enemyPositions = [
                 { x: 300, y: 500, speed: 70 },
@@ -735,8 +809,22 @@ export default class GameScene extends Phaser.Scene {
                 { x: 1400, y: 450, speed: 85 },
                 { x: 1650, y: 500, speed: -75 },
                 { x: 2100, y: 450, speed: 95 },
-                { x: 2350, y: 500, speed: -70 },
-                { x: 2750, y: 500, speed: 80 }
+                { x: 2350, y: 500, speed: -70 }
+            ];
+        } else {
+            // Level 3 - most enemies and faster
+            enemyPositions = [
+                { x: 250, y: 500, speed: 80 },
+                { x: 570, y: 450, speed: -95 },
+                { x: 800, y: 500, speed: 110 },
+                { x: 1020, y: 500, speed: -90 },
+                { x: 1240, y: 500, speed: 100 },
+                { x: 1460, y: 500, speed: -85 },
+                { x: 1700, y: 450, speed: 95 },
+                { x: 1900, y: 450, speed: -100 },
+                { x: 2080, y: 450, speed: 90 },
+                { x: 2260, y: 450, speed: -95 },
+                { x: 2500, y: 500, speed: 85 }
             ];
         }
 
@@ -816,62 +904,135 @@ export default class GameScene extends Phaser.Scene {
     }
     
     createBoss() {
-        // Bowser-like boss at end of level 2
-        const bossX = 2900;
-        const bossY = this.cameras.main.height - 150;
+        const currentLevel = this.registry.get('currentLevel') || 1;
         
-        this.boss = this.add.container(bossX, bossY);
-        
-        // Boss body (large turtle-like creature)
-        const shell = this.add.ellipse(0, 10, 80, 70, 0x228B22);
-        const shellPattern1 = this.add.rectangle(-15, 10, 15, 15, 0xffff00);
-        const shellPattern2 = this.add.rectangle(0, 10, 15, 15, 0xffff00);
-        const shellPattern3 = this.add.rectangle(15, 10, 15, 15, 0xffff00);
-        
-        // Head
-        const head = this.add.ellipse(0, -20, 50, 45, 0x32CD32);
-        
-        // Horns
-        const horn1 = this.add.triangle(-15, -35, 0, 0, 10, -15, 5, 0, 0xff6600);
-        const horn2 = this.add.triangle(15, -35, 0, 0, -10, -15, -5, 0, 0xff6600);
-        
-        // Eyes (angry)
-        const eye1 = this.add.ellipse(-10, -22, 12, 15, 0xffffff);
-        const eye2 = this.add.ellipse(10, -22, 12, 15, 0xffffff);
-        const pupil1 = this.add.circle(-10, -20, 5, 0xff0000);
-        const pupil2 = this.add.circle(10, -20, 5, 0xff0000);
-        
-        // Mouth/snout
-        const snout = this.add.rectangle(0, -10, 30, 15, 0x90EE90);
-        
-        // Spikes on shell
-        const spike1 = this.add.triangle(-25, 0, 0, -10, 5, 0, -5, 0, 0x654321);
-        const spike2 = this.add.triangle(0, 0, 0, -10, 5, 0, -5, 0, 0x654321);
-        const spike3 = this.add.triangle(25, 0, 0, -10, 5, 0, -5, 0, 0x654321);
-        
-        // Legs
-        const leg1 = this.add.rectangle(-25, 40, 15, 25, 0x32CD32);
-        const leg2 = this.add.rectangle(25, 40, 15, 25, 0x32CD32);
-        
-        this.boss.add([
-            leg1, leg2, shell, shellPattern1, shellPattern2, shellPattern3,
-            spike1, spike2, spike3, head, snout, eye1, eye2, pupil1, pupil2,
-            horn1, horn2
-        ]);
-        
-        // Add physics
-        this.physics.add.existing(this.boss);
-        this.boss.body.setSize(80, 100);
-        this.boss.body.setOffset(-40, -50);
-        this.boss.body.setImmovable(false);  // Allow gravity to affect boss
-        this.boss.body.setAllowGravity(true);  // Enable gravity
-        this.boss.body.setCollideWorldBounds(true);
-        
-        // Boss AI
-        this.bossHealth = 5;
-        this.boss.moveDirection = -1;
-        this.boss.moveSpeed = 80;
-        this.boss.body.setVelocityX(this.boss.moveSpeed * this.boss.moveDirection);
+        // Different boss for level 3 - larger and requires 3 jumps
+        if (currentLevel === 3) {
+            // Level 3 boss - King Koopa (twice Mario's height = ~88 pixels)
+            const bossX = 2690;
+            const bossY = this.cameras.main.height - 220; // Higher up for larger boss
+            
+            this.boss = this.add.container(bossX, bossY);
+            
+            // Boss body (large armored creature - twice Mario's height)
+            const shell = this.add.ellipse(0, 20, 100, 90, 0x8B0000); // Dark red shell
+            const shellPattern1 = this.add.rectangle(-20, 20, 20, 20, 0xffaa00);
+            const shellPattern2 = this.add.rectangle(0, 20, 20, 20, 0xffaa00);
+            const shellPattern3 = this.add.rectangle(20, 20, 20, 20, 0xffaa00);
+            
+            // Head (larger)
+            const head = this.add.ellipse(0, -40, 65, 58, 0xff4500);
+            
+            // Horns (larger and more menacing)
+            const horn1 = this.add.triangle(-20, -60, 0, 0, 15, -20, 7, 0, 0xffaa00);
+            const horn2 = this.add.triangle(20, -60, 0, 0, -15, -20, -7, 0, 0xffaa00);
+            
+            // Eyes (angry, glowing)
+            const eye1 = this.add.ellipse(-13, -45, 15, 18, 0xffff00);
+            const eye2 = this.add.ellipse(13, -45, 15, 18, 0xffff00);
+            const pupil1 = this.add.circle(-13, -43, 6, 0xff0000);
+            const pupil2 = this.add.circle(13, -43, 6, 0xff0000);
+            
+            // Mouth/snout
+            const snout = this.add.rectangle(0, -25, 40, 20, 0xff6347);
+            const teeth1 = this.add.rectangle(-10, -15, 5, 8, 0xffffff);
+            const teeth2 = this.add.rectangle(10, -15, 5, 8, 0xffffff);
+            
+            // Spikes on shell (larger)
+            const spike1 = this.add.triangle(-35, 10, 0, -15, 7, 0, -7, 0, 0x654321);
+            const spike2 = this.add.triangle(-12, 10, 0, -15, 7, 0, -7, 0, 0x654321);
+            const spike3 = this.add.triangle(12, 10, 0, -15, 7, 0, -7, 0, 0x654321);
+            const spike4 = this.add.triangle(35, 10, 0, -15, 7, 0, -7, 0, 0x654321);
+            
+            // Legs (larger)
+            const leg1 = this.add.rectangle(-30, 65, 20, 35, 0xff4500);
+            const leg2 = this.add.rectangle(30, 65, 20, 35, 0xff4500);
+            
+            // Arms (menacing)
+            const arm1 = this.add.rectangle(-40, 0, 15, 40, 0xff4500);
+            const arm2 = this.add.rectangle(40, 0, 15, 40, 0xff4500);
+            const claw1 = this.add.triangle(-45, 20, 0, 0, 8, 10, 0, 10, 0xffffff);
+            const claw2 = this.add.triangle(45, 20, 0, 0, -8, 10, 0, 10, 0xffffff);
+            
+            this.boss.add([
+                leg1, leg2, arm1, arm2, claw1, claw2,
+                shell, shellPattern1, shellPattern2, shellPattern3,
+                spike1, spike2, spike3, spike4, head, snout, teeth1, teeth2,
+                eye1, eye2, pupil1, pupil2, horn1, horn2
+            ]);
+            
+            // Add physics (larger hitbox for bigger boss)
+            this.physics.add.existing(this.boss);
+            this.boss.body.setSize(100, 175); // Twice Mario's height
+            this.boss.body.setOffset(-50, -87);
+            this.boss.body.setImmovable(false);
+            this.boss.body.setAllowGravity(true);
+            this.boss.body.setCollideWorldBounds(true);
+            
+            // Boss AI - more aggressive
+            this.bossHealth = 3; // Requires 3 jumps
+            this.boss.moveDirection = -1;
+            this.boss.moveSpeed = 100; // Faster
+            this.boss.body.setVelocityX(this.boss.moveSpeed * this.boss.moveDirection);
+            
+        } else {
+            // Level 2 boss - Original Bowser-like boss
+            const bossX = 2690;
+            const bossY = this.cameras.main.height - 150;
+            
+            this.boss = this.add.container(bossX, bossY);
+            
+            // Boss body (large turtle-like creature)
+            const shell = this.add.ellipse(0, 10, 80, 70, 0x228B22);
+            const shellPattern1 = this.add.rectangle(-15, 10, 15, 15, 0xffff00);
+            const shellPattern2 = this.add.rectangle(0, 10, 15, 15, 0xffff00);
+            const shellPattern3 = this.add.rectangle(15, 10, 15, 15, 0xffff00);
+            
+            // Head
+            const head = this.add.ellipse(0, -20, 50, 45, 0x32CD32);
+            
+            // Horns
+            const horn1 = this.add.triangle(-15, -35, 0, 0, 10, -15, 5, 0, 0xff6600);
+            const horn2 = this.add.triangle(15, -35, 0, 0, -10, -15, -5, 0, 0xff6600);
+            
+            // Eyes (angry)
+            const eye1 = this.add.ellipse(-10, -22, 12, 15, 0xffffff);
+            const eye2 = this.add.ellipse(10, -22, 12, 15, 0xffffff);
+            const pupil1 = this.add.circle(-10, -20, 5, 0xff0000);
+            const pupil2 = this.add.circle(10, -20, 5, 0xff0000);
+            
+            // Mouth/snout
+            const snout = this.add.rectangle(0, -10, 30, 15, 0x90EE90);
+            
+            // Spikes on shell
+            const spike1 = this.add.triangle(-25, 0, 0, -10, 5, 0, -5, 0, 0x654321);
+            const spike2 = this.add.triangle(0, 0, 0, -10, 5, 0, -5, 0, 0x654321);
+            const spike3 = this.add.triangle(25, 0, 0, -10, 5, 0, -5, 0, 0x654321);
+            
+            // Legs
+            const leg1 = this.add.rectangle(-25, 40, 15, 25, 0x32CD32);
+            const leg2 = this.add.rectangle(25, 40, 15, 25, 0x32CD32);
+            
+            this.boss.add([
+                leg1, leg2, shell, shellPattern1, shellPattern2, shellPattern3,
+                spike1, spike2, spike3, head, snout, eye1, eye2, pupil1, pupil2,
+                horn1, horn2
+            ]);
+            
+            // Add physics
+            this.physics.add.existing(this.boss);
+            this.boss.body.setSize(80, 100);
+            this.boss.body.setOffset(-40, -50);
+            this.boss.body.setImmovable(false);
+            this.boss.body.setAllowGravity(true);
+            this.boss.body.setCollideWorldBounds(true);
+            
+            // Boss AI
+            this.bossHealth = 5; // Level 2 boss still has 5 health
+            this.boss.moveDirection = -1;
+            this.boss.moveSpeed = 80;
+            this.boss.body.setVelocityX(this.boss.moveSpeed * this.boss.moveDirection);
+        }
         
         // Create boss health bar
         this.bossHealthBar = this.add.graphics();
@@ -945,6 +1106,9 @@ export default class GameScene extends Phaser.Scene {
     updateBossHealthBar() {
         this.bossHealthBar.clear();
         
+        const currentLevel = this.registry.get('currentLevel') || 1;
+        const maxHealth = currentLevel === 3 ? 3 : 5;
+        
         // Background
         this.bossHealthBar.fillStyle(0x000000, 0.5);
         this.bossHealthBar.fillRect(
@@ -955,7 +1119,7 @@ export default class GameScene extends Phaser.Scene {
         );
         
         // Health bar
-        const healthWidth = (this.bossHealth / 5) * 200;
+        const healthWidth = (this.bossHealth / maxHealth) * 200;
         this.bossHealthBar.fillStyle(0xff0000, 1);
         this.bossHealthBar.fillRect(
             this.cameras.main.width / 2 - 100,
@@ -1023,18 +1187,24 @@ export default class GameScene extends Phaser.Scene {
             this.boss.destroy();
             this.bossHealthBar.clear();
             this.score += 500;
+            this.enemiesDefeated++; // Count boss as enemy defeated
             this.scoreText.setText('Score: ' + this.score);
             
-            // Show victory
-            this.levelComplete = true;
-            this.physics.pause();
+            const currentLevel = this.registry.get('currentLevel') || 1;
             
+            // Spawn finish flag after boss defeat
+            this.createFinishFlag();
+            
+            // Resume physics so player can reach flag
+            this.levelComplete = false;
+            
+            // Show boss defeated message (brief)
             const victoryText = this.add.text(
                 this.cameras.main.centerX,
                 this.cameras.main.centerY - 50,
-                'BOSS DEFEATED!\nYOU WIN!',
+                'BOSS DEFEATED!\nGo to the Flag!',
                 {
-                    fontSize: '64px',
+                    fontSize: '48px',
                     fontFamily: 'Arial',
                     color: '#ffff00',
                     align: 'center',
@@ -1046,59 +1216,21 @@ export default class GameScene extends Phaser.Scene {
             victoryText.setOrigin(0.5);
             victoryText.setScrollFactor(0);
             
-            const bonusText = this.add.text(
-                this.cameras.main.centerX,
-                this.cameras.main.centerY + 50,
-                'Boss Bonus: +500\nFinal Score: ' + this.score,
-                {
-                    fontSize: '32px',
-                    fontFamily: 'Arial',
-                    color: '#ffffff',
-                    align: 'center',
-                    fontStyle: 'bold',
-                    stroke: '#000000',
-                    strokeThickness: 6
-                }
-            );
-            bonusText.setOrigin(0.5);
-            bonusText.setScrollFactor(0);
-            
-            const restartText = this.add.text(
-                this.cameras.main.centerX,
-                this.cameras.main.centerY + 130,
-                'Tap to Play Again',
-                {
-                    fontSize: '28px',
-                    fontFamily: 'Arial',
-                    color: '#00ff00',
-                    align: 'center',
-                    fontStyle: 'bold',
-                    stroke: '#000000',
-                    strokeThickness: 6
-                }
-            );
-            restartText.setOrigin(0.5);
-            restartText.setScrollFactor(0);
-            
-            this.tweens.add({
-                targets: restartText,
-                alpha: 0.3,
-                duration: 600,
-                yoyo: true,
-                repeat: -1
+            // Fade out message after 2 seconds
+            this.time.delayedCall(2000, () => {
+                this.tweens.add({
+                    targets: victoryText,
+                    alpha: 0,
+                    duration: 500,
+                    onComplete: () => victoryText.destroy()
+                });
             });
             
-            this.input.once('pointerdown', () => {
-                this.resetGameState();
-                this.scene.restart();
-                this.levelComplete = false;
-            });
-            
-            this.input.keyboard.once('keydown-SPACE', () => {
-                this.resetGameState();
-                this.scene.restart();
-                this.levelComplete = false;
-            });
+            // Add flag overlap collider
+            this.physics.add.overlap(this.player, this.finishFlag, this.reachFlag, null, this);
+            if (this.gameMode === 2) {
+                this.physics.add.overlap(this.player2, this.finishFlag, this.reachFlag, null, this);
+            }
         }
     }
     
@@ -1341,6 +1473,7 @@ export default class GameScene extends Phaser.Scene {
         // Destroy the coin
         coin.destroy();
         this.score += 10;
+        this.coinsCollected++; // Track coins collected
         this.scoreText.setText('Score: ' + this.score);
         
         // Play a simple sound effect (visual feedback)
@@ -1401,7 +1534,7 @@ export default class GameScene extends Phaser.Scene {
         const nextLevel = currentLevel + 1;
         
         let continueText;
-        if (nextLevel <= 2) {
+        if (nextLevel <= 3) {
             continueText = this.add.text(
                 this.cameras.main.centerX,
                 this.cameras.main.centerY + 120,
@@ -1417,20 +1550,9 @@ export default class GameScene extends Phaser.Scene {
                 }
             );
         } else {
-            continueText = this.add.text(
-                this.cameras.main.centerX,
-                this.cameras.main.centerY + 120,
-                'YOU WIN! All Levels Complete!\nTap to Restart',
-                {
-                    fontSize: '28px',
-                    fontFamily: 'Arial',
-                    color: '#00ff00',
-                    align: 'center',
-                    fontStyle: 'bold',
-                    stroke: '#000000',
-                    strokeThickness: 6
-                }
-            );
+            // Level 3 completed - show stats and credits
+            this.showGameCompleteScreen();
+            return; // Exit early to not set up default handlers
         }
         continueText.setOrigin(0.5);
         continueText.setScrollFactor(0);
@@ -1444,34 +1566,241 @@ export default class GameScene extends Phaser.Scene {
             repeat: -1
         });
         
-        // Store score in registry
+        // Store score and stats in registry
         this.registry.set('score', this.score);
+        this.registry.set('coinsCollected', this.coinsCollected);
+        this.registry.set('enemiesDefeated', this.enemiesDefeated);
         
         this.input.once('pointerdown', () => {
-            if (nextLevel <= 2) {
+            if (nextLevel <= 3) {
                 this.registry.set('currentLevel', nextLevel);
-                this.scene.restart();
-                this.levelComplete = false;
-            } else {
-                // Reset to level 1 after completing all levels
-                this.resetGameState();
                 this.scene.restart();
                 this.levelComplete = false;
             }
         });
         
         this.input.keyboard.once('keydown-SPACE', () => {
-            if (nextLevel <= 2) {
+            if (nextLevel <= 3) {
                 this.registry.set('currentLevel', nextLevel);
-                this.scene.restart();
-                this.levelComplete = false;
-            } else {
-                // Reset to level 1 after completing all levels
-                this.resetGameState();
                 this.scene.restart();
                 this.levelComplete = false;
             }
         });
+    }
+    
+    showGameCompleteScreen() {
+        // Clear existing UI elements
+        this.scoreText.setVisible(false);
+        this.levelText.setVisible(false);
+        this.powerUpText.setVisible(false);
+        
+        // Title
+        const titleText = this.add.text(
+            this.cameras.main.centerX,
+            80,
+            '🎉 GAME COMPLETE! 🎉',
+            {
+                fontSize: '48px',
+                fontFamily: 'Arial',
+                color: '#ffff00',
+                align: 'center',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 8
+            }
+        );
+        titleText.setOrigin(0.5);
+        titleText.setScrollFactor(0);
+        
+        // Stats section
+        const statsText = this.add.text(
+            this.cameras.main.centerX,
+            180,
+            '═══ FINAL STATS ═══\n\n' +
+            'Final Score: ' + this.score + '\n' +
+            'Coins Collected: ' + this.coinsCollected + '\n' +
+            'Enemies Defeated: ' + this.enemiesDefeated + '\n' +
+            'Levels Completed: 3\n' +
+            (this.gameMode === 2 ? 'Players: ' + this.player1Name + ' & ' + this.player2Name : 'Player: ' + this.player1Name),
+            {
+                fontSize: '24px',
+                fontFamily: 'Arial',
+                color: '#ffffff',
+                align: 'center',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        );
+        statsText.setOrigin(0.5);
+        statsText.setScrollFactor(0);
+        
+        // Credits section
+        const creditsText = this.add.text(
+            this.cameras.main.centerX,
+            370,
+            '═══ CREDITS ═══\n\n' +
+            'Game Design: Mario Game\n' +
+            'Built with: Phaser 3\n' +
+            'Platform: JavaScript/HTML5\n' +
+            'Thanks for playing!',
+            {
+                fontSize: '20px',
+                fontFamily: 'Arial',
+                color: '#aaffaa',
+                align: 'center',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 3
+            }
+        );
+        creditsText.setOrigin(0.5);
+        creditsText.setScrollFactor(0);
+        
+        // Share button
+        const shareText = this.add.text(
+            this.cameras.main.centerX - 100,
+            500,
+            '📤 Share Stats',
+            {
+                fontSize: '24px',
+                fontFamily: 'Arial',
+                color: '#00ffff',
+                align: 'center',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4,
+                backgroundColor: '#006666',
+                padding: { x: 15, y: 10 }
+            }
+        );
+        shareText.setOrigin(0.5);
+        shareText.setScrollFactor(0);
+        shareText.setInteractive({ useHandCursor: true });
+        
+        shareText.on('pointerdown', () => {
+            this.shareStats();
+        });
+        
+        shareText.on('pointerover', () => {
+            shareText.setScale(1.1);
+        });
+        
+        shareText.on('pointerout', () => {
+            shareText.setScale(1);
+        });
+        
+        // Restart button
+        const restartText = this.add.text(
+            this.cameras.main.centerX + 100,
+            500,
+            '🔄 Play Again',
+            {
+                fontSize: '24px',
+                fontFamily: 'Arial',
+                color: '#00ff00',
+                align: 'center',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4,
+                backgroundColor: '#006600',
+                padding: { x: 15, y: 10 }
+            }
+        );
+        restartText.setOrigin(0.5);
+        restartText.setScrollFactor(0);
+        restartText.setInteractive({ useHandCursor: true });
+        
+        restartText.on('pointerdown', () => {
+            this.resetGameState();
+            this.scene.restart();
+            this.levelComplete = false;
+        });
+        
+        restartText.on('pointerover', () => {
+            restartText.setScale(1.1);
+        });
+        
+        restartText.on('pointerout', () => {
+            restartText.setScale(1);
+        });
+        
+        // Keyboard support
+        this.input.keyboard.once('keydown-SPACE', () => {
+            this.resetGameState();
+            this.scene.restart();
+            this.levelComplete = false;
+        });
+    }
+    
+    shareStats() {
+        const statsMessage = `🎮 I completed Mario Game! 🎮\n\n` +
+            `Final Score: ${this.score}\n` +
+            `Coins: ${this.coinsCollected}\n` +
+            `Enemies Defeated: ${this.enemiesDefeated}\n` +
+            `All 3 levels completed!\n\n` +
+            `Can you beat my score?`;
+        
+        // Try Web Share API first (mobile-friendly)
+        if (navigator.share) {
+            navigator.share({
+                title: 'Mario Game Stats',
+                text: statsMessage
+            }).catch(err => {
+                console.log('Error sharing:', err);
+                this.fallbackCopyToClipboard(statsMessage);
+            });
+        } else {
+            // Fallback: copy to clipboard
+            this.fallbackCopyToClipboard(statsMessage);
+        }
+    }
+    
+    fallbackCopyToClipboard(text) {
+        // Try modern clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                this.showCopyNotification();
+            }).catch(err => {
+                console.log('Clipboard error:', err);
+                // Last resort: show text for manual copy
+                this.showManualCopyDialog(text);
+            });
+        } else {
+            // Very old browsers
+            this.showManualCopyDialog(text);
+        }
+    }
+    
+    showCopyNotification() {
+        const notification = this.add.text(
+            this.cameras.main.centerX,
+            550,
+            '✓ Stats copied to clipboard!',
+            {
+                fontSize: '20px',
+                fontFamily: 'Arial',
+                color: '#00ff00',
+                backgroundColor: '#003300',
+                padding: { x: 10, y: 5 }
+            }
+        );
+        notification.setOrigin(0.5);
+        notification.setScrollFactor(0);
+        
+        // Fade out after 2 seconds
+        this.time.delayedCall(2000, () => {
+            this.tweens.add({
+                targets: notification,
+                alpha: 0,
+                duration: 500,
+                onComplete: () => notification.destroy()
+            });
+        });
+    }
+    
+    showManualCopyDialog(text) {
+        alert('Stats:\n\n' + text + '\n\n(Copy this text to share!)');
     }
 
     hitEnemy(player, enemy) {
@@ -1481,6 +1810,7 @@ export default class GameScene extends Phaser.Scene {
         if (this.isInvincible) {
             enemy.destroy();
             this.score += 50;
+            this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
             return;
         }
@@ -1493,6 +1823,7 @@ export default class GameScene extends Phaser.Scene {
             player.body.setVelocityY(-300);
             enemy.destroy();
             this.score += 50;
+            this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
         } else {
             // Player hit from side - take damage or die
@@ -1559,6 +1890,7 @@ export default class GameScene extends Phaser.Scene {
         if (this.isInvincible2) {
             enemy.destroy();
             this.score += 50;
+            this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
             return;
         }
@@ -1569,6 +1901,7 @@ export default class GameScene extends Phaser.Scene {
             player.body.setVelocityY(-300);
             enemy.destroy();
             this.score += 50;
+            this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
         } else {
             // Player hit from side - take damage or die
@@ -1631,6 +1964,7 @@ export default class GameScene extends Phaser.Scene {
         fireball.destroy();
         enemy.destroy();
         this.score += 50;
+        this.enemiesDefeated++; // Track enemies defeated
         this.scoreText.setText('Score: ' + this.score);
     }
     
