@@ -584,19 +584,39 @@ export default class GameScene extends Phaser.Scene {
         }
 
         coinPositions.forEach(pos => {
-            // Larger coins (16px radius instead of 12px)
-            const coin = this.add.circle(pos.x, pos.y, 16, 0xffff00);
-            const coinInner = this.add.circle(pos.x, pos.y, 12, 0xffcc00);
-            this.physics.add.existing(coin);
-            coin.body.setAllowGravity(false);
-            coin.innerCircle = coinInner;
-            this.coins.add(coin);
+            // Create coin container to keep parts together
+            const coinContainer = this.add.container(pos.x, pos.y);
             
-            // Add rotating/spinning animation
+            // Outer circle (bright yellow)
+            const coinOuter = this.add.circle(0, 0, 16, 0xffff00);
+            // Inner circle (darker yellow for depth)
+            const coinInner = this.add.circle(0, 0, 12, 0xffcc00);
+            // Center shine
+            const coinShine = this.add.circle(-4, -4, 4, 0xffffff, 0.6);
+            
+            coinContainer.add([coinOuter, coinInner, coinShine]);
+            
+            // Add physics to container
+            this.physics.add.existing(coinContainer);
+            coinContainer.body.setAllowGravity(false);
+            coinContainer.body.setCircle(16);
+            this.coins.add(coinContainer);
+            
+            // Smooth spinning animation with bounce effect
             this.tweens.add({
-                targets: [coin, coinInner],
-                scaleX: 0.2,
-                duration: 400,
+                targets: coinContainer,
+                scaleX: 0.3,
+                duration: 500,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+            
+            // Gentle floating animation
+            this.tweens.add({
+                targets: coinContainer,
+                y: pos.y - 5,
+                duration: 1000,
                 yoyo: true,
                 repeat: -1,
                 ease: 'Sine.easeInOut'
@@ -1221,11 +1241,22 @@ export default class GameScene extends Phaser.Scene {
     }
 
     collectCoin(player, coin) {
-        // Destroy both the coin and its inner circle
-        if (coin.innerCircle) {
-            coin.innerCircle.destroy();
-        }
-        coin.destroy();
+        // Stop all tweens on the coin
+        this.tweens.killTweensOf(coin);
+        
+        // Coin collection animation - scale up and fade out
+        this.tweens.add({
+            targets: coin,
+            scaleX: 2,
+            scaleY: 2,
+            alpha: 0,
+            duration: 200,
+            ease: 'Cubic.easeOut',
+            onComplete: () => {
+                coin.destroy();
+            }
+        });
+        
         this.score += 10;
         this.scoreText.setText('Score: ' + this.score);
         
