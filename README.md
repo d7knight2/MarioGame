@@ -4,7 +4,8 @@ A mobile-friendly 2D Mario game built with Phaser 3, the industry-standard frame
 
 ## 🎮 Features
 
-- **Two-Player Cooperative Mode**: Play together with Louis (Mario) and Louisa (Luigi)!
+- **Flexible Game Modes**: Choose between 1-player or 2-player cooperative mode
+- **Customizable Player Names**: No hardcoded names - players can choose their own names!
 - **Power-Up System**: Collect mushrooms, fire flowers, and stars from ? boxes
 - **Multiple Levels**: Two challenging levels with unique layouts and a boss fight
 - **Mobile-First Design**: Fully responsive with touch controls optimized for mobile devices
@@ -61,36 +62,50 @@ The `vercel.json` file is already configured with the correct build settings for
 
 ## 🎯 How to Play
 
-### Two-Player Cooperative Mode
-Play together with a friend! Both Louis (Mario) and Louisa (Luigi) can play simultaneously.
+### Game Mode Selection
+On the start screen, choose your game mode:
+- **1 Player**: Play solo and control one character
+- **2 Players**: Play cooperatively with a friend on the same device
 
-**Player 1 - Louis (Mario):**
+### Player Names
+Customize your experience by clicking "Edit" next to each player name to set your own names!
+
+### Controls
+
+**1-Player Mode:**
+- **Arrow Keys** (↑ ↓ ← →): Move and jump
+- **X**: Shoot fireballs (when powered up with Fire Flower)
+- **Mobile**: Use on-screen touch buttons
+
+**2-Player Mode:**
+
+**Player 1:**
 - **W/A/S/D**: Move and jump
 - **Left Shift**: Shoot fireballs (when powered up with Fire Flower)
 
-**Player 2 - Louisa (Luigi):**
-- **Arrow Keys**: Move and jump
+**Player 2:**
+- **Arrow Keys** (↑ ↓ ← →): Move and jump
 - **X**: Shoot fireballs (when powered up with Fire Flower)
+- **Mobile**: Use on-screen touch buttons (controls Player 2)
 
-### Desktop Controls (Single/Two Player)
+### Desktop Controls (All Modes)
 - **Space**: Start game / Restart after game over
 
 ### Mobile Controls
 - Use the on-screen touch buttons:
-  - **← →**: Move left and right (controls Player 2)
-  - **↑**: Jump (controls Player 2)
-  - **Fire**: Shoot fireballs (controls Player 2, appears when powered up)
-- Tap anywhere on the start screen to begin
+  - **← →**: Move left and right
+  - **↑**: Jump
+  - **Fire**: Shoot fireballs (appears when powered up)
 
 ### Gameplay
 - Collect yellow coins for points (+10 each)
 - Hit the **?** boxes from below to get power-ups:
-  - **Red Mushroom**: Grow bigger (Super Mario/Luigi)
-  - **Fire Flower**: Shoot fireballs (Fire Mario/Luigi)
+  - **Red Mushroom**: Grow bigger (Super Mode)
+  - **Fire Flower**: Shoot fireballs (Fire Power)
   - **Star**: Temporary invincibility
 - Jump on enemies from above to defeat them (+50 points)
 - Avoid touching enemies from the side (you'll lose your power-up or die)
-- Both players can collect power-ups independently
+- In 2-player mode, both players can collect power-ups independently
 - Both players can defeat enemies and the boss
 - Don't fall off the platforms!
 
