@@ -33,6 +33,18 @@ window.addEventListener('load', () => {
     const jumpBtn = document.getElementById('jump-btn');
     const fireBtn = document.getElementById('fire-btn');
     
+    // Hide fire button initially
+    if (fireBtn) {
+        fireBtn.style.display = 'none';
+    }
+    
+    // Listen for power-up changes to show/hide fire button
+    game.events.on('hasFirePower', (hasFire) => {
+        if (fireBtn) {
+            fireBtn.style.display = hasFire ? 'flex' : 'none';
+        }
+    });
+    
     if (leftBtn) {
         leftBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();

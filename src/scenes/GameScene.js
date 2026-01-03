@@ -39,6 +39,9 @@ export default class GameScene extends Phaser.Scene {
         this.isPoweredUp = this.registry.get('isPoweredUp') || false;
         this.hasFirePower = this.registry.get('hasFirePower') || false;
         
+        // Emit fire power state for UI
+        this.game.events.emit('hasFirePower', this.hasFirePower);
+        
         // Extend world bounds for side-scrolling
         this.physics.world.setBounds(0, 0, 3200, height);
         this.cameras.main.setBounds(0, 0, 3200, height);
@@ -257,18 +260,18 @@ export default class GameScene extends Phaser.Scene {
         
         if (currentLevel === 1) {
             blockPositions = [
-                { x: 250, y: 420, type: 'mushroom' },
-                { x: 750, y: 380, type: 'mushroom' },
-                { x: 1300, y: 350, type: 'flower' },
-                { x: 1900, y: 360, type: 'star' },
-                { x: 2400, y: 390, type: 'mushroom' }
+                { x: 250, y: 440, type: 'mushroom' },      // Reachable from ground
+                { x: 600, y: 380, type: 'mushroom' },      // Reachable from platform at 420
+                { x: 1150, y: 360, type: 'flower' },       // Reachable from platform at 400
+                { x: 1850, y: 380, type: 'star' },         // Reachable from platform at 420
+                { x: 2350, y: 410, type: 'mushroom' }      // Reachable from platform at 450
             ];
         } else {
             blockPositions = [
-                { x: 500, y: 350, type: 'mushroom' },
-                { x: 1000, y: 380, type: 'flower' },
-                { x: 1600, y: 330, type: 'star' },
-                { x: 2200, y: 360, type: 'mushroom' }
+                { x: 420, y: 410, type: 'mushroom' },      // Reachable from platform at 450
+                { x: 1000, y: 410, type: 'flower' },       // Reachable from platform at 450
+                { x: 1700, y: 440, type: 'star' },         // Reachable from platform at 480
+                { x: 2350, y: 420, type: 'mushroom' }      // Reachable from platform at 460
             ];
         }
         
@@ -395,68 +398,70 @@ export default class GameScene extends Phaser.Scene {
         
         if (currentLevel === 1) {
             coinPositions = [
-                // First section
-                { x: 300, y: 430 }, { x: 340, y: 430 }, { x: 380, y: 430 },
-                { x: 550, y: 370 }, { x: 590, y: 370 }, { x: 630, y: 370 },
-                { x: 150, y: 330 }, { x: 190, y: 330 }, { x: 230, y: 330 },
+                // First section - single row, well spaced
+                { x: 300, y: 430 }, { x: 350, y: 430 }, { x: 400, y: 430 },
+                { x: 550, y: 370 }, { x: 610, y: 370 },
+                { x: 150, y: 330 }, { x: 210, y: 330 },
                 
                 // Second section
-                { x: 900, y: 400 }, { x: 950, y: 400 }, { x: 1000, y: 400 },
-                { x: 1200, y: 350 }, { x: 1240, y: 350 },
-                { x: 1450, y: 430 }, { x: 1490, y: 430 },
+                { x: 900, y: 400 }, { x: 960, y: 400 }, { x: 1020, y: 400 },
+                { x: 1200, y: 350 }, { x: 1260, y: 350 },
+                { x: 1450, y: 430 }, { x: 1510, y: 430 },
                 
                 // Third section
-                { x: 1800, y: 370 }, { x: 1850, y: 370 },
-                { x: 2050, y: 330 }, { x: 2100, y: 330 }, { x: 2150, y: 330 },
-                { x: 2300, y: 400 }, { x: 2350, y: 400 },
+                { x: 1800, y: 370 }, { x: 1860, y: 370 },
+                { x: 2050, y: 330 }, { x: 2110, y: 330 }, { x: 2170, y: 330 },
+                { x: 2300, y: 400 }, { x: 2360, y: 400 },
                 
                 // Final section
-                { x: 2600, y: 370 }, { x: 2650, y: 370 },
-                { x: 2850, y: 430 }, { x: 2900, y: 430 }
+                { x: 2600, y: 370 }, { x: 2660, y: 370 },
+                { x: 2850, y: 430 }, { x: 2910, y: 430 }
             ];
         } else {
-            // Level 2 coins
+            // Level 2 coins - single row, well spaced
             coinPositions = [
                 // First section
-                { x: 200, y: 450 }, { x: 240, y: 450 },
-                { x: 380, y: 400 }, { x: 420, y: 400 }, { x: 460, y: 400 },
-                { x: 560, y: 350 }, { x: 600, y: 350 },
+                { x: 200, y: 450 }, { x: 260, y: 450 },
+                { x: 380, y: 400 }, { x: 440, y: 400 }, { x: 500, y: 400 },
+                { x: 560, y: 350 }, { x: 620, y: 350 },
                 
                 // Second section
-                { x: 850, y: 430 }, { x: 890, y: 430 },
-                { x: 1050, y: 400 }, { x: 1090, y: 400 },
-                { x: 1250, y: 370 }, { x: 1290, y: 370 },
+                { x: 850, y: 430 }, { x: 910, y: 430 },
+                { x: 1050, y: 400 }, { x: 1110, y: 400 },
+                { x: 1250, y: 370 }, { x: 1310, y: 370 },
                 
                 // Third section
-                { x: 1500, y: 330 }, { x: 1550, y: 330 }, { x: 1600, y: 330 },
-                { x: 1750, y: 430 }, { x: 1800, y: 430 },
-                { x: 1950, y: 350 }, { x: 2000, y: 350 }, { x: 2050, y: 350 },
+                { x: 1500, y: 330 }, { x: 1560, y: 330 }, { x: 1620, y: 330 },
+                { x: 1750, y: 430 }, { x: 1810, y: 430 },
+                { x: 1950, y: 350 }, { x: 2010, y: 350 }, { x: 2070, y: 350 },
                 
                 // Fourth section
-                { x: 2200, y: 370 }, { x: 2250, y: 370 },
-                { x: 2400, y: 410 }, { x: 2450, y: 410 },
+                { x: 2200, y: 370 }, { x: 2260, y: 370 },
+                { x: 2400, y: 410 }, { x: 2460, y: 410 },
                 
                 // Final section
-                { x: 2650, y: 430 }, { x: 2700, y: 430 },
-                { x: 2900, y: 400 }, { x: 2950, y: 400 }
+                { x: 2650, y: 430 }, { x: 2710, y: 430 },
+                { x: 2900, y: 400 }, { x: 2960, y: 400 }
             ];
         }
 
         coinPositions.forEach(pos => {
-            const coin = this.add.circle(pos.x, pos.y, 12, 0xffff00);
-            const coinInner = this.add.circle(pos.x, pos.y, 8, 0xffcc00);
+            // Larger coins (16px radius instead of 12px)
+            const coin = this.add.circle(pos.x, pos.y, 16, 0xffff00);
+            const coinInner = this.add.circle(pos.x, pos.y, 12, 0xffcc00);
             this.physics.add.existing(coin);
             coin.body.setAllowGravity(false);
             coin.innerCircle = coinInner;
             this.coins.add(coin);
             
-            // Add spinning animation
+            // Add rotating/spinning animation
             this.tweens.add({
                 targets: [coin, coinInner],
-                scaleX: 0.3,
+                scaleX: 0.2,
                 duration: 400,
                 yoyo: true,
-                repeat: -1
+                repeat: -1,
+                ease: 'Sine.easeInOut'
             });
         });
     }
@@ -946,6 +951,8 @@ export default class GameScene extends Phaser.Scene {
                 this.player.body_part.setFillStyle(0xffffff);
             }
             this.updatePowerUpText();
+            // Emit fire power state for UI
+            this.game.events.emit('hasFirePower', true);
         } else if (type === 'star') {
             // Invincibility
             this.isInvincible = true;
@@ -1130,14 +1137,15 @@ export default class GameScene extends Phaser.Scene {
         }
         
         // Check if player is falling onto enemy from above
-        if (player.body.velocity.y > 0 && player.y < enemy.y - 10) {
+        // Improved collision detection: player must be above enemy and moving downward
+        if (player.body.velocity.y > 0 && player.y < enemy.y - 15) {
             // Bounce and destroy enemy
             player.body.setVelocityY(-300);
             enemy.destroy();
             this.score += 50;
             this.scoreText.setText('Score: ' + this.score);
         } else {
-            // Take damage
+            // Player hit from side - take damage or die
             if (this.isPoweredUp) {
                 // Lose power-up instead of dying
                 if (this.hasFirePower) {
@@ -1145,6 +1153,8 @@ export default class GameScene extends Phaser.Scene {
                     if (this.player.body_part) {
                         this.player.body_part.setFillStyle(0xff0000);
                     }
+                    // Emit fire power state for UI
+                    this.game.events.emit('hasFirePower', false);
                 } else {
                     this.isPoweredUp = false;
                     this.player.setScale(1);
@@ -1169,44 +1179,27 @@ export default class GameScene extends Phaser.Scene {
                     this.player.setAlpha(1);
                 });
             } else {
-                // Game over
+                // Game over - play death animation
                 this.gameOver = true;
                 this.physics.pause();
-                player.setTint(0xff0000);
                 
-                const gameOverText = this.add.text(
-                    this.cameras.main.width / 2,
-                    this.cameras.main.height / 2,
-                    'GAME OVER\nTap to Restart',
-                    {
-                        fontSize: '48px',
-                        fontFamily: 'Arial',
-                        color: '#ffffff',
-                        align: 'center',
-                        fontStyle: 'bold',
-                        stroke: '#000000',
-                        strokeThickness: 8
+                // Death animation - Mario spins and falls
+                this.tweens.add({
+                    targets: this.player,
+                    angle: 720,
+                    y: this.player.y - 100,
+                    alpha: 0,
+                    duration: 1000,
+                    ease: 'Cubic.easeIn',
+                    onComplete: () => {
+                        // Return to start screen after animation
+                        this.registry.set('currentLevel', 1);
+                        this.registry.set('score', 0);
+                        this.registry.set('isPoweredUp', false);
+                        this.registry.set('hasFirePower', false);
+                        this.scene.start('StartScene');
+                        this.gameOver = false;
                     }
-                );
-                gameOverText.setOrigin(0.5);
-                gameOverText.setScrollFactor(0);
-                
-                this.input.once('pointerdown', () => {
-                    this.registry.set('currentLevel', 1);
-                    this.registry.set('score', 0);
-                    this.registry.set('isPoweredUp', false);
-                    this.registry.set('hasFirePower', false);
-                    this.scene.restart();
-                    this.gameOver = false;
-                });
-                
-                this.input.keyboard.once('keydown-SPACE', () => {
-                    this.registry.set('currentLevel', 1);
-                    this.registry.set('score', 0);
-                    this.registry.set('isPoweredUp', false);
-                    this.registry.set('hasFirePower', false);
-                    this.scene.restart();
-                    this.gameOver = false;
                 });
             }
         }
@@ -1231,32 +1224,43 @@ export default class GameScene extends Phaser.Scene {
         const fireball = this.add.circle(
             this.player.x + (direction * 20),
             this.player.y,
-            8,
+            10,
             0xff6600
         );
         
         const fireballInner = this.add.circle(
             this.player.x + (direction * 20),
             this.player.y,
-            5,
+            6,
             0xffff00
         );
         
         this.physics.add.existing(fireball);
         fireball.body.setVelocityX(direction * 400);
-        fireball.body.setVelocityY(-50);
-        fireball.body.setBounce(0.7);
+        fireball.body.setVelocityY(-100);  // Initial upward velocity for bouncy effect
+        fireball.body.setBounce(0.8);  // Higher bounce factor
         fireball.body.setAllowGravity(true);
         fireball.innerCircle = fireballInner;
         
         this.fireballs.add(fireball);
         
-        // Animate fireball
+        // Animate fireball - rotation and pulsing effect
         this.tweens.add({
             targets: [fireball, fireballInner],
             rotation: Math.PI * 2,
             duration: 300,
             repeat: -1
+        });
+        
+        // Pulsing effect for more dynamic look
+        this.tweens.add({
+            targets: [fireball, fireballInner],
+            scaleX: 1.2,
+            scaleY: 1.2,
+            duration: 200,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
         });
         
         // Destroy after 3 seconds
