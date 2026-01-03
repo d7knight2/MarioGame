@@ -1,4 +1,8 @@
 import Phaser from 'phaser';
+import SpriteFactory from '../utils/SpriteFactory.js';
+import ParticleEffects from '../utils/ParticleEffects.js';
+import AnimationManager from '../utils/AnimationManager.js';
+import BackgroundGenerator from '../utils/BackgroundGenerator.js';
 
 // Game constants
 const POWER_UP_SPAWN_DELAY_MS = 300; // Delay before power-ups start moving horizontally
@@ -85,6 +89,12 @@ export default class GameScene extends Phaser.Scene {
 
         // Create sky background gradient
         this.add.rectangle(1600, height / 2, 3200, height, 0x5c94fc);
+        
+        // Create parallax background layers
+        BackgroundGenerator.createParallaxBackground(this, 3200, height);
+        
+        // Add decorative pipes
+        BackgroundGenerator.addPipes(this, height);
 
         // Create platforms group
         this.platforms = this.physics.add.staticGroup();
@@ -1276,6 +1286,9 @@ export default class GameScene extends Phaser.Scene {
             block.questionMark.destroy();
         }
         
+        // Add particle effect when block is hit
+        ParticleEffects.blockHit(this, block.x, block.y);
+        
         // Spawn power-up based on type - spawn at block position, will pop out
         const powerUpType = block.powerUpType;
         this.spawnPowerUp(block.x, block.y, powerUpType);
@@ -1299,6 +1312,9 @@ export default class GameScene extends Phaser.Scene {
         if (block.questionMark) {
             block.questionMark.destroy();
         }
+        
+        // Add particle effect when block is hit
+        ParticleEffects.blockHit(this, block.x, block.y);
         
         const powerUpType = block.powerUpType;
         this.spawnPowerUp(block.x, block.y - 50, powerUpType);
@@ -1381,6 +1397,10 @@ export default class GameScene extends Phaser.Scene {
     
     collectPowerUp(player, powerUp) {
         const type = powerUp.powerUpType;
+        
+        // Add particle effects
+        ParticleEffects.powerUpCollect(this, powerUp.x, powerUp.y, type);
+        ParticleEffects.scorePopup(this, powerUp.x, powerUp.y, 50);
         
         powerUp.destroy();
         this.score += 50;
@@ -1502,6 +1522,12 @@ export default class GameScene extends Phaser.Scene {
     collectCoin(player, coin) {
         // Stop all tweens on the coin before collection
         this.tweens.killTweensOf(coin);
+        
+        // Add particle effects
+        ParticleEffects.coinCollect(this, coin.x, coin.y);
+        
+        // Add score popup
+        ParticleEffects.scorePopup(this, coin.x, coin.y, 10);
         
         // Coin collection animation - scale up and fade out
         this.tweens.add({
@@ -1852,6 +1878,10 @@ export default class GameScene extends Phaser.Scene {
         
         // If invincible, destroy enemy
         if (this.isInvincible) {
+            // Add particle effects
+            ParticleEffects.enemyDefeat(this, enemy.x, enemy.y);
+            ParticleEffects.scorePopup(this, enemy.x, enemy.y, 50);
+            
             enemy.destroy();
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
@@ -1870,6 +1900,12 @@ export default class GameScene extends Phaser.Scene {
         if (isPlayerAbove && isMovingDown) {
             // Successfully jumped on enemy - kill enemy without taking damage
             player.body.setVelocityY(-300);
+            
+            // Add particle effects and screen shake
+            ParticleEffects.enemyDefeat(this, enemy.x, enemy.y);
+            ParticleEffects.scorePopup(this, enemy.x, enemy.y, 50);
+            ParticleEffects.screenShake(this, 3, 150);
+            
             enemy.destroy();
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
@@ -1877,6 +1913,9 @@ export default class GameScene extends Phaser.Scene {
         } else {
             // Player hit from side - take damage or die
             if (this.isPoweredUp) {
+                // Add screen shake for damage
+                ParticleEffects.screenShake(this, 5, 200);
+                
                 // Lose power-up instead of dying
                 if (this.hasFirePower) {
                     this.hasFirePower = false;
@@ -1914,6 +1953,9 @@ export default class GameScene extends Phaser.Scene {
                 // Game over - play death animation
                 this.gameOver = true;
                 this.physics.pause();
+                
+                // Add screen shake for death
+                ParticleEffects.screenShake(this, 8, 300);
                 
                 // Death animation - Mario spins and falls
                 this.tweens.add({
@@ -2006,6 +2048,11 @@ export default class GameScene extends Phaser.Scene {
     }
     
     fireballHitEnemy(fireball, enemy) {
+        // Add particle effects
+        ParticleEffects.fireballImpact(this, fireball.x, fireball.y);
+        ParticleEffects.enemyDefeat(this, enemy.x, enemy.y);
+        ParticleEffects.scorePopup(this, enemy.x, enemy.y, 50);
+        
         // Stop animations
         const tweenTargets = [fireball];
         if (fireball.innerCircle && fireball.innerCircle.active) {
@@ -2026,6 +2073,9 @@ export default class GameScene extends Phaser.Scene {
     }
     
     hitPlatformWithFireball(fireball, platform) {
+        // Add particle effect
+        ParticleEffects.fireballImpact(this, fireball.x, fireball.y);
+        
         // Stop animations
         const tweenTargets = [fireball];
         if (fireball.innerCircle && fireball.innerCircle.active) {
@@ -2153,6 +2203,14 @@ export default class GameScene extends Phaser.Scene {
 
     update() {
         if (this.gameOver || this.levelComplete) return;
+        
+        // Add star trail effect for invincible players
+        if (this.isInvincible && this.player && Math.random() < 0.3) {
+            ParticleEffects.starTrail(this, this.player.x, this.player.y);
+        }
+        if (this.isInvincible2 && this.player2 && Math.random() < 0.3) {
+            ParticleEffects.starTrail(this, this.player2.x, this.player2.y);
+        }
 
         // Update camera in 2-player mode to keep both players on screen
         if (this.gameMode === 2 && this.player && this.player2) {
