@@ -8,6 +8,9 @@ export default class StartScene extends Phaser.Scene {
     create() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
+        
+        // Hide fire button when returning to start screen
+        this.game.events.emit('hasFirePower', false);
 
         // Title
         const title = this.add.text(width / 2, height / 3, 'MARIO GAME', {
