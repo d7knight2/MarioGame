@@ -49,6 +49,7 @@ export default class GameScene extends Phaser.Scene {
         this.player2Dead = false;
         this.revivalTimer = null;
         this.revivalCountdownText = null;
+        this.revivalCountdownInterval = null;
         this.REVIVAL_DELAY_MS = 30000; // 30 seconds
     }
 
@@ -2048,10 +2049,15 @@ export default class GameScene extends Phaser.Scene {
         player.setVisible(false);
         player.body.enable = false;
         
-        // Cancel any existing revival timer
+        // Cancel any existing revival timers
         if (this.revivalTimer) {
             this.revivalTimer.remove();
             this.revivalTimer = null;
+        }
+        
+        if (this.revivalCountdownInterval) {
+            this.revivalCountdownInterval.remove();
+            this.revivalCountdownInterval = null;
         }
         
         // Show revival countdown text
@@ -2081,7 +2087,7 @@ export default class GameScene extends Phaser.Scene {
         
         // Start countdown timer
         let timeLeft = 30;
-        const countdownInterval = this.time.addEvent({
+        this.revivalCountdownInterval = this.time.addEvent({
             delay: 1000,
             callback: () => {
                 timeLeft--;
@@ -2099,10 +2105,15 @@ export default class GameScene extends Phaser.Scene {
     }
     
     revivePlayer(player, playerNumber) {
-        // Check if the other player is still alive
+        // Check if both players are dead (if other player also died during the revival timer)
         const otherPlayerDead = playerNumber === 1 ? this.player2Dead : this.player1Dead;
         if (otherPlayerDead) {
-            // Other player died too, don't revive
+            // Both players are dead, don't revive - game should end
+            return;
+        }
+        
+        // Check if game is already over or level is complete
+        if (this.gameOver || this.levelComplete) {
             return;
         }
         
@@ -2131,11 +2142,16 @@ export default class GameScene extends Phaser.Scene {
         
         // Get the alive player's position for reference
         const alivePlayer = playerNumber === 1 ? this.player2 : this.player;
-        const spawnX = alivePlayer.x;
-        const spawnY = alivePlayer.y;
         
-        // Position the revived player near the alive player
-        player.setPosition(spawnX + 50, spawnY);
+        // Safety check - if alive player doesn't exist, use default spawn position
+        if (!alivePlayer) {
+            console.warn('Revival: Alive player not found, using default position');
+            player.setPosition(150, 450);
+        } else {
+            // Position the revived player near the alive player
+            player.setPosition(alivePlayer.x + 50, alivePlayer.y);
+        }
+        
         player.setVisible(true);
         player.body.enable = true;
         player.setAlpha(0);
