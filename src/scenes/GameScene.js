@@ -656,7 +656,7 @@ export default class GameScene extends Phaser.Scene {
             // Smooth spinning animation with bounce effect
             this.tweens.add({
                 targets: coinContainer,
-                scaleX: 0.3,
+                scaleX: 0.4,
                 duration: 500,
                 yoyo: true,
                 repeat: -1,
