@@ -706,6 +706,14 @@ export default class GameScene extends Phaser.Scene {
                 repeat: -1,
                 ease: 'Sine.easeInOut'
             });
+            this.tweens.add({
+                targets: coin,
+                y: pos.y - 5,
+                duration: 600,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
         });
     }
 
