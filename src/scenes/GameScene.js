@@ -259,19 +259,25 @@ export default class GameScene extends Phaser.Scene {
         let blockPositions;
         
         if (currentLevel === 1) {
+            // Boxes centered on platforms above where Mario can jump
+            // Platform centers: (300+75=375, 480), (550+75=625, 420), (150+75=225, 380)
+            // (900+100=1000, 450), (1200+75=1275, 400), (1800+75=1875, 420), (2300+75=2375, 450)
             blockPositions = [
-                { x: 250, y: 440, type: 'mushroom' },      // Reachable from ground
-                { x: 600, y: 380, type: 'mushroom' },      // Reachable from platform at 420
-                { x: 1150, y: 360, type: 'flower' },       // Reachable from platform at 400
-                { x: 1850, y: 380, type: 'star' },         // Reachable from platform at 420
-                { x: 2350, y: 410, type: 'mushroom' }      // Reachable from platform at 450
+                { x: 375, y: 380, type: 'mushroom' },      // Centered above platform at (300, 480)
+                { x: 625, y: 320, type: 'mushroom' },      // Centered above platform at (550, 420)
+                { x: 1275, y: 300, type: 'flower' },       // Centered above platform at (1200, 400)
+                { x: 1875, y: 320, type: 'star' },         // Centered above platform at (1800, 420)
+                { x: 2375, y: 350, type: 'mushroom' }      // Centered above platform at (2300, 450)
             ];
         } else {
+            // Level 2 boxes centered on platforms
+            // Platform centers: (200+60=260, 500), (380+60=440, 450), (560+60=620, 400)
+            // (850+50=900, 480), (1050+50=1100, 450), (1750+60=1810, 480), (2400+60=2460, 460)
             blockPositions = [
-                { x: 420, y: 410, type: 'mushroom' },      // Reachable from platform at 450
-                { x: 1000, y: 410, type: 'flower' },       // Reachable from platform at 450
-                { x: 1700, y: 440, type: 'star' },         // Reachable from platform at 480
-                { x: 2350, y: 420, type: 'mushroom' }      // Reachable from platform at 460
+                { x: 440, y: 350, type: 'mushroom' },      // Centered above platform at (380, 450)
+                { x: 1100, y: 350, type: 'flower' },       // Centered above platform at (1050, 450)
+                { x: 1810, y: 380, type: 'star' },         // Centered above platform at (1750, 480)
+                { x: 2460, y: 360, type: 'mushroom' }      // Centered above platform at (2400, 460)
             ];
         }
         
@@ -446,17 +452,23 @@ export default class GameScene extends Phaser.Scene {
         }
 
         coinPositions.forEach(pos => {
-            // Larger coins (16px radius instead of 12px)
-            const coin = this.add.circle(pos.x, pos.y, 16, 0xffff00);
-            const coinInner = this.add.circle(pos.x, pos.y, 12, 0xffcc00);
+            // Create single coin with gradient-like effect using graphics
+            const graphics = this.add.graphics();
+            graphics.fillStyle(0xffff00, 1);
+            graphics.fillCircle(0, 0, 16);
+            graphics.fillStyle(0xffcc00, 1);
+            graphics.fillCircle(0, 0, 12);
+            graphics.generateTexture('coin_' + pos.x + '_' + pos.y, 32, 32);
+            graphics.destroy();
+            
+            const coin = this.add.image(pos.x, pos.y, 'coin_' + pos.x + '_' + pos.y);
             this.physics.add.existing(coin);
             coin.body.setAllowGravity(false);
-            coin.innerCircle = coinInner;
             this.coins.add(coin);
             
             // Add rotating/spinning animation
             this.tweens.add({
-                targets: [coin, coinInner],
+                targets: coin,
                 scaleX: 0.2,
                 duration: 400,
                 yoyo: true,
@@ -861,9 +873,9 @@ export default class GameScene extends Phaser.Scene {
             block.questionMark.destroy();
         }
         
-        // Spawn power-up based on type
+        // Spawn power-up based on type - spawn at block position, will pop out
         const powerUpType = block.powerUpType;
-        this.spawnPowerUp(block.x, block.y - 50, powerUpType);
+        this.spawnPowerUp(block.x, block.y, powerUpType);
         
         // Block bump animation
         this.tweens.add({
@@ -920,12 +932,24 @@ export default class GameScene extends Phaser.Scene {
         powerUp.body.setBounce(0.5);
         powerUp.body.setCollideWorldBounds(true);
         
-        // Mushrooms and stars move
-        if (type === 'mushroom' || type === 'star') {
-            powerUp.body.setVelocityX(type === 'star' ? 150 : 100);
-        } else {
-            powerUp.body.setAllowGravity(false);
-        }
+        // All power-ups now fall with gravity enabled
+        // They pop out of the block with upward velocity, then fall and start moving
+        powerUp.body.setVelocityY(-150);  // Pop out upward
+        
+        // After popping out, give them horizontal movement after a delay
+        this.time.delayedCall(300, () => {
+            if (powerUp && powerUp.active) {
+                // Determine direction based on player position
+                const direction = this.player.x < powerUp.x ? -1 : 1;
+                // Slowly start moving in determined direction
+                if (type === 'mushroom' || type === 'star') {
+                    powerUp.body.setVelocityX(direction * (type === 'star' ? 100 : 80));
+                } else if (type === 'flower') {
+                    // Flowers move slower
+                    powerUp.body.setVelocityX(direction * 50);
+                }
+            }
+        });
         
         this.powerUps.add(powerUp);
     }
@@ -984,10 +1008,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     collectCoin(player, coin) {
-        // Destroy both the coin and its inner circle
-        if (coin.innerCircle) {
-            coin.innerCircle.destroy();
-        }
+        // Destroy the coin
         coin.destroy();
         this.score += 10;
         this.scoreText.setText('Score: ' + this.score);
