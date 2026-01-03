@@ -744,7 +744,6 @@ export default class GameScene extends Phaser.Scene {
                 { x: 2900, y: 430 }, { x: 2960, y: 430 }
             ];
         }
-        }
 
         coinPositions.forEach(pos => {
             // Create single coin with gradient-like effect using graphics
