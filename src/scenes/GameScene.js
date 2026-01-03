@@ -44,6 +44,12 @@ export default class GameScene extends Phaser.Scene {
         // Game stats tracking
         this.coinsCollected = 0;
         this.enemiesDefeated = 0;
+        // Multiplayer revival system
+        this.player1Dead = false;
+        this.player2Dead = false;
+        this.revivalTimer = null;
+        this.revivalCountdownText = null;
+        this.REVIVAL_DELAY_MS = 30000; // 30 seconds
     }
 
     create() {
@@ -1911,25 +1917,31 @@ export default class GameScene extends Phaser.Scene {
                     this.player.setAlpha(1);
                 });
             } else {
-                // Game over - play death animation
-                this.gameOver = true;
-                this.physics.pause();
-                
-                // Death animation - Mario spins and falls
-                this.tweens.add({
-                    targets: this.player,
-                    angle: 720,
-                    y: this.player.y - 100,
-                    alpha: 0,
-                    duration: 1000,
-                    ease: 'Cubic.easeIn',
-                    onComplete: () => {
-                        // Return to start screen after animation
-                        this.resetGameState();
-                        this.scene.start('StartScene');
-                        this.gameOver = false;
-                    }
-                });
+                // Player 1 dies
+                if (this.gameMode === 2 && this.player2 && !this.player2Dead) {
+                    // Multiplayer mode and player 2 is alive - mark player 1 as dead and start revival timer
+                    this.handlePlayerDeath(this.player, 1);
+                } else {
+                    // Single player mode or both players dead - game over
+                    this.gameOver = true;
+                    this.physics.pause();
+                    
+                    // Death animation - Mario spins and falls
+                    this.tweens.add({
+                        targets: this.player,
+                        angle: 720,
+                        y: this.player.y - 100,
+                        alpha: 0,
+                        duration: 1000,
+                        ease: 'Cubic.easeIn',
+                        onComplete: () => {
+                            // Return to start screen after animation
+                            this.resetGameState();
+                            this.scene.start('StartScene');
+                            this.gameOver = false;
+                        }
+                    });
+                }
             }
         }
     }
@@ -1995,13 +2007,256 @@ export default class GameScene extends Phaser.Scene {
                     this.player2.setAlpha(1);
                 });
             } else {
-                // Player 2 dies - just respawn them
-                this.player2.setPosition(150, 450);
-                this.player2.setAlpha(0.5);
-                this.time.delayedCall(1000, () => {
-                    this.player2.setAlpha(1);
-                });
+                // Player 2 dies
+                if (!this.player1Dead) {
+                    // Player 1 is alive - mark player 2 as dead and start revival timer
+                    this.handlePlayerDeath(this.player2, 2);
+                } else {
+                    // Both players dead - game over
+                    this.gameOver = true;
+                    this.physics.pause();
+                    
+                    // Death animation for player 2
+                    this.tweens.add({
+                        targets: this.player2,
+                        angle: 720,
+                        y: this.player2.y - 100,
+                        alpha: 0,
+                        duration: 1000,
+                        ease: 'Cubic.easeIn',
+                        onComplete: () => {
+                            // Return to start screen after animation
+                            this.resetGameState();
+                            this.scene.start('StartScene');
+                            this.gameOver = false;
+                        }
+                    });
+                }
             }
+        }
+    }
+    
+    handlePlayerDeath(player, playerNumber) {
+        // Mark player as dead
+        if (playerNumber === 1) {
+            this.player1Dead = true;
+        } else {
+            this.player2Dead = true;
+        }
+        
+        // Hide the dead player
+        player.setVisible(false);
+        player.body.enable = false;
+        
+        // Cancel any existing revival timer
+        if (this.revivalTimer) {
+            this.revivalTimer.remove();
+            this.revivalTimer = null;
+        }
+        
+        // Show revival countdown text
+        if (this.revivalCountdownText) {
+            this.revivalCountdownText.destroy();
+        }
+        
+        const playerName = playerNumber === 1 ? this.player1Name : this.player2Name;
+        this.revivalCountdownText = this.add.text(
+            this.cameras.main.centerX,
+            50,
+            `${playerName} will revive in 30s`,
+            {
+                fontSize: '24px',
+                fontFamily: 'Arial',
+                color: '#ff0000',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                padding: { x: 10, y: 5 }
+            }
+        );
+        this.revivalCountdownText.setOrigin(0.5);
+        this.revivalCountdownText.setScrollFactor(0);
+        this.revivalCountdownText.setDepth(1000);
+        
+        // Start countdown timer
+        let timeLeft = 30;
+        const countdownInterval = this.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                timeLeft--;
+                if (timeLeft > 0 && this.revivalCountdownText) {
+                    this.revivalCountdownText.setText(`${playerName} will revive in ${timeLeft}s`);
+                }
+            },
+            repeat: 29
+        });
+        
+        // Set revival timer for 30 seconds
+        this.revivalTimer = this.time.delayedCall(this.REVIVAL_DELAY_MS, () => {
+            this.revivePlayer(player, playerNumber);
+        });
+    }
+    
+    revivePlayer(player, playerNumber) {
+        // Check if the other player is still alive
+        const otherPlayerDead = playerNumber === 1 ? this.player2Dead : this.player1Dead;
+        if (otherPlayerDead) {
+            // Other player died too, don't revive
+            return;
+        }
+        
+        // Mark player as alive
+        if (playerNumber === 1) {
+            this.player1Dead = false;
+            // Reset power-up states to full health
+            this.isPoweredUp = true;
+            this.hasFirePower = false;
+            this.isInvincible = false;
+            if (this.invincibleTimer) {
+                this.invincibleTimer.remove();
+                this.invincibleTimer = null;
+            }
+        } else {
+            this.player2Dead = false;
+            // Reset power-up states to full health
+            this.isPoweredUp2 = true;
+            this.hasFirePower2 = false;
+            this.isInvincible2 = false;
+            if (this.invincibleTimer2) {
+                this.invincibleTimer2.remove();
+                this.invincibleTimer2 = null;
+            }
+        }
+        
+        // Get the alive player's position for reference
+        const alivePlayer = playerNumber === 1 ? this.player2 : this.player;
+        const spawnX = alivePlayer.x;
+        const spawnY = alivePlayer.y;
+        
+        // Position the revived player near the alive player
+        player.setPosition(spawnX + 50, spawnY);
+        player.setVisible(true);
+        player.body.enable = true;
+        player.setAlpha(0);
+        
+        // Apply powered-up scale (full health means Super form)
+        player.setScale(1.3);
+        player.body.setSize(36, 57);
+        player.body.setOffset(-18, -28);
+        
+        // Reset body color based on character
+        if (playerNumber === 1) {
+            const selectedCharacter = this.registry.get('selectedCharacter') || 'mario';
+            let bodyColor;
+            switch(selectedCharacter) {
+                case 'luigi':
+                    bodyColor = 0x00aa00;
+                    break;
+                case 'toad':
+                    bodyColor = 0xff69b4;
+                    break;
+                case 'mario':
+                default:
+                    bodyColor = 0xff0000;
+                    break;
+            }
+            if (player.body_part) {
+                player.body_part.setFillStyle(bodyColor);
+            }
+        } else {
+            // Player 2 is Luigi
+            if (player.body_part) {
+                player.body_part.setFillStyle(0x00ff00);
+            }
+        }
+        
+        // Revival animation - fade in with sparkle effect
+        this.tweens.add({
+            targets: player,
+            alpha: 1,
+            duration: 1000,
+            ease: 'Sine.easeIn'
+        });
+        
+        // Create sparkle/star particles around player
+        for (let i = 0; i < 12; i++) {
+            const angle = (Math.PI * 2 * i) / 12;
+            const distance = 50;
+            const starX = player.x + Math.cos(angle) * distance;
+            const starY = player.y + Math.sin(angle) * distance;
+            
+            const star = this.add.star(starX, starY, 5, 8, 4, 0xffff00);
+            star.setAlpha(0);
+            
+            this.tweens.add({
+                targets: star,
+                alpha: 1,
+                duration: 300,
+                yoyo: true,
+                onComplete: () => {
+                    star.destroy();
+                }
+            });
+            
+            this.tweens.add({
+                targets: star,
+                x: player.x,
+                y: player.y,
+                duration: 600,
+                ease: 'Sine.easeIn'
+            });
+        }
+        
+        // Show revival message
+        const playerName = playerNumber === 1 ? this.player1Name : this.player2Name;
+        const revivalText = this.add.text(
+            this.cameras.main.centerX,
+            this.cameras.main.centerY,
+            `${playerName} REVIVED!`,
+            {
+                fontSize: '48px',
+                fontFamily: 'Arial',
+                color: '#00ff00',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 6,
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                padding: { x: 20, y: 10 }
+            }
+        );
+        revivalText.setOrigin(0.5);
+        revivalText.setScrollFactor(0);
+        revivalText.setDepth(1000);
+        
+        // Fade out revival message
+        this.time.delayedCall(2000, () => {
+            this.tweens.add({
+                targets: revivalText,
+                alpha: 0,
+                duration: 500,
+                onComplete: () => {
+                    revivalText.destroy();
+                }
+            });
+        });
+        
+        // Remove countdown text
+        if (this.revivalCountdownText) {
+            this.revivalCountdownText.destroy();
+            this.revivalCountdownText = null;
+        }
+        
+        // Update power-up text
+        this.updatePowerUpText();
+        
+        // Store power-up state
+        if (playerNumber === 1) {
+            this.registry.set('isPoweredUp', this.isPoweredUp);
+            this.registry.set('hasFirePower', this.hasFirePower);
+        } else {
+            this.registry.set('isPoweredUp2', this.isPoweredUp2);
+            this.registry.set('hasFirePower2', this.hasFirePower2);
         }
     }
     
@@ -2156,59 +2411,71 @@ export default class GameScene extends Phaser.Scene {
 
         // Update camera in 2-player mode to keep both players on screen
         if (this.gameMode === 2 && this.player && this.player2) {
-            // Calculate the center point between both players
-            const centerX = (this.player.x + this.player2.x) / 2;
-            const centerY = (this.player.y + this.player2.y) / 2;
+            // Only consider visible (alive) players for camera positioning
+            const player1Visible = !this.player1Dead && this.player.visible;
+            const player2Visible = !this.player2Dead && this.player2.visible;
             
-            // Calculate the distance between players
-            const distanceX = Math.abs(this.player.x - this.player2.x);
-            
-            // Get camera width
-            const cameraWidth = this.cameras.main.width;
-            
-            // Set a minimum distance from edge (padding)
-            const edgePadding = 100;
-            
-            // Calculate the leftmost and rightmost player positions
-            const leftPlayerX = Math.min(this.player.x, this.player2.x);
-            const rightPlayerX = Math.max(this.player.x, this.player2.x);
-            
-            // Calculate desired camera position to keep both players visible
-            // The camera should be positioned so both players are within view
-            let targetCameraX = centerX;
-            
-            // Make sure both players are within camera bounds with padding
-            const minCameraX = rightPlayerX - cameraWidth + edgePadding;
-            const maxCameraX = leftPlayerX - edgePadding;
-            
-            // Clamp camera position to keep both players visible
-            if (targetCameraX < minCameraX) {
-                targetCameraX = minCameraX;
+            if (player1Visible && player2Visible) {
+                // Both players alive - center camera between them
+                const centerX = (this.player.x + this.player2.x) / 2;
+                const centerY = (this.player.y + this.player2.y) / 2;
+                
+                // Calculate the distance between players
+                const distanceX = Math.abs(this.player.x - this.player2.x);
+                
+                // Get camera width
+                const cameraWidth = this.cameras.main.width;
+                
+                // Set a minimum distance from edge (padding)
+                const edgePadding = 100;
+                
+                // Calculate the leftmost and rightmost player positions
+                const leftPlayerX = Math.min(this.player.x, this.player2.x);
+                const rightPlayerX = Math.max(this.player.x, this.player2.x);
+                
+                // Calculate desired camera position to keep both players visible
+                // The camera should be positioned so both players are within view
+                let targetCameraX = centerX;
+                
+                // Make sure both players are within camera bounds with padding
+                const minCameraX = rightPlayerX - cameraWidth + edgePadding;
+                const maxCameraX = leftPlayerX - edgePadding;
+                
+                // Clamp camera position to keep both players visible
+                if (targetCameraX < minCameraX) {
+                    targetCameraX = minCameraX;
+                }
+                if (targetCameraX > maxCameraX) {
+                    targetCameraX = maxCameraX;
+                }
+                
+                // Ensure camera doesn't go beyond world bounds
+                const cameraMinX = cameraWidth / 2;
+                const cameraMaxX = this.physics.world.bounds.width - cameraWidth / 2;
+                targetCameraX = Phaser.Math.Clamp(targetCameraX, cameraMinX, cameraMaxX);
+                
+                // Smoothly move camera to target position
+                const lerpFactor = 0.1;
+                this.cameras.main.scrollX = Phaser.Math.Linear(
+                    this.cameras.main.scrollX,
+                    targetCameraX - cameraWidth / 2,
+                    lerpFactor
+                );
+                
+                // Keep vertical centering simple - follow average Y position
+                const targetCameraY = centerY;
+                this.cameras.main.scrollY = Phaser.Math.Linear(
+                    this.cameras.main.scrollY,
+                    targetCameraY - this.cameras.main.height / 2,
+                    lerpFactor
+                );
+            } else if (player1Visible) {
+                // Only player 1 alive - follow player 1
+                this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+            } else if (player2Visible) {
+                // Only player 2 alive - follow player 2
+                this.cameras.main.startFollow(this.player2, true, 0.1, 0.1);
             }
-            if (targetCameraX > maxCameraX) {
-                targetCameraX = maxCameraX;
-            }
-            
-            // Ensure camera doesn't go beyond world bounds
-            const cameraMinX = cameraWidth / 2;
-            const cameraMaxX = this.physics.world.bounds.width - cameraWidth / 2;
-            targetCameraX = Phaser.Math.Clamp(targetCameraX, cameraMinX, cameraMaxX);
-            
-            // Smoothly move camera to target position
-            const lerpFactor = 0.1;
-            this.cameras.main.scrollX = Phaser.Math.Linear(
-                this.cameras.main.scrollX,
-                targetCameraX - cameraWidth / 2,
-                lerpFactor
-            );
-            
-            // Keep vertical centering simple - follow average Y position
-            const targetCameraY = centerY;
-            this.cameras.main.scrollY = Phaser.Math.Linear(
-                this.cameras.main.scrollY,
-                targetCameraY - this.cameras.main.height / 2,
-                lerpFactor
-            );
         }
 
         // Update enemy movement (bounce off platforms)
@@ -2285,83 +2552,89 @@ export default class GameScene extends Phaser.Scene {
 
         if (this.gameMode === 1) {
             // 1-Player mode: Player 1 uses Arrow keys or touch controls
-            const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
-            const scaleY = this.isPoweredUp ? 1.3 : 1;
-            
-            if (this.cursors.left.isDown || moveLeft) {
-                this.player.body.setVelocityX(-200);
-                this.player.setScale(-Math.abs(scaleX), scaleY);
-            } else if (this.cursors.right.isDown || moveRight) {
-                this.player.body.setVelocityX(200);
-                this.player.setScale(Math.abs(scaleX), scaleY);
-            } else {
-                this.player.body.setVelocityX(0);
-            }
+            if (!this.player1Dead) {
+                const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
+                const scaleY = this.isPoweredUp ? 1.3 : 1;
+                
+                if (this.cursors.left.isDown || moveLeft) {
+                    this.player.body.setVelocityX(-200);
+                    this.player.setScale(-Math.abs(scaleX), scaleY);
+                } else if (this.cursors.right.isDown || moveRight) {
+                    this.player.body.setVelocityX(200);
+                    this.player.setScale(Math.abs(scaleX), scaleY);
+                } else {
+                    this.player.body.setVelocityX(0);
+                }
 
-            // Jump - Up arrow or touch
-            if ((this.cursors.up.isDown || jumpPressed) && this.player.body.touching.down) {
-                this.player.body.setVelocityY(-400);
+                // Jump - Up arrow or touch
+                if ((this.cursors.up.isDown || jumpPressed) && this.player.body.touching.down) {
+                    this.player.body.setVelocityY(-400);
+                }
+                
+                // Fire - X key or touch
+                if (Phaser.Input.Keyboard.JustDown(this.fireKey) || (firePressed && !this.lastFirePressed)) {
+                    this.shootFireball();
+                }
+                this.lastFirePressed = firePressed;
             }
-            
-            // Fire - X key or touch
-            if (Phaser.Input.Keyboard.JustDown(this.fireKey) || (firePressed && !this.lastFirePressed)) {
-                this.shootFireball();
-            }
-            this.lastFirePressed = firePressed;
         } else {
             // 2-Player mode: Player 1 uses WASD, Player 2 uses Arrow keys or touch
-            const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
-            const scaleY = this.isPoweredUp ? 1.3 : 1;
-            
-            if (this.wasdKeys.left.isDown) {
-                this.player.body.setVelocityX(-200);
-                this.player.setScale(-Math.abs(scaleX), scaleY);
-            } else if (this.wasdKeys.right.isDown) {
-                this.player.body.setVelocityX(200);
-                this.player.setScale(Math.abs(scaleX), scaleY);
-            } else {
-                this.player.body.setVelocityX(0);
-            }
+            if (!this.player1Dead) {
+                const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
+                const scaleY = this.isPoweredUp ? 1.3 : 1;
+                
+                if (this.wasdKeys.left.isDown) {
+                    this.player.body.setVelocityX(-200);
+                    this.player.setScale(-Math.abs(scaleX), scaleY);
+                } else if (this.wasdKeys.right.isDown) {
+                    this.player.body.setVelocityX(200);
+                    this.player.setScale(Math.abs(scaleX), scaleY);
+                } else {
+                    this.player.body.setVelocityX(0);
+                }
 
-            // Jump - W key for player 1
-            if (this.wasdKeys.up.isDown && this.player.body.touching.down) {
-                this.player.body.setVelocityY(-400);
-            }
-            
-            // Fire - Shift key for player 1
-            if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
-                this.shootFireball();
+                // Jump - W key for player 1
+                if (this.wasdKeys.up.isDown && this.player.body.touching.down) {
+                    this.player.body.setVelocityY(-400);
+                }
+                
+                // Fire - Shift key for player 1
+                if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
+                    this.shootFireball();
+                }
             }
             
             // Player 2 movement - Arrow keys or touch
-            const scaleX2 = this.isPoweredUp2 ? (this.player2.scaleX < 0 ? -1.3 : 1.3) : 1;
-            const scaleY2 = this.isPoweredUp2 ? 1.3 : 1;
-            
-            if (this.cursors.left.isDown || moveLeft) {
-                this.player2.body.setVelocityX(-200);
-                this.player2.setScale(-Math.abs(scaleX2), scaleY2);
-            } else if (this.cursors.right.isDown || moveRight) {
-                this.player2.body.setVelocityX(200);
-                this.player2.setScale(Math.abs(scaleX2), scaleY2);
-            } else {
-                this.player2.body.setVelocityX(0);
-            }
+            if (!this.player2Dead) {
+                const scaleX2 = this.isPoweredUp2 ? (this.player2.scaleX < 0 ? -1.3 : 1.3) : 1;
+                const scaleY2 = this.isPoweredUp2 ? 1.3 : 1;
+                
+                if (this.cursors.left.isDown || moveLeft) {
+                    this.player2.body.setVelocityX(-200);
+                    this.player2.setScale(-Math.abs(scaleX2), scaleY2);
+                } else if (this.cursors.right.isDown || moveRight) {
+                    this.player2.body.setVelocityX(200);
+                    this.player2.setScale(Math.abs(scaleX2), scaleY2);
+                } else {
+                    this.player2.body.setVelocityX(0);
+                }
 
-            // Jump - Up arrow or touch for player 2
-            if ((this.cursors.up.isDown || jumpPressed) && this.player2.body.touching.down) {
-                this.player2.body.setVelocityY(-400);
+                // Jump - Up arrow or touch for player 2
+                if ((this.cursors.up.isDown || jumpPressed) && this.player2.body.touching.down) {
+                    this.player2.body.setVelocityY(-400);
+                }
+                
+                // Fire - X key or touch for player 2
+                if (Phaser.Input.Keyboard.JustDown(this.fireKey2) || (firePressed && !this.lastFirePressed)) {
+                    this.shootFireball2();
+                }
+                this.lastFirePressed = firePressed;
             }
-            
-            // Fire - X key or touch for player 2
-            if (Phaser.Input.Keyboard.JustDown(this.fireKey2) || (firePressed && !this.lastFirePressed)) {
-                this.shootFireball2();
-            }
-            this.lastFirePressed = firePressed;
         }
 
         // Check if player(s) fell off the world
-        if (this.player.y > this.cameras.main.height + this.FALL_OFF_THRESHOLD || 
-            (this.gameMode === 2 && this.player2 && this.player2.y > this.cameras.main.height + this.FALL_OFF_THRESHOLD)) {
+        if ((!this.player1Dead && this.player.y > this.cameras.main.height + this.FALL_OFF_THRESHOLD) || 
+            (this.gameMode === 2 && !this.player2Dead && this.player2 && this.player2.y > this.cameras.main.height + this.FALL_OFF_THRESHOLD)) {
             this.resetGameState();
             this.scene.restart();
         }
