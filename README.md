@@ -4,6 +4,9 @@ A mobile-friendly 2D Mario game built with Phaser 3, the industry-standard frame
 
 ## 🎮 Features
 
+- **Two-Player Cooperative Mode**: Play together with Louis (Mario) and Louisa (Luigi)!
+- **Power-Up System**: Collect mushrooms, fire flowers, and stars from ? boxes
+- **Multiple Levels**: Two challenging levels with unique layouts and a boss fight
 - **Mobile-First Design**: Fully responsive with touch controls optimized for mobile devices
 - **Cross-Platform**: Works on desktop (keyboard) and mobile (touch)
 - **Physics-Based Gameplay**: Realistic jumping and movement using Phaser's Arcade Physics
@@ -58,21 +61,37 @@ The `vercel.json` file is already configured with the correct build settings for
 
 ## 🎯 How to Play
 
-### Desktop Controls
-- **Arrow Left/Right**: Move Mario left and right
-- **Arrow Up**: Jump
+### Two-Player Cooperative Mode
+Play together with a friend! Both Louis (Mario) and Louisa (Luigi) can play simultaneously.
+
+**Player 1 - Louis (Mario):**
+- **W/A/S/D**: Move and jump
+- **Left Shift**: Shoot fireballs (when powered up with Fire Flower)
+
+**Player 2 - Louisa (Luigi):**
+- **Arrow Keys**: Move and jump
+- **X**: Shoot fireballs (when powered up with Fire Flower)
+
+### Desktop Controls (Single/Two Player)
 - **Space**: Start game / Restart after game over
 
 ### Mobile Controls
 - Use the on-screen touch buttons:
-  - **← →**: Move left and right
-  - **↑**: Jump
+  - **← →**: Move left and right (controls Player 2)
+  - **↑**: Jump (controls Player 2)
+  - **Fire**: Shoot fireballs (controls Player 2, appears when powered up)
 - Tap anywhere on the start screen to begin
 
 ### Gameplay
 - Collect yellow coins for points (+10 each)
+- Hit the **?** boxes from below to get power-ups:
+  - **Red Mushroom**: Grow bigger (Super Mario/Luigi)
+  - **Fire Flower**: Shoot fireballs (Fire Mario/Luigi)
+  - **Star**: Temporary invincibility
 - Jump on enemies from above to defeat them (+50 points)
-- Avoid touching enemies from the side
+- Avoid touching enemies from the side (you'll lose your power-up or die)
+- Both players can collect power-ups independently
+- Both players can defeat enemies and the boss
 - Don't fall off the platforms!
 
 ## 🛠️ Technology Stack
