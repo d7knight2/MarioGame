@@ -1206,6 +1206,9 @@ export default class GameScene extends Phaser.Scene {
     }
     
     fireballHitEnemy(fireball, enemy) {
+        if (fireball.innerCircle) {
+            fireball.innerCircle.destroy();
+        }
         fireball.destroy();
         enemy.destroy();
         this.score += 50;
@@ -1213,6 +1216,9 @@ export default class GameScene extends Phaser.Scene {
     }
     
     hitPlatformWithFireball(fireball, platform) {
+        if (fireball.innerCircle) {
+            fireball.innerCircle.destroy();
+        }
         fireball.destroy();
     }
     
