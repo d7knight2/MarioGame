@@ -51,7 +51,9 @@ export default class GameScene extends Phaser.Scene {
         const height = this.cameras.main.height;
         
         // Get game mode and player names from registry
-        this.gameMode = this.registry.get('gameMode') || 1;
+        // gameMode can be either string ('single', 'multiplayer') or number (1, 2)
+        const gameModeValue = this.registry.get('gameMode') || 1;
+        this.gameMode = (gameModeValue === 'single' || gameModeValue === 1) ? 1 : 2;
         this.player1Name = this.registry.get('player1Name') || 'Player 1';
         this.player2Name = this.registry.get('player2Name') || 'Player 2';
         
