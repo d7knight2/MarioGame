@@ -66,8 +66,11 @@ export default class GameScene extends Phaser.Scene {
             this.hasFirePower2 = this.registry.get('hasFirePower2') || false;
         }
         
-        // Emit fire power state for UI
-        this.game.events.emit('hasFirePower', this.hasFirePower || (this.gameMode === 2 && this.hasFirePower2));
+        // Emit fire power state for UI (touch controls)
+        // In 1-player mode, show button when player 1 has fire power
+        // In 2-player mode, show button when player 2 has fire power (player 2 uses touch controls)
+        const shouldShowFireButton = this.gameMode === 1 ? this.hasFirePower : this.hasFirePower2;
+        this.game.events.emit('hasFirePower', shouldShowFireButton);
         
         // Extend world bounds for side-scrolling
         this.physics.world.setBounds(0, 0, 3200, height);
@@ -1246,8 +1249,10 @@ export default class GameScene extends Phaser.Scene {
                 this.player.body_part.setFillStyle(0xffffff);
             }
             this.updatePowerUpText();
-            // Emit fire power state for UI
-            this.game.events.emit('hasFirePower', true);
+            // Emit fire power state for UI (only in 1-player mode, player 1 uses touch controls)
+            if (this.gameMode === 1) {
+                this.game.events.emit('hasFirePower', true);
+            }
         } else if (type === 'star') {
             // Invincibility
             this.isInvincible = true;
@@ -1305,8 +1310,8 @@ export default class GameScene extends Phaser.Scene {
                 this.player2.body_part.setFillStyle(0xffffff);
             }
             this.updatePowerUpText();
-            // Emit fire power state for UI
-            this.game.events.emit('hasFirePower', this.hasFirePower || this.hasFirePower2);
+            // Emit fire power state for UI (in 2-player mode, player 2 uses touch controls)
+            this.game.events.emit('hasFirePower', true);
         } else if (type === 'star') {
             // Invincibility for player 2
             this.isInvincible2 = true;
@@ -1503,8 +1508,10 @@ export default class GameScene extends Phaser.Scene {
                     if (this.player.body_part) {
                         this.player.body_part.setFillStyle(0xff0000);
                     }
-                    // Emit fire power state for UI
-                    this.game.events.emit('hasFirePower', false);
+                    // Emit fire power state for UI (only in 1-player mode)
+                    if (this.gameMode === 1) {
+                        this.game.events.emit('hasFirePower', false);
+                    }
                 } else {
                     this.isPoweredUp = false;
                     this.player.setScale(1);
@@ -1579,8 +1586,8 @@ export default class GameScene extends Phaser.Scene {
                     if (this.player2.body_part) {
                         this.player2.body_part.setFillStyle(0x00ff00);
                     }
-                    // Emit fire power state for UI (check both players)
-                    this.game.events.emit('hasFirePower', this.hasFirePower || this.hasFirePower2);
+                    // Emit fire power state for UI (in 2-player mode, player 2 uses touch controls)
+                    this.game.events.emit('hasFirePower', false);
                 } else {
                     this.isPoweredUp2 = false;
                     this.player2.setScale(1);
