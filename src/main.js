@@ -24,7 +24,7 @@ const config = {
             debug: false
         }
     },
-    scene: [MenuScene, CharacterSelectScene, OnlineMultiplayerScene, StartScene, GameScene]
+    scene: [StartScene, MenuScene, CharacterSelectScene, OnlineMultiplayerScene, GameScene]
 };
 
 const game = new Phaser.Game(config);
