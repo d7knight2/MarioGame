@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
 
+// Game constants
+const POWER_UP_SPAWN_DELAY_MS = 300; // Delay before power-ups start moving horizontally
+
 export default class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
@@ -23,39 +26,31 @@ export default class GameScene extends Phaser.Scene {
         this.boss = null;
         this.bossHealth = 0;
         this.bossHealthBar = null;
-        // Player 1 (Louis/Mario) power-up states
+        this.gameMode = 1; // 1 or 2 player mode
+        this.player1Name = 'Player 1';
+        this.player2Name = 'Player 2';
+        // Player 1 power-up states
         this.isPoweredUp = false;
         this.hasFirePower = false;
         this.isInvincible = false;
         this.invincibleTimer = null;
-        // Player 2 (Louisa/Luigi) power-up states
+        // Player 2 power-up states
         this.isPoweredUp2 = false;
         this.hasFirePower2 = false;
         this.isInvincible2 = false;
         this.invincibleTimer2 = null;
+        // Constants
+        this.FALL_OFF_THRESHOLD = 50;
     }
 
     create() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
-        // Get game mode - support both formats (number from old StartScene, string from new MenuScene)
-        const gameModeRaw = this.registry.get('gameMode') || 'local';
-        if (typeof gameModeRaw === 'number') {
-            // Old format: 1 or 2
-            this.gameMode = gameModeRaw === 1 ? 'single' : 'local';
-        } else {
-            // New format: 'single', 'local', 'online'
-            this.gameMode = gameModeRaw;
-        }
-        
-        // Get player names (from old StartScene) or use defaults
+        // Get game mode and player names from registry
+        this.gameMode = this.registry.get('gameMode') || 1;
         this.player1Name = this.registry.get('player1Name') || 'Player 1';
         this.player2Name = this.registry.get('player2Name') || 'Player 2';
-        
-        // Get character selections (from new MenuScene) or use defaults
-        this.player1Character = this.registry.get('player1Character') || 'mario';
-        this.player2Character = this.registry.get('player2Character') || 'luigi';
         
         // Get current level and score from registry
         const currentLevel = this.registry.get('currentLevel') || 1;
@@ -65,12 +60,14 @@ export default class GameScene extends Phaser.Scene {
         this.isPoweredUp = this.registry.get('isPoweredUp') || false;
         this.hasFirePower = this.registry.get('hasFirePower') || false;
         
-        // Restore power-up state for player 2
-        this.isPoweredUp2 = this.registry.get('isPoweredUp2') || false;
-        this.hasFirePower2 = this.registry.get('hasFirePower2') || false;
+        // Restore power-up state for player 2 (only if 2-player mode)
+        if (this.gameMode === 2) {
+            this.isPoweredUp2 = this.registry.get('isPoweredUp2') || false;
+            this.hasFirePower2 = this.registry.get('hasFirePower2') || false;
+        }
         
         // Emit fire power state for UI
-        this.game.events.emit('hasFirePower', this.hasFirePower || this.hasFirePower2);
+        this.game.events.emit('hasFirePower', this.hasFirePower || (this.gameMode === 2 && this.hasFirePower2));
         
         // Extend world bounds for side-scrolling
         this.physics.world.setBounds(0, 0, 3200, height);
@@ -95,12 +92,12 @@ export default class GameScene extends Phaser.Scene {
         // Create player 1
         this.createPlayer();
         
-        // Create player 2 only if not in single player mode
-        if (this.gameMode !== 'single') {
+        // Create player 2 (only in 2-player mode)
+        if (this.gameMode === 2) {
             this.createPlayer2();
         }
         
-        // Camera follows player 1 (or both in multiplayer)
+        // Camera follows player 1 (or centered between both in 2-player mode)
         this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
         
         // Create power-up blocks
@@ -168,61 +165,77 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.collider(this.powerUps, this.platforms);
         this.physics.add.collider(this.fireballs, this.platforms, this.hitPlatformWithFireball, null, this);
         
-        // Power-up block collision for player 1
-        this.physics.add.collider(this.player, this.powerUpBlocks, this.hitPowerUpBlock, null, this);
-        
-        // Overlap for collecting coins (player 1)
-        this.physics.add.overlap(this.player, this.coins, this.collectCoin, null, this);
-        
-        // Overlap for collecting power-ups (player 1)
-        this.physics.add.overlap(this.player, this.powerUps, this.collectPowerUp, null, this);
-        
-        // Collision with enemies (player 1)
-        this.physics.add.collider(this.player, this.enemies, this.hitEnemy, null, this);
-        
-        // Fireball hits enemy (player 1)
-        this.physics.add.overlap(this.fireballs, this.enemies, this.fireballHitEnemy, null, this);
-        
-        // Colliders for Player 2 (only if multiplayer)
-        if (this.gameMode !== 'single' && this.player2) {
+        // Colliders for Player 2 (only in 2-player mode)
+        if (this.gameMode === 2) {
             this.physics.add.collider(this.player2, this.platforms);
             this.physics.add.collider(this.fireballs2, this.platforms, this.hitPlatformWithFireball, null, this);
+        }
+        
+        // Power-up block collision
+        this.physics.add.collider(this.player, this.powerUpBlocks, this.hitPowerUpBlock, null, this);
+        if (this.gameMode === 2) {
             this.physics.add.collider(this.player2, this.powerUpBlocks, this.hitPowerUpBlock2, null, this);
+        }
+        
+        // Overlap for collecting coins
+        this.physics.add.overlap(this.player, this.coins, this.collectCoin, null, this);
+        if (this.gameMode === 2) {
             this.physics.add.overlap(this.player2, this.coins, this.collectCoin, null, this);
+        }
+        
+        // Overlap for collecting power-ups
+        this.physics.add.overlap(this.player, this.powerUps, this.collectPowerUp, null, this);
+        if (this.gameMode === 2) {
             this.physics.add.overlap(this.player2, this.powerUps, this.collectPowerUp2, null, this);
+        }
+        
+        // Collision with enemies
+        this.physics.add.collider(this.player, this.enemies, this.hitEnemy, null, this);
+        if (this.gameMode === 2) {
             this.physics.add.collider(this.player2, this.enemies, this.hitEnemy2, null, this);
+        }
+        
+        // Fireball hits enemy
+        this.physics.add.overlap(this.fireballs, this.enemies, this.fireballHitEnemy, null, this);
+        if (this.gameMode === 2) {
             this.physics.add.overlap(this.fireballs2, this.enemies, this.fireballHitEnemy, null, this);
         }
         
         // Overlap with finish flag (if not boss level)
         if (currentLevel !== 2) {
             this.physics.add.overlap(this.player, this.finishFlag, this.reachFlag, null, this);
-            if (this.gameMode !== 'single' && this.player2) {
+            if (this.gameMode === 2) {
                 this.physics.add.overlap(this.player2, this.finishFlag, this.reachFlag, null, this);
             }
         } else if (this.boss) {
             this.physics.add.collider(this.boss, this.platforms);  // Boss collides with platforms
             this.physics.add.collider(this.player, this.boss, this.hitBoss, null, this);
-            this.physics.add.overlap(this.fireballs, this.boss, this.fireballHitBoss, null, this);
-            
-            if (this.gameMode !== 'single' && this.player2) {
+            if (this.gameMode === 2) {
                 this.physics.add.collider(this.player2, this.boss, this.hitBoss2, null, this);
+            }
+            this.physics.add.overlap(this.fireballs, this.boss, this.fireballHitBoss, null, this);
+            if (this.gameMode === 2) {
                 this.physics.add.overlap(this.fireballs2, this.boss, this.fireballHitBoss, null, this);
             }
         }
 
         // Keyboard controls
-        // Player 1 - WASD keys
-        this.wasdKeys = {
-            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
-        };
-        this.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
-        
-        // Player 2 - Arrow keys (only if multiplayer)
-        if (this.gameMode !== 'single') {
+        // Player 1 - WASD keys (or Arrow keys in 1-player mode)
+        if (this.gameMode === 1) {
+            // In 1-player mode, player 1 uses Arrow keys
+            this.cursors = this.input.keyboard.createCursorKeys();
+            this.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+        } else {
+            // In 2-player mode, player 1 uses WASD
+            this.wasdKeys = {
+                up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+                left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+                down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+                right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+            };
+            this.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+            
+            // Player 2 uses Arrow keys
             this.cursors = this.input.keyboard.createCursorKeys();
             this.fireKey2 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
         }
@@ -325,19 +338,25 @@ export default class GameScene extends Phaser.Scene {
         let blockPositions;
         
         if (currentLevel === 1) {
+            // Boxes centered on platforms above where Mario can jump
+            // Platform centers: (300+75=375, 480), (550+75=625, 420), (150+75=225, 380)
+            // (900+100=1000, 450), (1200+75=1275, 400), (1800+75=1875, 420), (2300+75=2375, 450)
             blockPositions = [
-                { x: 250, y: 440, type: 'mushroom' },      // Reachable from ground
-                { x: 600, y: 380, type: 'mushroom' },      // Reachable from platform at 420
-                { x: 1150, y: 360, type: 'flower' },       // Reachable from platform at 400
-                { x: 1850, y: 380, type: 'star' },         // Reachable from platform at 420
-                { x: 2350, y: 410, type: 'mushroom' }      // Reachable from platform at 450
+                { x: 375, y: 380, type: 'mushroom' },      // Centered above platform at (300, 480)
+                { x: 625, y: 320, type: 'mushroom' },      // Centered above platform at (550, 420)
+                { x: 1275, y: 300, type: 'flower' },       // Centered above platform at (1200, 400)
+                { x: 1875, y: 320, type: 'star' },         // Centered above platform at (1800, 420)
+                { x: 2375, y: 350, type: 'mushroom' }      // Centered above platform at (2300, 450)
             ];
         } else {
+            // Level 2 boxes centered on platforms
+            // Platform centers: (200+60=260, 500), (380+60=440, 450), (560+60=620, 400)
+            // (850+50=900, 480), (1050+50=1100, 450), (1750+60=1810, 480), (2400+60=2460, 460)
             blockPositions = [
-                { x: 420, y: 410, type: 'mushroom' },      // Reachable from platform at 450
-                { x: 1000, y: 410, type: 'flower' },       // Reachable from platform at 450
-                { x: 1700, y: 440, type: 'star' },         // Reachable from platform at 480
-                { x: 2350, y: 420, type: 'mushroom' }      // Reachable from platform at 460
+                { x: 440, y: 350, type: 'mushroom' },      // Centered above platform at (380, 450)
+                { x: 1100, y: 350, type: 'flower' },       // Centered above platform at (1050, 450)
+                { x: 1810, y: 380, type: 'star' },         // Centered above platform at (1750, 480)
+                { x: 2460, y: 360, type: 'mushroom' }      // Centered above platform at (2400, 460)
             ];
         }
         
@@ -371,35 +390,27 @@ export default class GameScene extends Phaser.Scene {
     
     updatePowerUpText() {
         let text = '';
-        
-        // Get character display based on selection
-        const char1Name = this.player1Character === 'mario' ? 'Mario' : 'Luigi';
-        const char2Name = this.player2Character === 'mario' ? 'Mario' : 'Luigi';
-        
-        // Player 1 status - show name and character
-        const p1Display = `${this.player1Name} (${char1Name})`;
+        // Player 1 status
         if (this.hasFirePower) {
-            text = `${p1Display}: Fire Power`;
+            text = `${this.player1Name}: Fire Power`;
         } else if (this.isPoweredUp) {
-            text = `${p1Display}: Super`;
+            text = `${this.player1Name}: Super`;
         } else {
-            text = `${p1Display}`;
+            text = `${this.player1Name}: Normal`;
         }
         if (this.isInvincible) {
             text += ' ⭐';
         }
         
-        // Player 2 status (only in multiplayer)
-        if (this.gameMode !== 'single' && this.player2) {
-            const p2Display = `${this.player2Name} (${char2Name})`;
-            
+        // Player 2 status (only in 2-player mode)
+        if (this.gameMode === 2) {
             text += ' | ';
             if (this.hasFirePower2) {
-                text += `${p2Display}: Fire Power`;
+                text += `${this.player2Name}: Fire Power`;
             } else if (this.isPoweredUp2) {
-                text += `${p2Display}: Super`;
+                text += `${this.player2Name}: Super`;
             } else {
-                text += `${p2Display}`;
+                text += `${this.player2Name}: Normal`;
             }
             if (this.isInvincible2) {
                 text += ' ⭐';
@@ -411,24 +422,50 @@ export default class GameScene extends Phaser.Scene {
     
     resetGameState() {
         // Helper method to reset all game state
+        const gameMode = this.registry.get('gameMode') || 1;
+        const player1Name = this.registry.get('player1Name') || 'Player 1';
+        const player2Name = this.registry.get('player2Name') || 'Player 2';
+        
         this.registry.set('currentLevel', 1);
         this.registry.set('score', 0);
         this.registry.set('isPoweredUp', false);
         this.registry.set('hasFirePower', false);
         this.registry.set('isPoweredUp2', false);
         this.registry.set('hasFirePower2', false);
+        
+        // Restore game mode and player names
+        this.registry.set('gameMode', gameMode);
+        this.registry.set('player1Name', player1Name);
+        this.registry.set('player2Name', player2Name);
     }
 
     createPlayer() {
-        // Create character container based on selection
+        // Get selected character from registry
+        const selectedCharacter = this.registry.get('selectedCharacter') || 'mario';
+        
+        // Create character container
         this.player = this.add.container(100, 450);
         
-        // Determine colors based on character selection
-        const isMario = this.player1Character === 'mario';
-        const bodyColor = isMario ? 0xff0000 : 0x00ff00; // Red for Mario, Green for Luigi
-        const hatColor = isMario ? 0xff0000 : 0x00ff00;
-        const hatBrimColor = isMario ? 0xcc0000 : 0x00cc00;
-        const logoText = isMario ? 'M' : 'L';
+        // Character-specific colors and attributes
+        let bodyColor, hatColor, logoText;
+        switch(selectedCharacter) {
+            case 'luigi':
+                bodyColor = 0x00aa00; // Green
+                hatColor = 0x00aa00;
+                logoText = 'L';
+                break;
+            case 'toad':
+                bodyColor = 0xff69b4; // Pink
+                hatColor = 0xff69b4;
+                logoText = 'T';
+                break;
+            case 'mario':
+            default:
+                bodyColor = 0xff0000; // Red
+                hatColor = 0xff0000;
+                logoText = 'M';
+                break;
+        }
         
         // Body parts
         const body = this.add.rectangle(0, 4, 28, 32, bodyColor);
@@ -438,6 +475,8 @@ export default class GameScene extends Phaser.Scene {
         
         // Hat
         const hat = this.add.ellipse(0, -20, 32, 16, hatColor);
+        // Calculate darker shade for hat brim safely
+        const hatBrimColor = Math.max(0, hatColor - 0x330000);
         const hatBrim = this.add.rectangle(0, -14, 32, 6, hatBrimColor);
         
         // Overalls (blue)
@@ -453,8 +492,11 @@ export default class GameScene extends Phaser.Scene {
         const eye1 = this.add.circle(-4, -12, 3, 0x000000);
         const eye2 = this.add.circle(4, -12, 3, 0x000000);
         
-        // Mustache
-        const mustache = this.add.rectangle(0, -6, 16, 4, 0x654321);
+        // Mustache (Toad doesn't have mustache)
+        let mustache = null;
+        if (selectedCharacter !== 'toad') {
+            mustache = this.add.rectangle(0, -6, 16, 4, 0x654321);
+        }
         
         // Shoes (brown)
         const shoe1 = this.add.ellipse(-8, 20, 10, 6, 0x654321);
@@ -470,7 +512,9 @@ export default class GameScene extends Phaser.Scene {
         logo.setOrigin(0.5);
         
         // Add all parts to container
-        this.player.add([shoe1, shoe2, overalls, strap1, strap2, button1, button2, body, head, mustache, hatBrim, hat, eye1, eye2, logo]);
+        const parts = [shoe1, shoe2, overalls, strap1, strap2, button1, button2, body, head, hatBrim, hat, eye1, eye2, logo];
+        if (mustache) parts.push(mustache);
+        this.player.add(parts);
         
         // Add physics to container
         this.physics.add.existing(this.player);
@@ -500,25 +544,19 @@ export default class GameScene extends Phaser.Scene {
     }
 
     createPlayer2() {
-        // Create character container based on selection
+        // Create Luigi character container (Louisa)
         this.player2 = this.add.container(150, 450);
         
-        // Determine colors based on character selection
-        const isMario = this.player2Character === 'mario';
-        const bodyColor = isMario ? 0xff0000 : 0x00ff00; // Red for Mario, Green for Luigi
-        const hatColor = isMario ? 0xff0000 : 0x00ff00;
-        const hatBrimColor = isMario ? 0xcc0000 : 0x00cc00;
-        const logoText = isMario ? 'M' : 'L';
-        
-        // Body parts
-        const body = this.add.rectangle(0, 4, 28, 32, bodyColor);
+        // Luigi body parts - Green theme
+        // Body (green shirt)
+        const body = this.add.rectangle(0, 4, 28, 32, 0x00ff00);
         
         // Head (skin color)
         const head = this.add.circle(0, -12, 14, 0xffdbac);
         
-        // Hat
-        const hat = this.add.ellipse(0, -20, 32, 16, hatColor);
-        const hatBrim = this.add.rectangle(0, -14, 32, 6, hatBrimColor);
+        // Hat (green cap)
+        const hat = this.add.ellipse(0, -20, 32, 16, 0x00ff00);
+        const hatBrim = this.add.rectangle(0, -14, 32, 6, 0x00cc00);
         
         // Overalls (blue)
         const overalls = this.add.rectangle(0, 12, 24, 16, 0x0066ff);
@@ -540,8 +578,8 @@ export default class GameScene extends Phaser.Scene {
         const shoe1 = this.add.ellipse(-8, 20, 10, 6, 0x654321);
         const shoe2 = this.add.ellipse(8, 20, 10, 6, 0x654321);
         
-        // Logo on hat
-        const logo = this.add.text(0, -20, logoText, {
+        // Logo on hat (L)
+        const logo = this.add.text(0, -20, 'L', {
             fontSize: '12px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -635,27 +673,23 @@ export default class GameScene extends Phaser.Scene {
         }
 
         coinPositions.forEach(pos => {
-            // Create coin container to keep parts together
-            const coinContainer = this.add.container(pos.x, pos.y);
+            // Create single coin with gradient-like effect using graphics
+            const graphics = this.add.graphics();
+            graphics.fillStyle(0xffff00, 1);
+            graphics.fillCircle(16, 16, 16);  // Draw at center of 32x32 texture
+            graphics.fillStyle(0xffcc00, 1);
+            graphics.fillCircle(16, 16, 12);  // Draw inner circle at same center
+            graphics.generateTexture(`coin_${pos.x}_${pos.y}`, 32, 32);
+            graphics.destroy();
             
-            // Outer circle (bright yellow)
-            const coinOuter = this.add.circle(0, 0, 16, 0xffff00);
-            // Inner circle (darker yellow for depth)
-            const coinInner = this.add.circle(0, 0, 12, 0xffcc00);
-            // Center shine
-            const coinShine = this.add.circle(-4, -4, 4, 0xffffff, 0.6);
+            const coin = this.add.image(pos.x, pos.y, `coin_${pos.x}_${pos.y}`);
+            this.physics.add.existing(coin);
+            coin.body.setAllowGravity(false);
+            this.coins.add(coin);
             
-            coinContainer.add([coinOuter, coinInner, coinShine]);
-            
-            // Add physics to container
-            this.physics.add.existing(coinContainer);
-            coinContainer.body.setAllowGravity(false);
-            coinContainer.body.setCircle(16);
-            this.coins.add(coinContainer);
-            
-            // Smooth spinning animation with bounce effect
+            // Add smooth rotating/spinning animation
             this.tweens.add({
-                targets: coinContainer,
+                targets: coin,
                 scaleX: 0.4,
                 duration: 500,
                 yoyo: true,
@@ -663,9 +697,9 @@ export default class GameScene extends Phaser.Scene {
                 ease: 'Sine.easeInOut'
             });
             
-            // Gentle floating animation
+            // Add subtle bobbing animation
             this.tweens.add({
-                targets: coinContainer,
+                targets: coin,
                 y: pos.y - 5,
                 duration: 1000,
                 yoyo: true,
@@ -1082,9 +1116,9 @@ export default class GameScene extends Phaser.Scene {
             block.questionMark.destroy();
         }
         
-        // Spawn power-up based on type
+        // Spawn power-up based on type - spawn at block position, will pop out
         const powerUpType = block.powerUpType;
-        this.spawnPowerUp(block.x, block.y - 50, powerUpType);
+        this.spawnPowerUp(block.x, block.y, powerUpType);
         
         // Block bump animation
         this.tweens.add({
@@ -1163,12 +1197,24 @@ export default class GameScene extends Phaser.Scene {
         powerUp.body.setBounce(0.5);
         powerUp.body.setCollideWorldBounds(true);
         
-        // Mushrooms and stars move
-        if (type === 'mushroom' || type === 'star') {
-            powerUp.body.setVelocityX(type === 'star' ? 150 : 100);
-        } else {
-            powerUp.body.setAllowGravity(false);
-        }
+        // All power-ups now fall with gravity enabled
+        // They pop out of the block with upward velocity, then fall and start moving
+        powerUp.body.setVelocityY(-150);  // Pop out upward
+        
+        // After popping out, give them horizontal movement after a delay
+        this.time.delayedCall(POWER_UP_SPAWN_DELAY_MS, () => {
+            if (powerUp && powerUp.active) {
+                // Determine direction based on player position
+                const direction = this.player.x < powerUp.x ? -1 : 1;
+                // Slowly start moving in determined direction
+                if (type === 'mushroom' || type === 'star') {
+                    powerUp.body.setVelocityX(direction * (type === 'star' ? 100 : 80));
+                } else if (type === 'flower') {
+                    // Flowers move slower
+                    powerUp.body.setVelocityX(direction * 50);
+                }
+            }
+        });
         
         this.powerUps.add(powerUp);
     }
@@ -1469,9 +1515,7 @@ export default class GameScene extends Phaser.Scene {
                 if (this.hasFirePower) {
                     this.hasFirePower = false;
                     if (this.player.body_part) {
-                        // Restore original character color
-                        const color = this.player1Character === 'mario' ? 0xff0000 : 0x00ff00;
-                        this.player.body_part.setFillStyle(color);
+                        this.player.body_part.setFillStyle(0xff0000);
                     }
                     // Emit fire power state for UI
                     this.game.events.emit('hasFirePower', false);
@@ -1547,11 +1591,9 @@ export default class GameScene extends Phaser.Scene {
                 if (this.hasFirePower2) {
                     this.hasFirePower2 = false;
                     if (this.player2.body_part) {
-                        // Restore original character color
-                        const color = this.player2Character === 'mario' ? 0xff0000 : 0x00ff00;
-                        this.player2.body_part.setFillStyle(color);
+                        this.player2.body_part.setFillStyle(0x00ff00);
                     }
-                    // Emit fire power state for UI
+                    // Emit fire power state for UI (check both players)
                     this.game.events.emit('hasFirePower', this.hasFirePower || this.hasFirePower2);
                 } else {
                     this.isPoweredUp2 = false;
@@ -1781,23 +1823,25 @@ export default class GameScene extends Phaser.Scene {
             }
         });
         
-        // Update fireballs positions (player 2)
-        this.fireballs2.children.entries.forEach(fireball => {
-            if (fireball.innerCircle) {
-                fireball.innerCircle.setPosition(fireball.x, fireball.y);
-            }
-            if (fireball.x < 0 || fireball.x > this.physics.world.bounds.width || 
-                fireball.y > this.physics.world.bounds.height + FIREBALL_BOTTOM_MARGIN) {
-                if (fireball.innerCircle && fireball.innerCircle.active) {
-                    fireball.innerCircle.destroy();
+        // Update fireballs positions (player 2) - only in 2-player mode
+        if (this.gameMode === 2) {
+            this.fireballs2.children.entries.forEach(fireball => {
+                if (fireball.innerCircle) {
+                    fireball.innerCircle.setPosition(fireball.x, fireball.y);
                 }
-                if (fireball.destructionTimer) {
-                    fireball.destructionTimer.remove();
+                if (fireball.x < 0 || fireball.x > this.physics.world.bounds.width || 
+                    fireball.y > this.physics.world.bounds.height + FIREBALL_BOTTOM_MARGIN) {
+                    if (fireball.innerCircle && fireball.innerCircle.active) {
+                        fireball.innerCircle.destroy();
+                    }
+                    if (fireball.destructionTimer) {
+                        fireball.destructionTimer.remove();
+                    }
+                    this.tweens.killTweensOf(fireball);
+                    fireball.destroy();
                 }
-                this.tweens.killTweensOf(fireball);
-                fireball.destroy();
-            }
-        });
+            });
+        }
 
         // Get touch controls from registry
         const moveLeft = this.registry.get('moveLeft');
@@ -1805,32 +1849,57 @@ export default class GameScene extends Phaser.Scene {
         const jumpPressed = this.registry.get('jump');
         const firePressed = this.registry.get('fire');
 
-        // Player 1 movement - WASD keys
-        const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
-        const scaleY = this.isPoweredUp ? 1.3 : 1;
-        
-        if (this.wasdKeys.left.isDown) {
-            this.player.body.setVelocityX(-200);
-            this.player.setScale(-Math.abs(scaleX), scaleY);
-        } else if (this.wasdKeys.right.isDown) {
-            this.player.body.setVelocityX(200);
-            this.player.setScale(Math.abs(scaleX), scaleY);
-        } else {
-            this.player.body.setVelocityX(0);
-        }
+        if (this.gameMode === 1) {
+            // 1-Player mode: Player 1 uses Arrow keys or touch controls
+            const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
+            const scaleY = this.isPoweredUp ? 1.3 : 1;
+            
+            if (this.cursors.left.isDown || moveLeft) {
+                this.player.body.setVelocityX(-200);
+                this.player.setScale(-Math.abs(scaleX), scaleY);
+            } else if (this.cursors.right.isDown || moveRight) {
+                this.player.body.setVelocityX(200);
+                this.player.setScale(Math.abs(scaleX), scaleY);
+            } else {
+                this.player.body.setVelocityX(0);
+            }
 
-        // Jump - W key for player 1
-        if (this.wasdKeys.up.isDown && this.player.body.touching.down) {
-            this.player.body.setVelocityY(-400);
-        }
-        
-        // Fire - Shift key for player 1
-        if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
-            this.shootFireball();
-        }
-        
-        // Player 2 movement - Arrow keys (only in multiplayer)
-        if (this.gameMode !== 'single' && this.player2 && this.cursors) {
+            // Jump - Up arrow or touch
+            if ((this.cursors.up.isDown || jumpPressed) && this.player.body.touching.down) {
+                this.player.body.setVelocityY(-400);
+            }
+            
+            // Fire - X key or touch
+            if (Phaser.Input.Keyboard.JustDown(this.fireKey) || (firePressed && !this.lastFirePressed)) {
+                this.shootFireball();
+            }
+            this.lastFirePressed = firePressed;
+        } else {
+            // 2-Player mode: Player 1 uses WASD, Player 2 uses Arrow keys or touch
+            const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
+            const scaleY = this.isPoweredUp ? 1.3 : 1;
+            
+            if (this.wasdKeys.left.isDown) {
+                this.player.body.setVelocityX(-200);
+                this.player.setScale(-Math.abs(scaleX), scaleY);
+            } else if (this.wasdKeys.right.isDown) {
+                this.player.body.setVelocityX(200);
+                this.player.setScale(Math.abs(scaleX), scaleY);
+            } else {
+                this.player.body.setVelocityX(0);
+            }
+
+            // Jump - W key for player 1
+            if (this.wasdKeys.up.isDown && this.player.body.touching.down) {
+                this.player.body.setVelocityY(-400);
+            }
+            
+            // Fire - Shift key for player 1
+            if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
+                this.shootFireball();
+            }
+            
+            // Player 2 movement - Arrow keys or touch
             const scaleX2 = this.isPoweredUp2 ? (this.player2.scaleX < 0 ? -1.3 : 1.3) : 1;
             const scaleY2 = this.isPoweredUp2 ? 1.3 : 1;
             
@@ -1857,10 +1926,8 @@ export default class GameScene extends Phaser.Scene {
         }
 
         // Check if player(s) fell off the world
-        const player1Fell = this.player.y > this.cameras.main.height + 50;
-        const player2Fell = this.gameMode !== 'single' && this.player2 && this.player2.y > this.cameras.main.height + 50;
-        
-        if (player1Fell || player2Fell) {
+        if (this.player.y > this.cameras.main.height + this.FALL_OFF_THRESHOLD || 
+            (this.gameMode === 2 && this.player2 && this.player2.y > this.cameras.main.height + this.FALL_OFF_THRESHOLD)) {
             this.resetGameState();
             this.scene.restart();
         }
