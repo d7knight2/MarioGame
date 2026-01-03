@@ -151,6 +151,7 @@ export default class GameScene extends Phaser.Scene {
         if (currentLevel !== 2) {
             this.physics.add.overlap(this.player, this.finishFlag, this.reachFlag, null, this);
         } else if (this.boss) {
+            this.physics.add.collider(this.boss, this.platforms);  // Boss collides with platforms
             this.physics.add.collider(this.player, this.boss, this.hitBoss, null, this);
             this.physics.add.overlap(this.fireballs, this.boss, this.fireballHitBoss, null, this);
         }
@@ -314,6 +315,14 @@ export default class GameScene extends Phaser.Scene {
             text += ' ⭐ INVINCIBLE';
         }
         this.powerUpText.setText(text);
+    }
+    
+    resetGameState() {
+        // Helper method to reset all game state
+        this.registry.set('currentLevel', 1);
+        this.registry.set('score', 0);
+        this.registry.set('isPoweredUp', false);
+        this.registry.set('hasFirePower', false);
     }
 
     createPlayer() {
@@ -620,8 +629,9 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.existing(this.boss);
         this.boss.body.setSize(80, 100);
         this.boss.body.setOffset(-40, -50);
-        this.boss.body.setImmovable(true);
-        this.boss.body.setAllowGravity(false);
+        this.boss.body.setImmovable(false);  // Allow gravity to affect boss
+        this.boss.body.setAllowGravity(true);  // Enable gravity
+        this.boss.body.setCollideWorldBounds(true);
         
         // Boss AI
         this.bossHealth = 5;
@@ -832,19 +842,13 @@ export default class GameScene extends Phaser.Scene {
             });
             
             this.input.once('pointerdown', () => {
-                this.registry.set('currentLevel', 1);
-                this.registry.set('score', 0);
-                this.registry.set('isPoweredUp', false);
-                this.registry.set('hasFirePower', false);
+                this.resetGameState();
                 this.scene.restart();
                 this.levelComplete = false;
             });
             
             this.input.keyboard.once('keydown-SPACE', () => {
-                this.registry.set('currentLevel', 1);
-                this.registry.set('score', 0);
-                this.registry.set('isPoweredUp', false);
-                this.registry.set('hasFirePower', false);
+                this.resetGameState();
                 this.scene.restart();
                 this.levelComplete = false;
             });
@@ -853,7 +857,11 @@ export default class GameScene extends Phaser.Scene {
     
     hitPowerUpBlock(player, block) {
         // Check if player hit block from below
-        if (player.body.velocity.y > 0 || block.used) return;
+        // Player must be moving upward and be below the block
+        if (player.body.velocity.y >= 0 || block.used) return;
+        
+        // Additional check: player's top must be hitting block's bottom
+        if (player.y > block.y) return;
         
         block.used = true;
         block.setFillStyle(0xcccccc);
@@ -944,8 +952,14 @@ export default class GameScene extends Phaser.Scene {
             this.player.body.setSize(36, 57);
             this.player.body.setOffset(-18, -28);
             this.updatePowerUpText();
-        } else if (type === 'flower' && this.isPoweredUp) {
-            // Become Fire Mario (only if already Super Mario)
+        } else if (type === 'flower') {
+            // Become Fire Mario - if not powered up, also grow
+            if (!this.isPoweredUp) {
+                this.isPoweredUp = true;
+                this.player.setScale(1.3);
+                this.player.body.setSize(36, 57);
+                this.player.body.setOffset(-18, -28);
+            }
             this.hasFirePower = true;
             if (this.player.body_part) {
                 this.player.body_part.setFillStyle(0xffffff);
@@ -1103,8 +1117,7 @@ export default class GameScene extends Phaser.Scene {
                 this.levelComplete = false;
             } else {
                 // Reset to level 1 after completing all levels
-                this.registry.set('currentLevel', 1);
-                this.registry.set('score', 0);
+                this.resetGameState();
                 this.scene.restart();
                 this.levelComplete = false;
             }
@@ -1117,8 +1130,7 @@ export default class GameScene extends Phaser.Scene {
                 this.levelComplete = false;
             } else {
                 // Reset to level 1 after completing all levels
-                this.registry.set('currentLevel', 1);
-                this.registry.set('score', 0);
+                this.resetGameState();
                 this.scene.restart();
                 this.levelComplete = false;
             }
@@ -1138,7 +1150,8 @@ export default class GameScene extends Phaser.Scene {
         
         // Check if player is falling onto enemy from above
         // Improved collision detection: player must be above enemy and moving downward
-        if (player.body.velocity.y > 0 && player.y < enemy.y - 15) {
+        // More lenient threshold for better gameplay
+        if (player.body.velocity.y > 0 && player.y < enemy.y - 5) {
             // Bounce and destroy enemy
             player.body.setVelocityY(-300);
             enemy.destroy();
@@ -1193,10 +1206,7 @@ export default class GameScene extends Phaser.Scene {
                     ease: 'Cubic.easeIn',
                     onComplete: () => {
                         // Return to start screen after animation
-                        this.registry.set('currentLevel', 1);
-                        this.registry.set('score', 0);
-                        this.registry.set('isPoweredUp', false);
-                        this.registry.set('hasFirePower', false);
+                        this.resetGameState();
                         this.scene.start('StartScene');
                         this.gameOver = false;
                     }
@@ -1261,9 +1271,10 @@ export default class GameScene extends Phaser.Scene {
         
         this.physics.add.existing(fireball);
         fireball.body.setVelocityX(direction * 400);
-        fireball.body.setVelocityY(-100);  // Initial upward velocity for bouncy effect
-        fireball.body.setBounce(0.8);  // Higher bounce factor
+        fireball.body.setVelocityY(-150);  // Consistent upward velocity for arc
+        fireball.body.setBounce(0.5);  // Moderate bounce factor
         fireball.body.setAllowGravity(true);
+        fireball.body.setCollideWorldBounds(false);  // Manual bounds checking for cleanup
         fireball.innerCircle = fireballInner;
         
         this.fireballs.add(fireball);
@@ -1324,9 +1335,22 @@ export default class GameScene extends Phaser.Scene {
         });
         
         // Update fireballs positions
+        const FIREBALL_BOTTOM_MARGIN = 100;  // Buffer below screen for cleanup
         this.fireballs.children.entries.forEach(fireball => {
             if (fireball.innerCircle) {
                 fireball.innerCircle.setPosition(fireball.x, fireball.y);
+            }
+            // Destroy fireballs that go out of bounds
+            if (fireball.x < 0 || fireball.x > this.physics.world.bounds.width || 
+                fireball.y > this.physics.world.bounds.height + FIREBALL_BOTTOM_MARGIN) {
+                if (fireball.innerCircle && fireball.innerCircle.active) {
+                    fireball.innerCircle.destroy();
+                }
+                if (fireball.destructionTimer) {
+                    fireball.destructionTimer.remove();
+                }
+                this.tweens.killTweensOf(fireball);
+                fireball.destroy();
             }
         });
 
@@ -1365,10 +1389,7 @@ export default class GameScene extends Phaser.Scene {
 
         // Check if player fell off the world
         if (this.player.y > this.cameras.main.height + 50) {
-            this.registry.set('currentLevel', 1);
-            this.registry.set('score', 0);
-            this.registry.set('isPoweredUp', false);
-            this.registry.set('hasFirePower', false);
+            this.resetGameState();
             this.scene.restart();
         }
     }
