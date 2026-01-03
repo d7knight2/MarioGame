@@ -4,10 +4,13 @@ A mobile-friendly 2D Mario game built with Phaser 3, the industry-standard frame
 
 ## 🎮 Features
 
+- **Account System**: Create an account with username or play as guest
+- **Friends List**: Add friends by username and see their online status
+- **Multiplayer Invitations**: Invite friends to play via shareable links or in-app notifications
+- **Online Notifications**: Get notified when friends invite you to play
 - **Flexible Game Modes**: Choose between 1-player or 2-player cooperative mode
-- **Two Menu Systems**: 
-  - Simple mode selection with player name customization
-  - Advanced menu with character selection (Mario/Luigi for each player)
+- **Multiplayer Lobby**: Host or join games with unique game codes
+- **Character Selection**: Choose from Mario, Luigi, or Toad
 - **Customizable Player Names**: No hardcoded names - players can choose their own names!
 - **Character Selection**: Pick Mario or Luigi for each player independently
 - **Online Multiplayer Ready**: Infrastructure prepared for future online multiplayer with game codes
@@ -68,13 +71,31 @@ The `vercel.json` file is already configured with the correct build settings for
 
 ## 🎯 How to Play
 
-### Game Mode Selection
-On the start screen, choose your game mode:
-- **1 Player**: Play solo and control one character
-- **2 Players**: Play cooperatively with a friend on the same device
+### Account System
+1. **Login/Register**: Enter a username to create an account or log in
+2. **Guest Mode**: Click "Play as Guest" to play without an account (no friends/invite features)
+3. **Main Menu**: Access game modes, friends list, and invitations from the main menu
 
-### Player Names
-Customize your experience by clicking "Edit" next to each player name to set your own names!
+### Multiplayer Invitations
+1. **Add Friends**: Click "Friends" button → "Add Friend" → Enter friend's username
+2. **Invite Friends**: 
+   - Click "Invite" button on the main menu
+   - Copy the shareable link and send via text/email
+   - Or select a friend from your friends list to send an in-app invite
+3. **Accept Invitations**: When invited, you'll see a notification on the menu - click to join
+4. **Join via Link**: Open an invitation link to automatically join the game
+
+### Game Mode Selection
+Choose your game mode:
+- **1 Player**: Play solo and control one character
+- **2 Players (Local)**: Play cooperatively with a friend on the same device
+- **2 Players (Multiplayer)**: Host or join a game with a friend online (via game codes)
+
+### Character Selection
+Choose from three characters:
+- **Mario**: The classic hero (red)
+- **Luigi**: Mario's brother (green)
+- **Toad**: The mushroom kingdom citizen (pink)
 
 ### Controls
 
@@ -135,11 +156,27 @@ This game implements several mobile-friendly features:
 
 ```
 src/
-├── main.js           # Game initialization and touch control handlers
+├── main.js                      # Game initialization and touch control handlers
 └── scenes/
-    ├── StartScene.js # Title screen and instructions
-    └── GameScene.js  # Main gameplay scene
+    ├── LoginScene.js            # User login/register screen
+    ├── MenuScene.js             # Main menu with friends and invite features
+    ├── FriendsScene.js          # Friends list management
+    ├── ModeSelectionScene.js    # Game mode selection (single/multiplayer)
+    ├── CharacterSelectionScene.js # Character selection screen
+    ├── MultiplayerLobbyScene.js # Multiplayer lobby with game codes
+    ├── StartScene.js            # Classic start screen (for guests)
+    └── GameScene.js             # Main gameplay scene
 ```
+
+## 💾 Data Storage
+
+The game uses browser's `localStorage` to store:
+- User accounts and session data
+- Friends lists
+- Pending game invitations
+- User preferences
+
+**Note**: Data is stored locally in your browser. Clearing browser data will reset your account.
 
 ## 📝 License
 
@@ -152,9 +189,12 @@ Contributions, issues, and feature requests are welcome!
 ## 🌟 Future Enhancements
 
 Potential additions:
+- Backend server for real-time multiplayer synchronization
+- WebSocket or WebRTC for live multiplayer gameplay
+- Persistent accounts with database storage
+- Global leaderboards
 - More levels with increasing difficulty
-- Power-ups (mushrooms, fire flowers)
 - Better graphics and animations
 - Sound effects and background music
-- High score system with local storage
-- Multiple character sprites
+- Achievement system
+- Profile customization
