@@ -1346,7 +1346,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     collectCoin(player, coin) {
-        // Stop all tweens on the coin
+        // Stop all tweens on the coin before collection
         this.tweens.killTweensOf(coin);
         
         // Coin collection animation - scale up and fade out
