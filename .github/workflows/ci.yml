@@ -3,8 +3,10 @@ name: CI Tests
 on:
   push:
     branches: [ main, master ]
-  pull_request:
+  pull_request_target:
     branches: [ main, master ]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,6 +22,9 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.ref }}
+        persist-credentials: false
 
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
