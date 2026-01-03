@@ -3,15 +3,20 @@
  */
 
 /**
+ * Valid characters for game codes
+ * Avoids confusing characters like O, 0, I, 1
+ */
+const VALID_GAME_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/**
  * Generate a robust 6-character game code
  * Avoids confusing characters like O, 0, I, 1
  * @param {number} length - Length of the code (default: 6)
  * @returns {string} Generated game code
  */
 export function generateGameCode(length = 6) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid confusing characters
   return Array.from({ length }, () => 
-    chars[Math.floor(Math.random() * chars.length)]
+    VALID_GAME_CODE_CHARS[Math.floor(Math.random() * VALID_GAME_CODE_CHARS.length)]
   ).join('');
 }
 
