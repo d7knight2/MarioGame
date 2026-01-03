@@ -107,7 +107,13 @@ export default class GameScene extends Phaser.Scene {
         }
         
         // Camera follows player 1 (or centered between both in 2-player mode)
-        this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+        if (this.gameMode === 1) {
+            // In 1-player mode, follow player 1
+            this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+        } else {
+            // In 2-player mode, don't use startFollow - we'll manually control camera in update()
+            // This allows us to keep both players on screen
+        }
         
         // Create power-up blocks
         this.createPowerUpBlocks();
@@ -1149,7 +1155,13 @@ export default class GameScene extends Phaser.Scene {
         if (this.gameOver || this.levelComplete) return;
         
         // Check if player jumped on boss
-        if (player.body.velocity.y > 0 && player.y < boss.y - 40) {
+        // Player must be above boss's center and moving downward
+        const playerBottom = player.y + (player.body.height / 2);
+        const isPlayerAbove = playerBottom < boss.y;
+        const isMovingDown = player.body.velocity.y > 0;
+        
+        if (isPlayerAbove && isMovingDown) {
+            // Successfully jumped on boss - damage boss without player taking damage
             player.body.setVelocityY(-350);
             this.damageBoss();
         } else {
@@ -1162,7 +1174,13 @@ export default class GameScene extends Phaser.Scene {
         if (this.gameOver || this.levelComplete) return;
         
         // Check if player 2 jumped on boss
-        if (player.body.velocity.y > 0 && player.y < boss.y - 40) {
+        // Player must be above boss's center and moving downward
+        const playerBottom = player.y + (player.body.height / 2);
+        const isPlayerAbove = playerBottom < boss.y;
+        const isMovingDown = player.body.velocity.y > 0;
+        
+        if (isPlayerAbove && isMovingDown) {
+            // Successfully jumped on boss - damage boss without player taking damage
             player.body.setVelocityY(-350);
             this.damageBoss();
         } else {
@@ -1837,10 +1855,15 @@ export default class GameScene extends Phaser.Scene {
         }
         
         // Check if player is falling onto enemy from above
-        // Improved collision detection: player must be above enemy and moving downward
-        // More lenient threshold for better gameplay
-        if (player.body.velocity.y > 0 && player.y < enemy.y - 5) {
-            // Bounce and destroy enemy
+        // Player must be above enemy's center and moving downward
+        // Use a more generous threshold for better jump detection
+        const playerBottom = player.y + (player.body.height / 2);
+        const enemyTop = enemy.y - (enemy.body.height / 2);
+        const isPlayerAbove = playerBottom < enemy.y;
+        const isMovingDown = player.body.velocity.y > 0;
+        
+        if (isPlayerAbove && isMovingDown) {
+            // Successfully jumped on enemy - kill enemy without taking damage
             player.body.setVelocityY(-300);
             enemy.destroy();
             this.score += 50;
@@ -1917,8 +1940,14 @@ export default class GameScene extends Phaser.Scene {
         }
         
         // Check if player is falling onto enemy from above
-        if (player.body.velocity.y > 0 && player.y < enemy.y - 5) {
-            // Bounce and destroy enemy
+        // Player must be above enemy's center and moving downward
+        const playerBottom = player.y + (player.body.height / 2);
+        const enemyTop = enemy.y - (enemy.body.height / 2);
+        const isPlayerAbove = playerBottom < enemy.y;
+        const isMovingDown = player.body.velocity.y > 0;
+        
+        if (isPlayerAbove && isMovingDown) {
+            // Successfully jumped on enemy - kill enemy without taking damage
             player.body.setVelocityY(-300);
             enemy.destroy();
             this.score += 50;
@@ -2117,6 +2146,63 @@ export default class GameScene extends Phaser.Scene {
 
     update() {
         if (this.gameOver || this.levelComplete) return;
+
+        // Update camera in 2-player mode to keep both players on screen
+        if (this.gameMode === 2 && this.player && this.player2) {
+            // Calculate the center point between both players
+            const centerX = (this.player.x + this.player2.x) / 2;
+            const centerY = (this.player.y + this.player2.y) / 2;
+            
+            // Calculate the distance between players
+            const distanceX = Math.abs(this.player.x - this.player2.x);
+            
+            // Get camera width
+            const cameraWidth = this.cameras.main.width;
+            
+            // Set a minimum distance from edge (padding)
+            const edgePadding = 100;
+            
+            // Calculate the leftmost and rightmost player positions
+            const leftPlayerX = Math.min(this.player.x, this.player2.x);
+            const rightPlayerX = Math.max(this.player.x, this.player2.x);
+            
+            // Calculate desired camera position to keep both players visible
+            // The camera should be positioned so both players are within view
+            let targetCameraX = centerX;
+            
+            // Make sure both players are within camera bounds with padding
+            const minCameraX = rightPlayerX - cameraWidth + edgePadding;
+            const maxCameraX = leftPlayerX - edgePadding;
+            
+            // Clamp camera position to keep both players visible
+            if (targetCameraX < minCameraX) {
+                targetCameraX = minCameraX;
+            }
+            if (targetCameraX > maxCameraX) {
+                targetCameraX = maxCameraX;
+            }
+            
+            // Ensure camera doesn't go beyond world bounds
+            const cameraMinX = cameraWidth / 2;
+            const cameraMaxX = this.physics.world.bounds.width - cameraWidth / 2;
+            targetCameraX = Phaser.Math.Clamp(targetCameraX, cameraMinX, cameraMaxX);
+            
+            // Smoothly move camera to target position
+            const lerpFactor = 0.1;
+            this.cameras.main.scrollX = Phaser.Math.Linear(
+                this.cameras.main.scrollX,
+                targetCameraX - cameraWidth / 2,
+                lerpFactor
+            );
+            
+            // Keep vertical centering simple - follow average Y position
+            const targetCameraY = centerY;
+            this.cameras.main.scrollY = Phaser.Math.Linear(
+                this.cameras.main.scrollY,
+                targetCameraY - this.cameras.main.height / 2,
+                lerpFactor
+            );
+        }
 
         // Update enemy movement (bounce off platforms)
         this.enemies.children.entries.forEach(enemy => {
