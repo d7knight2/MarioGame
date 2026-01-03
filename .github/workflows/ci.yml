@@ -1,5 +1,15 @@
 name: CI Tests
 
+# This workflow runs automatically on:
+# - Push to main/master branches
+# - Pull requests (including from forks) - no manual approval needed
+# - Manual trigger via workflow_dispatch
+#
+# Security notes:
+# - Uses pull_request_target to auto-run for fork PRs without approval
+# - Explicitly checks out PR code via head.sha for safety
+# - Credentials are not persisted to prevent token leakage
+
 on:
   push:
     branches: [ main, master ]
