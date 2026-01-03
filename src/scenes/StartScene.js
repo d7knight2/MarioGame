@@ -6,6 +6,7 @@ export default class StartScene extends Phaser.Scene {
         this.selectedMode = 1; // Default to 1-player
         this.player1Name = 'Player 1';
         this.player2Name = 'Player 2';
+        this.MAX_PLAYER_NAME_LENGTH = 15;
     }
 
     create() {
@@ -155,7 +156,7 @@ export default class StartScene extends Phaser.Scene {
         player1EditBtn.on('pointerdown', () => {
             const name = prompt('Enter name for Player 1:', this.player1Name);
             if (name && name.trim()) {
-                this.player1Name = name.trim().substring(0, 15); // Limit to 15 chars
+                this.player1Name = name.trim().substring(0, this.MAX_PLAYER_NAME_LENGTH);
                 player1NameDisplay.setText(this.player1Name);
             }
         });
@@ -164,7 +165,7 @@ export default class StartScene extends Phaser.Scene {
             if (this.selectedMode === 2) {
                 const name = prompt('Enter name for Player 2:', this.player2Name);
                 if (name && name.trim()) {
-                    this.player2Name = name.trim().substring(0, 15); // Limit to 15 chars
+                    this.player2Name = name.trim().substring(0, this.MAX_PLAYER_NAME_LENGTH);
                     player2NameDisplay.setText(this.player2Name);
                 }
             }
@@ -220,7 +221,7 @@ export default class StartScene extends Phaser.Scene {
         });
 
         // Also start on spacebar
-        this.input.keyboard.on('keydown-SPACE', () => {
+        this.input.keyboard.once('keydown-SPACE', () => {
             this.registry.set('gameMode', this.selectedMode);
             this.registry.set('player1Name', this.player1Name);
             this.registry.set('player2Name', this.player2Name);

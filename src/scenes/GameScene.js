@@ -36,6 +36,8 @@ export default class GameScene extends Phaser.Scene {
         this.hasFirePower2 = false;
         this.isInvincible2 = false;
         this.invincibleTimer2 = null;
+        // Constants
+        this.FALL_OFF_THRESHOLD = 50;
     }
 
     create() {
@@ -1846,8 +1848,8 @@ export default class GameScene extends Phaser.Scene {
         }
 
         // Check if player(s) fell off the world
-        if (this.player.y > this.cameras.main.height + 50 || 
-            (this.gameMode === 2 && this.player2 && this.player2.y > this.cameras.main.height + 50)) {
+        if (this.player.y > this.cameras.main.height + this.FALL_OFF_THRESHOLD || 
+            (this.gameMode === 2 && this.player2 && this.player2.y > this.cameras.main.height + this.FALL_OFF_THRESHOLD)) {
             this.resetGameState();
             this.scene.restart();
         }
