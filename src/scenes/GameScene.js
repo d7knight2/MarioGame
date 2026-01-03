@@ -1335,12 +1335,12 @@ export default class GameScene extends Phaser.Scene {
         });
         
         // Update fireballs positions
+        const FIREBALL_BOTTOM_MARGIN = 100;  // Buffer below screen for cleanup
         this.fireballs.children.entries.forEach(fireball => {
             if (fireball.innerCircle) {
                 fireball.innerCircle.setPosition(fireball.x, fireball.y);
             }
-            // Destroy fireballs that go out of bounds (100px below screen for cleanup buffer)
-            const FIREBALL_BOTTOM_MARGIN = 100;
+            // Destroy fireballs that go out of bounds
             if (fireball.x < 0 || fireball.x > this.physics.world.bounds.width || 
                 fireball.y > this.physics.world.bounds.height + FIREBALL_BOTTOM_MARGIN) {
                 if (fireball.innerCircle && fireball.innerCircle.active) {
