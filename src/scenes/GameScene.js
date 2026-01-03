@@ -23,12 +23,15 @@ export default class GameScene extends Phaser.Scene {
         this.boss = null;
         this.bossHealth = 0;
         this.bossHealthBar = null;
-        // Player 1 (Louis/Mario) power-up states
+        this.gameMode = 1; // 1 or 2 player mode
+        this.player1Name = 'Player 1';
+        this.player2Name = 'Player 2';
+        // Player 1 power-up states
         this.isPoweredUp = false;
         this.hasFirePower = false;
         this.isInvincible = false;
         this.invincibleTimer = null;
-        // Player 2 (Louisa/Luigi) power-up states
+        // Player 2 power-up states
         this.isPoweredUp2 = false;
         this.hasFirePower2 = false;
         this.isInvincible2 = false;
@@ -39,6 +42,11 @@ export default class GameScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
+        // Get game mode and player names from registry
+        this.gameMode = this.registry.get('gameMode') || 1;
+        this.player1Name = this.registry.get('player1Name') || 'Player 1';
+        this.player2Name = this.registry.get('player2Name') || 'Player 2';
+        
         // Get current level and score from registry
         const currentLevel = this.registry.get('currentLevel') || 1;
         this.score = this.registry.get('score') || 0;
@@ -47,12 +55,14 @@ export default class GameScene extends Phaser.Scene {
         this.isPoweredUp = this.registry.get('isPoweredUp') || false;
         this.hasFirePower = this.registry.get('hasFirePower') || false;
         
-        // Restore power-up state for player 2
-        this.isPoweredUp2 = this.registry.get('isPoweredUp2') || false;
-        this.hasFirePower2 = this.registry.get('hasFirePower2') || false;
+        // Restore power-up state for player 2 (only if 2-player mode)
+        if (this.gameMode === 2) {
+            this.isPoweredUp2 = this.registry.get('isPoweredUp2') || false;
+            this.hasFirePower2 = this.registry.get('hasFirePower2') || false;
+        }
         
         // Emit fire power state for UI
-        this.game.events.emit('hasFirePower', this.hasFirePower || this.hasFirePower2);
+        this.game.events.emit('hasFirePower', this.hasFirePower || (this.gameMode === 2 && this.hasFirePower2));
         
         // Extend world bounds for side-scrolling
         this.physics.world.setBounds(0, 0, 3200, height);
@@ -74,13 +84,15 @@ export default class GameScene extends Phaser.Scene {
             this.createLevel2Platforms();
         }
 
-        // Create player 1 (Louis/Mario)
+        // Create player 1
         this.createPlayer();
         
-        // Create player 2 (Louisa/Luigi)
-        this.createPlayer2();
+        // Create player 2 (only in 2-player mode)
+        if (this.gameMode === 2) {
+            this.createPlayer2();
+        }
         
-        // Camera follows both players (centered between them)
+        // Camera follows player 1 (or centered between both in 2-player mode)
         this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
         
         // Create power-up blocks
@@ -147,56 +159,81 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.collider(this.enemies, this.platforms);
         this.physics.add.collider(this.powerUps, this.platforms);
         this.physics.add.collider(this.fireballs, this.platforms, this.hitPlatformWithFireball, null, this);
-        this.physics.add.collider(this.fireballs2, this.platforms, this.hitPlatformWithFireball, null, this);
         
-        // Colliders for Player 2
-        this.physics.add.collider(this.player2, this.platforms);
+        // Colliders for Player 2 (only in 2-player mode)
+        if (this.gameMode === 2) {
+            this.physics.add.collider(this.player2, this.platforms);
+            this.physics.add.collider(this.fireballs2, this.platforms, this.hitPlatformWithFireball, null, this);
+        }
         
-        // Power-up block collision for both players
+        // Power-up block collision
         this.physics.add.collider(this.player, this.powerUpBlocks, this.hitPowerUpBlock, null, this);
-        this.physics.add.collider(this.player2, this.powerUpBlocks, this.hitPowerUpBlock2, null, this);
+        if (this.gameMode === 2) {
+            this.physics.add.collider(this.player2, this.powerUpBlocks, this.hitPowerUpBlock2, null, this);
+        }
         
-        // Overlap for collecting coins (both players)
+        // Overlap for collecting coins
         this.physics.add.overlap(this.player, this.coins, this.collectCoin, null, this);
-        this.physics.add.overlap(this.player2, this.coins, this.collectCoin, null, this);
+        if (this.gameMode === 2) {
+            this.physics.add.overlap(this.player2, this.coins, this.collectCoin, null, this);
+        }
         
-        // Overlap for collecting power-ups (both players)
+        // Overlap for collecting power-ups
         this.physics.add.overlap(this.player, this.powerUps, this.collectPowerUp, null, this);
-        this.physics.add.overlap(this.player2, this.powerUps, this.collectPowerUp2, null, this);
+        if (this.gameMode === 2) {
+            this.physics.add.overlap(this.player2, this.powerUps, this.collectPowerUp2, null, this);
+        }
         
-        // Collision with enemies (both players)
+        // Collision with enemies
         this.physics.add.collider(this.player, this.enemies, this.hitEnemy, null, this);
-        this.physics.add.collider(this.player2, this.enemies, this.hitEnemy2, null, this);
+        if (this.gameMode === 2) {
+            this.physics.add.collider(this.player2, this.enemies, this.hitEnemy2, null, this);
+        }
         
-        // Fireball hits enemy (both players)
+        // Fireball hits enemy
         this.physics.add.overlap(this.fireballs, this.enemies, this.fireballHitEnemy, null, this);
-        this.physics.add.overlap(this.fireballs2, this.enemies, this.fireballHitEnemy, null, this);
+        if (this.gameMode === 2) {
+            this.physics.add.overlap(this.fireballs2, this.enemies, this.fireballHitEnemy, null, this);
+        }
         
-        // Overlap with finish flag (if not boss level) - both players
+        // Overlap with finish flag (if not boss level)
         if (currentLevel !== 2) {
             this.physics.add.overlap(this.player, this.finishFlag, this.reachFlag, null, this);
-            this.physics.add.overlap(this.player2, this.finishFlag, this.reachFlag, null, this);
+            if (this.gameMode === 2) {
+                this.physics.add.overlap(this.player2, this.finishFlag, this.reachFlag, null, this);
+            }
         } else if (this.boss) {
             this.physics.add.collider(this.boss, this.platforms);  // Boss collides with platforms
             this.physics.add.collider(this.player, this.boss, this.hitBoss, null, this);
-            this.physics.add.collider(this.player2, this.boss, this.hitBoss2, null, this);
+            if (this.gameMode === 2) {
+                this.physics.add.collider(this.player2, this.boss, this.hitBoss2, null, this);
+            }
             this.physics.add.overlap(this.fireballs, this.boss, this.fireballHitBoss, null, this);
-            this.physics.add.overlap(this.fireballs2, this.boss, this.fireballHitBoss, null, this);
+            if (this.gameMode === 2) {
+                this.physics.add.overlap(this.fireballs2, this.boss, this.fireballHitBoss, null, this);
+            }
         }
 
         // Keyboard controls
-        // Player 1 (Louis/Mario) - WASD keys
-        this.wasdKeys = {
-            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
-        };
-        this.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
-        
-        // Player 2 (Louisa/Luigi) - Arrow keys
-        this.cursors = this.input.keyboard.createCursorKeys();
-        this.fireKey2 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+        // Player 1 - WASD keys (or Arrow keys in 1-player mode)
+        if (this.gameMode === 1) {
+            // In 1-player mode, player 1 uses Arrow keys
+            this.cursors = this.input.keyboard.createCursorKeys();
+            this.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+        } else {
+            // In 2-player mode, player 1 uses WASD
+            this.wasdKeys = {
+                up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+                left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+                down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+                right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+            };
+            this.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+            
+            // Player 2 uses Arrow keys
+            this.cursors = this.input.keyboard.createCursorKeys();
+            this.fireKey2 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+        }
 
         // Initialize touch controls from registry
         this.registry.set('moveLeft', false);
@@ -344,27 +381,29 @@ export default class GameScene extends Phaser.Scene {
         let text = '';
         // Player 1 status
         if (this.hasFirePower) {
-            text = 'Louis: Fire Mario';
+            text = `${this.player1Name}: Fire Power`;
         } else if (this.isPoweredUp) {
-            text = 'Louis: Super Mario';
+            text = `${this.player1Name}: Super`;
         } else {
-            text = 'Louis: Mario';
+            text = `${this.player1Name}: Normal`;
         }
         if (this.isInvincible) {
             text += ' ⭐';
         }
         
-        // Player 2 status
-        text += ' | ';
-        if (this.hasFirePower2) {
-            text += 'Louisa: Fire Luigi';
-        } else if (this.isPoweredUp2) {
-            text += 'Louisa: Super Luigi';
-        } else {
-            text += 'Louisa: Luigi';
-        }
-        if (this.isInvincible2) {
-            text += ' ⭐';
+        // Player 2 status (only in 2-player mode)
+        if (this.gameMode === 2) {
+            text += ' | ';
+            if (this.hasFirePower2) {
+                text += `${this.player2Name}: Fire Power`;
+            } else if (this.isPoweredUp2) {
+                text += `${this.player2Name}: Super`;
+            } else {
+                text += `${this.player2Name}: Normal`;
+            }
+            if (this.isInvincible2) {
+                text += ' ⭐';
+            }
         }
         
         this.powerUpText.setText(text);
@@ -372,12 +411,21 @@ export default class GameScene extends Phaser.Scene {
     
     resetGameState() {
         // Helper method to reset all game state
+        const gameMode = this.registry.get('gameMode') || 1;
+        const player1Name = this.registry.get('player1Name') || 'Player 1';
+        const player2Name = this.registry.get('player2Name') || 'Player 2';
+        
         this.registry.set('currentLevel', 1);
         this.registry.set('score', 0);
         this.registry.set('isPoweredUp', false);
         this.registry.set('hasFirePower', false);
         this.registry.set('isPoweredUp2', false);
         this.registry.set('hasFirePower2', false);
+        
+        // Restore game mode and player names
+        this.registry.set('gameMode', gameMode);
+        this.registry.set('player1Name', player1Name);
+        this.registry.set('player2Name', player2Name);
     }
 
     createPlayer() {
@@ -1465,7 +1513,7 @@ export default class GameScene extends Phaser.Scene {
                     if (this.player2.body_part) {
                         this.player2.body_part.setFillStyle(0x00ff00);
                     }
-                    // Emit fire power state for UI
+                    // Emit fire power state for UI (check both players)
                     this.game.events.emit('hasFirePower', this.hasFirePower || this.hasFirePower2);
                 } else {
                     this.isPoweredUp2 = false;
@@ -1695,23 +1743,25 @@ export default class GameScene extends Phaser.Scene {
             }
         });
         
-        // Update fireballs positions (player 2)
-        this.fireballs2.children.entries.forEach(fireball => {
-            if (fireball.innerCircle) {
-                fireball.innerCircle.setPosition(fireball.x, fireball.y);
-            }
-            if (fireball.x < 0 || fireball.x > this.physics.world.bounds.width || 
-                fireball.y > this.physics.world.bounds.height + FIREBALL_BOTTOM_MARGIN) {
-                if (fireball.innerCircle && fireball.innerCircle.active) {
-                    fireball.innerCircle.destroy();
+        // Update fireballs positions (player 2) - only in 2-player mode
+        if (this.gameMode === 2) {
+            this.fireballs2.children.entries.forEach(fireball => {
+                if (fireball.innerCircle) {
+                    fireball.innerCircle.setPosition(fireball.x, fireball.y);
                 }
-                if (fireball.destructionTimer) {
-                    fireball.destructionTimer.remove();
+                if (fireball.x < 0 || fireball.x > this.physics.world.bounds.width || 
+                    fireball.y > this.physics.world.bounds.height + FIREBALL_BOTTOM_MARGIN) {
+                    if (fireball.innerCircle && fireball.innerCircle.active) {
+                        fireball.innerCircle.destroy();
+                    }
+                    if (fireball.destructionTimer) {
+                        fireball.destructionTimer.remove();
+                    }
+                    this.tweens.killTweensOf(fireball);
+                    fireball.destroy();
                 }
-                this.tweens.killTweensOf(fireball);
-                fireball.destroy();
-            }
-        });
+            });
+        }
 
         // Get touch controls from registry
         const moveLeft = this.registry.get('moveLeft');
@@ -1719,57 +1769,85 @@ export default class GameScene extends Phaser.Scene {
         const jumpPressed = this.registry.get('jump');
         const firePressed = this.registry.get('fire');
 
-        // Player 1 movement - WASD keys
-        const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
-        const scaleY = this.isPoweredUp ? 1.3 : 1;
-        
-        if (this.wasdKeys.left.isDown) {
-            this.player.body.setVelocityX(-200);
-            this.player.setScale(-Math.abs(scaleX), scaleY);
-        } else if (this.wasdKeys.right.isDown) {
-            this.player.body.setVelocityX(200);
-            this.player.setScale(Math.abs(scaleX), scaleY);
+        if (this.gameMode === 1) {
+            // 1-Player mode: Player 1 uses Arrow keys or touch controls
+            const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
+            const scaleY = this.isPoweredUp ? 1.3 : 1;
+            
+            if (this.cursors.left.isDown || moveLeft) {
+                this.player.body.setVelocityX(-200);
+                this.player.setScale(-Math.abs(scaleX), scaleY);
+            } else if (this.cursors.right.isDown || moveRight) {
+                this.player.body.setVelocityX(200);
+                this.player.setScale(Math.abs(scaleX), scaleY);
+            } else {
+                this.player.body.setVelocityX(0);
+            }
+
+            // Jump - Up arrow or touch
+            if ((this.cursors.up.isDown || jumpPressed) && this.player.body.touching.down) {
+                this.player.body.setVelocityY(-400);
+            }
+            
+            // Fire - X key or touch
+            if (Phaser.Input.Keyboard.JustDown(this.fireKey) || (firePressed && !this.lastFirePressed)) {
+                this.shootFireball();
+            }
+            this.lastFirePressed = firePressed;
         } else {
-            this.player.body.setVelocityX(0);
+            // 2-Player mode: Player 1 uses WASD, Player 2 uses Arrow keys or touch
+            const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
+            const scaleY = this.isPoweredUp ? 1.3 : 1;
+            
+            if (this.wasdKeys.left.isDown) {
+                this.player.body.setVelocityX(-200);
+                this.player.setScale(-Math.abs(scaleX), scaleY);
+            } else if (this.wasdKeys.right.isDown) {
+                this.player.body.setVelocityX(200);
+                this.player.setScale(Math.abs(scaleX), scaleY);
+            } else {
+                this.player.body.setVelocityX(0);
+            }
+
+            // Jump - W key for player 1
+            if (this.wasdKeys.up.isDown && this.player.body.touching.down) {
+                this.player.body.setVelocityY(-400);
+            }
+            
+            // Fire - Shift key for player 1
+            if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
+                this.shootFireball();
+            }
+            
+            // Player 2 movement - Arrow keys or touch
+            const scaleX2 = this.isPoweredUp2 ? (this.player2.scaleX < 0 ? -1.3 : 1.3) : 1;
+            const scaleY2 = this.isPoweredUp2 ? 1.3 : 1;
+            
+            if (this.cursors.left.isDown || moveLeft) {
+                this.player2.body.setVelocityX(-200);
+                this.player2.setScale(-Math.abs(scaleX2), scaleY2);
+            } else if (this.cursors.right.isDown || moveRight) {
+                this.player2.body.setVelocityX(200);
+                this.player2.setScale(Math.abs(scaleX2), scaleY2);
+            } else {
+                this.player2.body.setVelocityX(0);
+            }
+
+            // Jump - Up arrow or touch for player 2
+            if ((this.cursors.up.isDown || jumpPressed) && this.player2.body.touching.down) {
+                this.player2.body.setVelocityY(-400);
+            }
+            
+            // Fire - X key or touch for player 2
+            if (Phaser.Input.Keyboard.JustDown(this.fireKey2) || (firePressed && !this.lastFirePressed)) {
+                this.shootFireball2();
+            }
+            this.lastFirePressed = firePressed;
         }
 
-        // Jump - W key for player 1
-        if (this.wasdKeys.up.isDown && this.player.body.touching.down) {
-            this.player.body.setVelocityY(-400);
-        }
-        
-        // Fire - Shift key for player 1
-        if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
-            this.shootFireball();
-        }
-        
-        // Player 2 movement - Arrow keys
-        const scaleX2 = this.isPoweredUp2 ? (this.player2.scaleX < 0 ? -1.3 : 1.3) : 1;
-        const scaleY2 = this.isPoweredUp2 ? 1.3 : 1;
-        
-        if (this.cursors.left.isDown || moveLeft) {
-            this.player2.body.setVelocityX(-200);
-            this.player2.setScale(-Math.abs(scaleX2), scaleY2);
-        } else if (this.cursors.right.isDown || moveRight) {
-            this.player2.body.setVelocityX(200);
-            this.player2.setScale(Math.abs(scaleX2), scaleY2);
-        } else {
-            this.player2.body.setVelocityX(0);
-        }
-
-        // Jump - Up arrow or touch for player 2
-        if ((this.cursors.up.isDown || jumpPressed) && this.player2.body.touching.down) {
-            this.player2.body.setVelocityY(-400);
-        }
-        
-        // Fire - X key or touch for player 2
-        if (Phaser.Input.Keyboard.JustDown(this.fireKey2) || (firePressed && !this.lastFirePressed)) {
-            this.shootFireball2();
-        }
-        this.lastFirePressed = firePressed;
-
-        // Check if players fell off the world
-        if (this.player.y > this.cameras.main.height + 50 || this.player2.y > this.cameras.main.height + 50) {
+        // Check if player(s) fell off the world
+        if (this.player.y > this.cameras.main.height + 50 || 
+            (this.gameMode === 2 && this.player2 && this.player2.y > this.cameras.main.height + 50)) {
             this.resetGameState();
             this.scene.restart();
         }
