@@ -6,9 +6,11 @@ name: CI Tests
 # - Manual trigger via workflow_dispatch
 #
 # Security notes:
-# - Uses pull_request_target to auto-run for fork PRs without approval
-# - Explicitly checks out PR code via head.sha for safety
-# - Credentials are not persisted to prevent token leakage
+# - Uses pull_request_target to bypass approval for fork PRs
+# - This enables cache poisoning attacks (see GitHub security docs)
+# - Risk is acceptable for this personal project as the repository owner
+#   reviews all code before merging
+# - For higher-security projects, use pull_request and accept manual approval
 
 on:
   push:
@@ -34,7 +36,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
-        persist-credentials: false
 
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
