@@ -12,12 +12,15 @@ A mobile-friendly 2D Mario game built with Phaser 3, the industry-standard frame
 - **Multiplayer Lobby**: Host or join games with unique game codes
 - **Character Selection**: Choose from Mario, Luigi, or Toad
 - **Customizable Player Names**: No hardcoded names - players can choose their own names!
+- **Character Selection**: Pick Mario or Luigi for each player independently
+- **Online Multiplayer Ready**: Infrastructure prepared for future online multiplayer with game codes
 - **Power-Up System**: Collect mushrooms, fire flowers, and stars from ? boxes
 - **Multiple Levels**: Two challenging levels with unique layouts and a boss fight
 - **Mobile-First Design**: Fully responsive with touch controls optimized for mobile devices
 - **Cross-Platform**: Works on desktop (keyboard) and mobile (touch)
 - **Physics-Based Gameplay**: Realistic jumping and movement using Phaser's Arcade Physics
 - **Classic Platformer**: Jump on platforms, collect coins, defeat enemies
+- **Smooth Animations**: Polished coin animations with spinning and floating effects
 - **Modern Tech Stack**: Built with Phaser 3 and Vite for fast development
 
 ## 🚀 Getting Started
