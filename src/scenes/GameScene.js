@@ -1206,11 +1206,14 @@ export default class GameScene extends Phaser.Scene {
     }
     
     fireballHitEnemy(fireball, enemy) {
-        if (fireball.innerCircle) {
+        // Stop animations
+        const tweenTargets = [fireball];
+        if (fireball.innerCircle && fireball.innerCircle.active) {
+            tweenTargets.push(fireball.innerCircle);
             fireball.innerCircle.destroy();
         }
-        // Stop animations
-        this.tweens.killTweensOf([fireball, fireball.innerCircle]);
+        this.tweens.killTweensOf(tweenTargets);
+        
         // Clear delayed destruction timer if it exists
         if (fireball.destructionTimer) {
             fireball.destructionTimer.remove();
@@ -1222,11 +1225,14 @@ export default class GameScene extends Phaser.Scene {
     }
     
     hitPlatformWithFireball(fireball, platform) {
-        if (fireball.innerCircle) {
+        // Stop animations
+        const tweenTargets = [fireball];
+        if (fireball.innerCircle && fireball.innerCircle.active) {
+            tweenTargets.push(fireball.innerCircle);
             fireball.innerCircle.destroy();
         }
-        // Stop animations
-        this.tweens.killTweensOf([fireball, fireball.innerCircle]);
+        this.tweens.killTweensOf(tweenTargets);
+        
         // Clear delayed destruction timer if it exists
         if (fireball.destructionTimer) {
             fireball.destructionTimer.remove();
@@ -1277,10 +1283,12 @@ export default class GameScene extends Phaser.Scene {
         // Destroy after 3 seconds
         fireball.destructionTimer = this.time.delayedCall(3000, () => {
             if (fireball && fireball.active) {
+                const tweenTargets = [fireball];
                 if (fireball.innerCircle && fireball.innerCircle.active) {
+                    tweenTargets.push(fireball.innerCircle);
                     fireball.innerCircle.destroy();
                 }
-                this.tweens.killTweensOf([fireball, fireball.innerCircle]);
+                this.tweens.killTweensOf(tweenTargets);
                 fireball.destroy();
             }
         });
