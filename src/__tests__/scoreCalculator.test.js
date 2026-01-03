@@ -36,8 +36,9 @@ describe('Score Calculator', () => {
       expect(calculateCoinScore(0)).toBe(0);
     });
 
-    test('should handle negative numbers', () => {
-      expect(calculateCoinScore(-5)).toBe(-50);
+    test('should return 0 for negative numbers', () => {
+      expect(calculateCoinScore(-5)).toBe(0);
+      expect(calculateCoinScore(-1)).toBe(0);
     });
   });
 
@@ -54,6 +55,11 @@ describe('Score Calculator', () => {
 
     test('should return 0 for zero enemies', () => {
       expect(calculateEnemyScore(0)).toBe(0);
+    });
+
+    test('should return 0 for negative numbers', () => {
+      expect(calculateEnemyScore(-5)).toBe(0);
+      expect(calculateEnemyScore(-1)).toBe(0);
     });
   });
 

@@ -15,19 +15,25 @@ export const SCORE_VALUES = {
 
 /**
  * Calculate score for collecting multiple coins
- * @param {number} count - Number of coins collected
+ * @param {number} count - Number of coins collected (must be non-negative)
  * @returns {number} Total score
  */
 export function calculateCoinScore(count) {
+  if (count < 0) {
+    return 0; // Don't allow negative scores
+  }
   return count * SCORE_VALUES.coin;
 }
 
 /**
  * Calculate score for defeating multiple enemies
- * @param {number} count - Number of enemies defeated
+ * @param {number} count - Number of enemies defeated (must be non-negative)
  * @returns {number} Total score
  */
 export function calculateEnemyScore(count) {
+  if (count < 0) {
+    return 0; // Don't allow negative scores
+  }
   return count * SCORE_VALUES.enemy;
 }
 

@@ -31,7 +31,8 @@ export function isValidGameCode(code, expectedLength = 6) {
     return false;
   }
   
-  const validChars = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]+$/;
+  // Construct regex dynamically from the character set to avoid duplication
+  const validChars = new RegExp('^[' + VALID_GAME_CODE_CHARS + ']+$');
   return code.length === expectedLength && validChars.test(code);
 }
 
