@@ -22,7 +22,7 @@ export default class StartScene extends Phaser.Scene {
 
         // Instructions
         const instructions = this.add.text(width / 2, height / 2, 
-            'Desktop: Arrow keys to move & jump\nMobile: Use touch buttons', {
+            'Desktop: Arrow keys to move & jump, X to fire\nMobile: Use touch buttons', {
             fontSize: '20px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
