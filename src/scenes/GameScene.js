@@ -458,9 +458,9 @@ export default class GameScene extends Phaser.Scene {
             // Create single coin with gradient-like effect using graphics
             const graphics = this.add.graphics();
             graphics.fillStyle(0xffff00, 1);
-            graphics.fillCircle(0, 0, 16);
+            graphics.fillCircle(16, 16, 16);  // Draw at center of 32x32 texture
             graphics.fillStyle(0xffcc00, 1);
-            graphics.fillCircle(0, 0, 12);
+            graphics.fillCircle(16, 16, 12);  // Draw inner circle at same center
             graphics.generateTexture(`coin_${pos.x}_${pos.y}`, 32, 32);
             graphics.destroy();
             
