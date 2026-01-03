@@ -690,14 +690,22 @@ export default class GameScene extends Phaser.Scene {
             // Add smooth rotating/spinning animation
             this.tweens.add({
                 targets: coin,
-                scaleX: 0.2,
-                duration: 400,
+                scaleX: 0.4,
+                duration: 500,
                 yoyo: true,
                 repeat: -1,
                 ease: 'Sine.easeInOut'
             });
             
             // Add subtle bobbing animation
+            this.tweens.add({
+                targets: coin,
+                y: pos.y - 5,
+                duration: 1000,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
             this.tweens.add({
                 targets: coin,
                 y: pos.y - 5,
@@ -1338,8 +1346,22 @@ export default class GameScene extends Phaser.Scene {
     }
 
     collectCoin(player, coin) {
-        // Destroy the coin
-        coin.destroy();
+        // Stop all tweens on the coin before collection
+        this.tweens.killTweensOf(coin);
+        
+        // Coin collection animation - scale up and fade out
+        this.tweens.add({
+            targets: coin,
+            scaleX: 2,
+            scaleY: 2,
+            alpha: 0,
+            duration: 200,
+            ease: 'Cubic.easeOut',
+            onComplete: () => {
+                coin.destroy();
+            }
+        });
+        
         this.score += 10;
         this.scoreText.setText('Score: ' + this.score);
         
