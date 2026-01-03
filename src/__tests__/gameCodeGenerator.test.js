@@ -5,10 +5,26 @@
 import {
   generateGameCode,
   isValidGameCode,
-  formatGameCode
+  formatGameCode,
+  VALID_GAME_CODE_CHARS
 } from '../utils/gameCodeGenerator.js';
 
 describe('Game Code Generator', () => {
+  describe('VALID_GAME_CODE_CHARS', () => {
+    test('should export valid character set', () => {
+      expect(VALID_GAME_CODE_CHARS).toBeDefined();
+      expect(typeof VALID_GAME_CODE_CHARS).toBe('string');
+      expect(VALID_GAME_CODE_CHARS.length).toBeGreaterThan(0);
+    });
+
+    test('should not contain confusing characters', () => {
+      expect(VALID_GAME_CODE_CHARS).not.toContain('O');
+      expect(VALID_GAME_CODE_CHARS).not.toContain('0');
+      expect(VALID_GAME_CODE_CHARS).not.toContain('I');
+      expect(VALID_GAME_CODE_CHARS).not.toContain('1');
+    });
+  });
+
   describe('generateGameCode', () => {
     test('should generate code of default length 6', () => {
       const code = generateGameCode();

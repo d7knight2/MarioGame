@@ -27,7 +27,7 @@ export const POWER_UP_SPEEDS = {
 
 /**
  * Calculate power-up direction based on player position
- * Power-ups move away from the player
+ * Matches the original game logic behavior
  * @param {number} playerX - Player's x position
  * @param {number} powerUpX - Power-up's x position
  * @returns {number} Direction multiplier (-1 for left, 1 for right)

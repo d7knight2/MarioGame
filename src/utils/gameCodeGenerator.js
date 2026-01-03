@@ -6,7 +6,7 @@
  * Valid characters for game codes
  * Avoids confusing characters like O, 0, I, 1
  */
-const VALID_GAME_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const VALID_GAME_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 /**
  * Generate a robust 6-character game code
