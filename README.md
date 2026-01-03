@@ -186,6 +186,35 @@ MIT License - feel free to use this project for learning or as a base for your o
 
 Contributions, issues, and feature requests are welcome!
 
+## 🎨 Graphics & Visual Effects
+
+The game features enhanced visual feedback and particle effects:
+
+- **Particle Effects**: 
+  - Sparkle particles on coin collection
+  - Explosion effects when enemies are defeated
+  - Power-up collection bursts with radiating particles
+  - Star trails during invincibility mode
+  - Fireball impact effects
+  - Block hit particle fragments
+
+- **Visual Feedback**:
+  - Screen shake on enemy defeat, damage, and boss attacks
+  - Score popups (+10, +50, +100) that float upward
+  - Flash effects for powerful events (boss defeat, fire breath)
+  - Smooth tweening animations throughout
+
+- **Parallax Background**:
+  - Multiple layers create depth: clouds, mountains, hills, and bushes
+  - Each layer scrolls at different speeds for parallax effect
+  - Animated clouds drift slowly across the sky
+  - Decorative pipes add to the Mario aesthetic
+
+- **Boss Enhancements**:
+  - Charging indicators before attacks (orange tint)
+  - Dramatic defeat animation with explosion particles
+  - Screen shake and flash effects during battle
+
 ## 🌟 Future Enhancements
 
 Potential additions:
@@ -194,7 +223,7 @@ Potential additions:
 - Persistent accounts with database storage
 - Global leaderboards
 - More levels with increasing difficulty
-- Better graphics and animations
 - Sound effects and background music
 - Achievement system
 - Profile customization
+- Sprite sheet animations for smoother character movement

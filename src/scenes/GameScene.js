@@ -1070,7 +1070,15 @@ export default class GameScene extends Phaser.Scene {
             delay: 2000,
             callback: () => {
                 if (this.boss && this.boss.active && !this.gameOver && !this.levelComplete) {
-                    this.boss.body.setVelocityY(-300);
+                    // Add charging indicator before jump
+                    this.boss.setTint(0xff8800);
+                    
+                    this.time.delayedCall(500, () => {
+                        if (this.boss && this.boss.active) {
+                            this.boss.body.setVelocityY(-300);
+                            this.boss.clearTint();
+                        }
+                    });
                 }
             },
             loop: true
@@ -1081,7 +1089,15 @@ export default class GameScene extends Phaser.Scene {
             delay: 3000,
             callback: () => {
                 if (this.boss && this.boss.active && !this.gameOver && !this.levelComplete) {
-                    this.bossFireBreath();
+                    // Add charging indicator before fire breath
+                    this.boss.setTint(0xff4400);
+                    
+                    this.time.delayedCall(300, () => {
+                        if (this.boss && this.boss.active) {
+                            this.bossFireBreath();
+                            this.boss.clearTint();
+                        }
+                    });
                 }
             },
             loop: true
@@ -1089,6 +1105,9 @@ export default class GameScene extends Phaser.Scene {
     }
     
     bossFireBreath() {
+        // Add screen flash for fire breath
+        ParticleEffects.screenFlash(this, 0xff4400, 100);
+        
         // Create fire projectile
         const fireBreath = this.add.circle(this.boss.x, this.boss.y - 20, 12, 0xff6600);
         const fireInner = this.add.circle(this.boss.x, this.boss.y - 20, 8, 0xffff00);
@@ -1211,17 +1230,51 @@ export default class GameScene extends Phaser.Scene {
         this.bossHealth--;
         this.updateBossHealthBar();
         
-        // Flash boss
+        // Add particle effects and screen shake
+        ParticleEffects.screenShake(this, 6, 250);
+        ParticleEffects.scorePopup(this, this.boss.x, this.boss.y - 50, 100);
+        
+        // Flash boss red
+        this.boss.setTint(0xff0000);
         this.tweens.add({
             targets: this.boss,
             alpha: 0.5,
             duration: 100,
             yoyo: true,
-            repeat: 2
+            repeat: 2,
+            onComplete: () => {
+                this.boss.clearTint();
+            }
         });
         
         if (this.bossHealth <= 0) {
             // Boss defeated!
+            // Add dramatic effects
+            ParticleEffects.screenShake(this, 10, 500);
+            ParticleEffects.screenFlash(this, 0xffff00, 200);
+            
+            // Create explosion-like particles
+            for (let i = 0; i < 20; i++) {
+                const angle = (i * Math.PI * 2) / 20;
+                const speed = 150 + Math.random() * 100;
+                const color = [0xff0000, 0xffaa00, 0xffff00][Math.floor(Math.random() * 3)];
+                
+                const particle = this.add.circle(this.boss.x, this.boss.y, 8, color);
+                this.physics.add.existing(particle);
+                particle.body.setVelocity(
+                    Math.cos(angle) * speed,
+                    Math.sin(angle) * speed
+                );
+                particle.body.setGravity(0, 400);
+                
+                this.tweens.add({
+                    targets: particle,
+                    alpha: 0,
+                    duration: 1000,
+                    onComplete: () => particle.destroy()
+                });
+            }
+            
             this.boss.destroy();
             this.bossHealthBar.clear();
             this.score += 500;
@@ -1981,6 +2034,10 @@ export default class GameScene extends Phaser.Scene {
         
         // If invincible, destroy enemy
         if (this.isInvincible2) {
+            // Add particle effects
+            ParticleEffects.enemyDefeat(this, enemy.x, enemy.y);
+            ParticleEffects.scorePopup(this, enemy.x, enemy.y, 50);
+            
             enemy.destroy();
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
@@ -1998,6 +2055,12 @@ export default class GameScene extends Phaser.Scene {
         if (isPlayerAbove && isMovingDown) {
             // Successfully jumped on enemy - kill enemy without taking damage
             player.body.setVelocityY(-300);
+            
+            // Add particle effects and screen shake
+            ParticleEffects.enemyDefeat(this, enemy.x, enemy.y);
+            ParticleEffects.scorePopup(this, enemy.x, enemy.y, 50);
+            ParticleEffects.screenShake(this, 3, 150);
+            
             enemy.destroy();
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
@@ -2005,6 +2068,9 @@ export default class GameScene extends Phaser.Scene {
         } else {
             // Player hit from side - take damage or die
             if (this.isPoweredUp2) {
+                // Add screen shake for damage
+                ParticleEffects.screenShake(this, 5, 200);
+                
                 // Lose power-up instead of dying
                 if (this.hasFirePower2) {
                     this.hasFirePower2 = false;
@@ -2038,6 +2104,8 @@ export default class GameScene extends Phaser.Scene {
                 });
             } else {
                 // Player 2 dies - just respawn them
+                ParticleEffects.screenShake(this, 5, 200);
+                
                 this.player2.setPosition(150, 450);
                 this.player2.setAlpha(0.5);
                 this.time.delayedCall(1000, () => {
