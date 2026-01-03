@@ -39,8 +39,21 @@ export default class GameScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
-        // Get game mode and character selections
-        this.gameMode = this.registry.get('gameMode') || 'local';
+        // Get game mode - support both formats (number from old StartScene, string from new MenuScene)
+        const gameModeRaw = this.registry.get('gameMode') || 'local';
+        if (typeof gameModeRaw === 'number') {
+            // Old format: 1 or 2
+            this.gameMode = gameModeRaw === 1 ? 'single' : 'local';
+        } else {
+            // New format: 'single', 'local', 'online'
+            this.gameMode = gameModeRaw;
+        }
+        
+        // Get player names (from old StartScene) or use defaults
+        this.player1Name = this.registry.get('player1Name') || 'Player 1';
+        this.player2Name = this.registry.get('player2Name') || 'Player 2';
+        
+        // Get character selections (from new MenuScene) or use defaults
         this.player1Character = this.registry.get('player1Character') || 'mario';
         this.player2Character = this.registry.get('player2Character') || 'luigi';
         
@@ -359,17 +372,18 @@ export default class GameScene extends Phaser.Scene {
     updatePowerUpText() {
         let text = '';
         
-        // Get character names based on selection
+        // Get character display based on selection
         const char1Name = this.player1Character === 'mario' ? 'Mario' : 'Luigi';
-        const char1Type = this.player1Character === 'mario' ? 'Mario' : 'Luigi';
+        const char2Name = this.player2Character === 'mario' ? 'Mario' : 'Luigi';
         
-        // Player 1 status
+        // Player 1 status - show name and character
+        const p1Display = `${this.player1Name} (${char1Name})`;
         if (this.hasFirePower) {
-            text = `Player 1: Fire ${char1Type}`;
+            text = `${p1Display}: Fire Power`;
         } else if (this.isPoweredUp) {
-            text = `Player 1: Super ${char1Type}`;
+            text = `${p1Display}: Super`;
         } else {
-            text = `Player 1: ${char1Name}`;
+            text = `${p1Display}`;
         }
         if (this.isInvincible) {
             text += ' ⭐';
@@ -377,16 +391,15 @@ export default class GameScene extends Phaser.Scene {
         
         // Player 2 status (only in multiplayer)
         if (this.gameMode !== 'single' && this.player2) {
-            const char2Name = this.player2Character === 'mario' ? 'Mario' : 'Luigi';
-            const char2Type = this.player2Character === 'mario' ? 'Mario' : 'Luigi';
+            const p2Display = `${this.player2Name} (${char2Name})`;
             
             text += ' | ';
             if (this.hasFirePower2) {
-                text += `Player 2: Fire ${char2Type}`;
+                text += `${p2Display}: Fire Power`;
             } else if (this.isPoweredUp2) {
-                text += `Player 2: Super ${char2Type}`;
+                text += `${p2Display}: Super`;
             } else {
-                text += `Player 2: ${char2Name}`;
+                text += `${p2Display}`;
             }
             if (this.isInvincible2) {
                 text += ' ⭐';
