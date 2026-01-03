@@ -104,6 +104,32 @@ describe('Score Calculator', () => {
       expect(calculateTotalScore(stats)).toBe(0);
     });
 
+    test('should handle null stats parameter', () => {
+      expect(calculateTotalScore(null)).toBe(0);
+    });
+
+    test('should handle undefined stats parameter', () => {
+      expect(calculateTotalScore(undefined)).toBe(0);
+    });
+
+    test('should handle non-object stats parameter', () => {
+      expect(calculateTotalScore('invalid')).toBe(0);
+      expect(calculateTotalScore(123)).toBe(0);
+      expect(calculateTotalScore([])).toBe(0);
+    });
+
+    test('should handle negative values in stats', () => {
+      const stats = {
+        coins: -5,
+        enemies: -2,
+        powerUps: 3
+      };
+      
+      // Negative values should be treated as 0
+      // 0*10 + 0*50 + 3*50 = 0 + 0 + 150 = 150
+      expect(calculateTotalScore(stats)).toBe(150);
+    });
+
     test('should calculate score matching game logic test', () => {
       // From original test: collect 3 coins, defeat 2 enemies, collect 1 power-up, complete level
       const stats = {

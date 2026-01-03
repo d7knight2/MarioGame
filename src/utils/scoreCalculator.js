@@ -48,6 +48,10 @@ export function calculateEnemyScore(count) {
  * @returns {number} Total score
  */
 export function calculateTotalScore(stats) {
+  if (!stats || typeof stats !== 'object') {
+    return 0;
+  }
+  
   const {
     coins = 0,
     enemies = 0,
@@ -56,12 +60,13 @@ export function calculateTotalScore(stats) {
     bossesDefeated = 0
   } = stats;
   
+  // Ensure all values are non-negative
   return (
-    coins * SCORE_VALUES.coin +
-    enemies * SCORE_VALUES.enemy +
-    powerUps * SCORE_VALUES.powerUp +
-    levelsCompleted * SCORE_VALUES.levelComplete +
-    bossesDefeated * SCORE_VALUES.bossDefeat
+    Math.max(0, coins) * SCORE_VALUES.coin +
+    Math.max(0, enemies) * SCORE_VALUES.enemy +
+    Math.max(0, powerUps) * SCORE_VALUES.powerUp +
+    Math.max(0, levelsCompleted) * SCORE_VALUES.levelComplete +
+    Math.max(0, bossesDefeated) * SCORE_VALUES.bossDefeat
   );
 }
 
