@@ -316,6 +316,14 @@ export default class GameScene extends Phaser.Scene {
         }
         this.powerUpText.setText(text);
     }
+    
+    resetGameState() {
+        // Helper method to reset all game state
+        this.registry.set('currentLevel', 1);
+        this.registry.set('score', 0);
+        this.registry.set('isPoweredUp', false);
+        this.registry.set('hasFirePower', false);
+    }
 
     createPlayer() {
         // Create Mario character container
@@ -834,19 +842,13 @@ export default class GameScene extends Phaser.Scene {
             });
             
             this.input.once('pointerdown', () => {
-                this.registry.set('currentLevel', 1);
-                this.registry.set('score', 0);
-                this.registry.set('isPoweredUp', false);
-                this.registry.set('hasFirePower', false);
+                this.resetGameState();
                 this.scene.restart();
                 this.levelComplete = false;
             });
             
             this.input.keyboard.once('keydown-SPACE', () => {
-                this.registry.set('currentLevel', 1);
-                this.registry.set('score', 0);
-                this.registry.set('isPoweredUp', false);
-                this.registry.set('hasFirePower', false);
+                this.resetGameState();
                 this.scene.restart();
                 this.levelComplete = false;
             });
@@ -1115,10 +1117,7 @@ export default class GameScene extends Phaser.Scene {
                 this.levelComplete = false;
             } else {
                 // Reset to level 1 after completing all levels
-                this.registry.set('currentLevel', 1);
-                this.registry.set('score', 0);
-                this.registry.set('isPoweredUp', false);
-                this.registry.set('hasFirePower', false);
+                this.resetGameState();
                 this.scene.restart();
                 this.levelComplete = false;
             }
@@ -1131,10 +1130,7 @@ export default class GameScene extends Phaser.Scene {
                 this.levelComplete = false;
             } else {
                 // Reset to level 1 after completing all levels
-                this.registry.set('currentLevel', 1);
-                this.registry.set('score', 0);
-                this.registry.set('isPoweredUp', false);
-                this.registry.set('hasFirePower', false);
+                this.resetGameState();
                 this.scene.restart();
                 this.levelComplete = false;
             }
@@ -1210,10 +1206,7 @@ export default class GameScene extends Phaser.Scene {
                     ease: 'Cubic.easeIn',
                     onComplete: () => {
                         // Return to start screen after animation
-                        this.registry.set('currentLevel', 1);
-                        this.registry.set('score', 0);
-                        this.registry.set('isPoweredUp', false);
-                        this.registry.set('hasFirePower', false);
+                        this.resetGameState();
                         this.scene.start('StartScene');
                         this.gameOver = false;
                     }
@@ -1281,7 +1274,7 @@ export default class GameScene extends Phaser.Scene {
         fireball.body.setVelocityY(-150);  // Consistent upward velocity for arc
         fireball.body.setBounce(0.5);  // Moderate bounce factor
         fireball.body.setAllowGravity(true);
-        fireball.body.setCollideWorldBounds(false);  // Allow to go off-screen
+        fireball.body.setCollideWorldBounds(false);  // Manual bounds checking for cleanup
         fireball.innerCircle = fireballInner;
         
         this.fireballs.add(fireball);
@@ -1346,9 +1339,10 @@ export default class GameScene extends Phaser.Scene {
             if (fireball.innerCircle) {
                 fireball.innerCircle.setPosition(fireball.x, fireball.y);
             }
-            // Destroy fireballs that go out of bounds
+            // Destroy fireballs that go out of bounds (100px below screen for cleanup buffer)
+            const FIREBALL_BOTTOM_MARGIN = 100;
             if (fireball.x < 0 || fireball.x > this.physics.world.bounds.width || 
-                fireball.y > this.physics.world.bounds.height + 100) {
+                fireball.y > this.physics.world.bounds.height + FIREBALL_BOTTOM_MARGIN) {
                 if (fireball.innerCircle && fireball.innerCircle.active) {
                     fireball.innerCircle.destroy();
                 }
@@ -1395,10 +1389,7 @@ export default class GameScene extends Phaser.Scene {
 
         // Check if player fell off the world
         if (this.player.y > this.cameras.main.height + 50) {
-            this.registry.set('currentLevel', 1);
-            this.registry.set('score', 0);
-            this.registry.set('isPoweredUp', false);
-            this.registry.set('hasFirePower', false);
+            this.resetGameState();
             this.scene.restart();
         }
     }
