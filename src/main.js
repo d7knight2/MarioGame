@@ -31,6 +31,7 @@ window.addEventListener('load', () => {
     const leftBtn = document.getElementById('left-btn');
     const rightBtn = document.getElementById('right-btn');
     const jumpBtn = document.getElementById('jump-btn');
+    const fireBtn = document.getElementById('fire-btn');
     
     if (leftBtn) {
         leftBtn.addEventListener('touchstart', (e) => {
@@ -62,6 +63,17 @@ window.addEventListener('load', () => {
         jumpBtn.addEventListener('touchend', (e) => {
             e.preventDefault();
             game.registry.set('jump', false);
+        });
+    }
+    
+    if (fireBtn) {
+        fireBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            game.registry.set('fire', true);
+        });
+        fireBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            game.registry.set('fire', false);
         });
     }
 });
