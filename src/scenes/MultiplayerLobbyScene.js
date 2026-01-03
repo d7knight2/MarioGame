@@ -5,6 +5,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         super({ key: 'MultiplayerLobbyScene' });
         this.gameCode = null;
         this.isHost = false;
+        this.lobbyState = 'initial'; // 'initial', 'hosting', 'joining'
     }
 
     create() {
@@ -12,7 +13,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         const height = this.cameras.main.height;
 
         // Title
-        const title = this.add.text(width / 2, 80, 'Multiplayer Lobby', {
+        this.title = this.add.text(width / 2, 60, 'Multiplayer Lobby', {
             fontSize: '48px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
@@ -20,41 +21,41 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             stroke: '#000000',
             strokeThickness: 6
         });
-        title.setOrigin(0.5);
+        this.title.setOrigin(0.5);
 
         // Host Game Button
-        const hostBtn = this.add.rectangle(width / 2, height / 2 - 80, 300, 70, 0x00aa00);
-        const hostText = this.add.text(width / 2, height / 2 - 80, 'HOST GAME', {
+        this.hostBtn = this.add.rectangle(width / 2, height / 2 - 100, 300, 70, 0x00aa00);
+        this.hostText = this.add.text(width / 2, height / 2 - 100, 'HOST GAME', {
             fontSize: '28px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold'
         });
-        hostText.setOrigin(0.5);
+        this.hostText.setOrigin(0.5);
 
-        hostBtn.setInteractive({ useHandCursor: true });
-        hostBtn.on('pointerover', () => {
-            hostBtn.setFillStyle(0x00ff00);
+        this.hostBtn.setInteractive({ useHandCursor: true });
+        this.hostBtn.on('pointerover', () => {
+            this.hostBtn.setFillStyle(0x00ff00);
         });
-        hostBtn.on('pointerout', () => {
-            hostBtn.setFillStyle(0x00aa00);
+        this.hostBtn.on('pointerout', () => {
+            this.hostBtn.setFillStyle(0x00aa00);
         });
-        hostBtn.on('pointerdown', () => {
+        this.hostBtn.on('pointerdown', () => {
             this.hostGame();
         });
 
         // Join Game Section
-        const joinLabel = this.add.text(width / 2, height / 2 + 20, 'Or Enter Game Code:', {
+        this.joinLabel = this.add.text(width / 2, height / 2, 'Or Enter Game Code:', {
             fontSize: '24px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             stroke: '#000000',
             strokeThickness: 4
         });
-        joinLabel.setOrigin(0.5);
+        this.joinLabel.setOrigin(0.5);
 
-        // Game Code Display/Input (we'll use HTML input for this)
-        this.codeDisplay = this.add.text(width / 2, height / 2 + 70, '', {
+        // Game Code Display
+        this.codeDisplay = this.add.text(width / 2, height / 2 + 60, '', {
             fontSize: '32px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffff00',
@@ -65,48 +66,71 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         this.codeDisplay.setOrigin(0.5);
 
         // Join Button
-        const joinBtn = this.add.rectangle(width / 2, height / 2 + 130, 200, 60, 0x0066cc);
-        const joinText = this.add.text(width / 2, height / 2 + 130, 'JOIN GAME', {
+        this.joinBtn = this.add.rectangle(width / 2, height / 2 + 130, 200, 60, 0x0066cc);
+        this.joinText = this.add.text(width / 2, height / 2 + 130, 'JOIN GAME', {
             fontSize: '24px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold'
         });
-        joinText.setOrigin(0.5);
+        this.joinText.setOrigin(0.5);
 
-        joinBtn.setInteractive({ useHandCursor: true });
-        joinBtn.on('pointerover', () => {
-            joinBtn.setFillStyle(0x0088ff);
+        this.joinBtn.setInteractive({ useHandCursor: true });
+        this.joinBtn.on('pointerover', () => {
+            this.joinBtn.setFillStyle(0x0088ff);
         });
-        joinBtn.on('pointerout', () => {
-            joinBtn.setFillStyle(0x0066cc);
+        this.joinBtn.on('pointerout', () => {
+            this.joinBtn.setFillStyle(0x0066cc);
         });
-        joinBtn.on('pointerdown', () => {
+        this.joinBtn.on('pointerdown', () => {
             this.joinGame();
         });
 
+        // Switch to Join Button (hidden initially)
+        this.switchToJoinBtn = this.add.rectangle(width / 2, height / 2 + 80, 250, 60, 0xcc6600);
+        this.switchToJoinText = this.add.text(width / 2, height / 2 + 80, 'SWITCH TO JOIN', {
+            fontSize: '22px',
+            fontFamily: 'Arial, sans-serif',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        });
+        this.switchToJoinText.setOrigin(0.5);
+        this.switchToJoinBtn.setVisible(false);
+        this.switchToJoinText.setVisible(false);
+
+        this.switchToJoinBtn.setInteractive({ useHandCursor: true });
+        this.switchToJoinBtn.on('pointerover', () => {
+            this.switchToJoinBtn.setFillStyle(0xff8800);
+        });
+        this.switchToJoinBtn.on('pointerout', () => {
+            this.switchToJoinBtn.setFillStyle(0xcc6600);
+        });
+        this.switchToJoinBtn.on('pointerdown', () => {
+            this.switchToJoinMode();
+        });
+
         // Back button
-        const backBtn = this.add.rectangle(100, height - 50, 150, 50, 0x666666);
-        const backText = this.add.text(100, height - 50, 'BACK', {
+        this.backBtn = this.add.rectangle(100, height - 50, 150, 50, 0x666666);
+        this.backText = this.add.text(100, height - 50, 'BACK', {
             fontSize: '20px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff'
         });
-        backText.setOrigin(0.5);
+        this.backText.setOrigin(0.5);
 
-        backBtn.setInteractive({ useHandCursor: true });
-        backBtn.on('pointerover', () => {
-            backBtn.setFillStyle(0x888888);
+        this.backBtn.setInteractive({ useHandCursor: true });
+        this.backBtn.on('pointerover', () => {
+            this.backBtn.setFillStyle(0x888888);
         });
-        backBtn.on('pointerout', () => {
-            backBtn.setFillStyle(0x666666);
+        this.backBtn.on('pointerout', () => {
+            this.backBtn.setFillStyle(0x666666);
         });
-        backBtn.on('pointerdown', () => {
+        this.backBtn.on('pointerdown', () => {
             this.scene.start('ModeSelectionScene');
         });
 
-        // Instructions
-        this.statusText = this.add.text(width / 2, height - 50, 'Choose to host or join a game', {
+        // Status text (now properly positioned above back button)
+        this.statusText = this.add.text(width / 2, height - 100, 'Choose to host or join a game', {
             fontSize: '18px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
@@ -126,13 +150,17 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         input.type = 'text';
         input.placeholder = 'Enter 6-digit code';
         input.maxLength = 6;
+        
+        // Calculate responsive positioning based on game canvas
+        const canvas = this.game.canvas;
+        const canvasRect = canvas.getBoundingClientRect();
+        
         input.style.cssText = `
             position: absolute;
-            top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            margin-top: 70px;
-            width: 200px;
+            transform: translateX(-50%);
+            top: ${canvasRect.top + canvasRect.height * 0.57}px;
+            width: min(200px, 40vw);
             height: 40px;
             font-size: 24px;
             text-align: center;
@@ -142,6 +170,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             color: #ffff00;
             font-weight: bold;
             border-radius: 5px;
+            z-index: 1000;
         `;
         
         const gameContainer = document.getElementById('game-container');
@@ -151,12 +180,20 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             document.body.appendChild(input);
         }
 
+        // Update position on window resize
+        this.handleResize = () => {
+            const rect = canvas.getBoundingClientRect();
+            input.style.top = `${rect.top + rect.height * 0.57}px`;
+        };
+        window.addEventListener('resize', this.handleResize);
+
         // Clean up on scene shutdown or destroy
         const cleanup = () => {
             const existingInput = document.getElementById('game-code-input');
             if (existingInput) {
                 existingInput.remove();
             }
+            window.removeEventListener('resize', this.handleResize);
         };
         
         this.events.on('shutdown', cleanup);
@@ -170,24 +207,76 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             chars[Math.floor(Math.random() * chars.length)]
         ).join('');
         this.isHost = true;
+        this.lobbyState = 'hosting';
         
+        // Update UI to show hosting lobby
+        this.title.setText('Hosting Game');
         this.codeDisplay.setText(`Game Code: ${this.gameCode}`);
         this.statusText.setText('Waiting for player to join...\nShare this code with your friend!');
+
+        // Hide host button and join input/button
+        this.hostBtn.setVisible(false);
+        this.hostText.setVisible(false);
+        this.joinLabel.setVisible(false);
+        this.joinBtn.setVisible(false);
+        this.joinText.setVisible(false);
+        
+        // Hide HTML input
+        const input = document.getElementById('game-code-input');
+        if (input) {
+            input.style.display = 'none';
+        }
+
+        // Show switch to join button
+        this.switchToJoinBtn.setVisible(true);
+        this.switchToJoinText.setVisible(true);
 
         // Store in registry for game synchronization
         this.registry.set('multiplayerRole', 'host');
         this.registry.set('gameCode', this.gameCode);
 
         // For now, simulate connection - in real implementation would use WebSockets/PeerJS
-        this.statusText.setText('Host mode - code: ' + this.gameCode + '\n(Multiplayer sync requires backend setup)');
-        
         // After a moment, allow starting
         this.time.delayedCall(2000, () => {
-            this.statusText.setText('Click to start game (multiplayer in development)');
+            this.statusText.setText('Waiting for player...\n(Click to start - multiplayer sync in development)');
             this.input.once('pointerdown', () => {
                 this.scene.start('CharacterSelectionScene');
             });
         });
+    }
+
+    switchToJoinMode() {
+        // Reset state
+        this.lobbyState = 'initial';
+        this.isHost = false;
+        this.gameCode = null;
+
+        // Reset title
+        this.title.setText('Multiplayer Lobby');
+        
+        // Clear code display
+        this.codeDisplay.setText('');
+        
+        // Show host button and join UI
+        this.hostBtn.setVisible(true);
+        this.hostText.setVisible(true);
+        this.joinLabel.setVisible(true);
+        this.joinBtn.setVisible(true);
+        this.joinText.setVisible(true);
+        
+        // Show HTML input
+        const input = document.getElementById('game-code-input');
+        if (input) {
+            input.style.display = 'block';
+            input.value = '';
+        }
+
+        // Hide switch button
+        this.switchToJoinBtn.setVisible(false);
+        this.switchToJoinText.setVisible(false);
+
+        // Reset status
+        this.statusText.setText('Choose to host or join a game');
     }
 
     joinGame() {
