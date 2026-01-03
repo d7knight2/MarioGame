@@ -860,8 +860,8 @@ export default class GameScene extends Phaser.Scene {
         // Player must be moving upward and be below the block
         if (player.body.velocity.y >= 0 || block.used) return;
         
-        // Additional check: player's top must be hitting block's bottom
-        if (player.y > block.y) return;
+        // Additional check: player must be below the block (higher y value)
+        if (player.y < block.y) return;
         
         block.used = true;
         block.setFillStyle(0xcccccc);
