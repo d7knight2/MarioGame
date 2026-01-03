@@ -57,12 +57,12 @@ export default class StartScene extends Phaser.Scene {
 
         // Start game on click or tap
         this.input.on('pointerdown', () => {
-            this.scene.start('GameScene');
+            this.scene.start('MenuScene');
         });
 
         // Also start on spacebar
         this.input.keyboard.once('keydown-SPACE', () => {
-            this.scene.start('GameScene');
+            this.scene.start('MenuScene');
         });
     }
 }

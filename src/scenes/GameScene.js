@@ -39,6 +39,11 @@ export default class GameScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
+        // Get game mode and character selections
+        this.gameMode = this.registry.get('gameMode') || 'local';
+        this.player1Character = this.registry.get('player1Character') || 'mario';
+        this.player2Character = this.registry.get('player2Character') || 'luigi';
+        
         // Get current level and score from registry
         const currentLevel = this.registry.get('currentLevel') || 1;
         this.score = this.registry.get('score') || 0;
@@ -74,13 +79,15 @@ export default class GameScene extends Phaser.Scene {
             this.createLevel2Platforms();
         }
 
-        // Create player 1 (Louis/Mario)
+        // Create player 1
         this.createPlayer();
         
-        // Create player 2 (Louisa/Luigi)
-        this.createPlayer2();
+        // Create player 2 only if not in single player mode
+        if (this.gameMode !== 'single') {
+            this.createPlayer2();
+        }
         
-        // Camera follows both players (centered between them)
+        // Camera follows player 1 (or both in multiplayer)
         this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
         
         // Create power-up blocks
@@ -147,45 +154,52 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.collider(this.enemies, this.platforms);
         this.physics.add.collider(this.powerUps, this.platforms);
         this.physics.add.collider(this.fireballs, this.platforms, this.hitPlatformWithFireball, null, this);
-        this.physics.add.collider(this.fireballs2, this.platforms, this.hitPlatformWithFireball, null, this);
         
-        // Colliders for Player 2
-        this.physics.add.collider(this.player2, this.platforms);
-        
-        // Power-up block collision for both players
+        // Power-up block collision for player 1
         this.physics.add.collider(this.player, this.powerUpBlocks, this.hitPowerUpBlock, null, this);
-        this.physics.add.collider(this.player2, this.powerUpBlocks, this.hitPowerUpBlock2, null, this);
         
-        // Overlap for collecting coins (both players)
+        // Overlap for collecting coins (player 1)
         this.physics.add.overlap(this.player, this.coins, this.collectCoin, null, this);
-        this.physics.add.overlap(this.player2, this.coins, this.collectCoin, null, this);
         
-        // Overlap for collecting power-ups (both players)
+        // Overlap for collecting power-ups (player 1)
         this.physics.add.overlap(this.player, this.powerUps, this.collectPowerUp, null, this);
-        this.physics.add.overlap(this.player2, this.powerUps, this.collectPowerUp2, null, this);
         
-        // Collision with enemies (both players)
+        // Collision with enemies (player 1)
         this.physics.add.collider(this.player, this.enemies, this.hitEnemy, null, this);
-        this.physics.add.collider(this.player2, this.enemies, this.hitEnemy2, null, this);
         
-        // Fireball hits enemy (both players)
+        // Fireball hits enemy (player 1)
         this.physics.add.overlap(this.fireballs, this.enemies, this.fireballHitEnemy, null, this);
-        this.physics.add.overlap(this.fireballs2, this.enemies, this.fireballHitEnemy, null, this);
         
-        // Overlap with finish flag (if not boss level) - both players
+        // Colliders for Player 2 (only if multiplayer)
+        if (this.gameMode !== 'single' && this.player2) {
+            this.physics.add.collider(this.player2, this.platforms);
+            this.physics.add.collider(this.fireballs2, this.platforms, this.hitPlatformWithFireball, null, this);
+            this.physics.add.collider(this.player2, this.powerUpBlocks, this.hitPowerUpBlock2, null, this);
+            this.physics.add.overlap(this.player2, this.coins, this.collectCoin, null, this);
+            this.physics.add.overlap(this.player2, this.powerUps, this.collectPowerUp2, null, this);
+            this.physics.add.collider(this.player2, this.enemies, this.hitEnemy2, null, this);
+            this.physics.add.overlap(this.fireballs2, this.enemies, this.fireballHitEnemy, null, this);
+        }
+        
+        // Overlap with finish flag (if not boss level)
         if (currentLevel !== 2) {
             this.physics.add.overlap(this.player, this.finishFlag, this.reachFlag, null, this);
-            this.physics.add.overlap(this.player2, this.finishFlag, this.reachFlag, null, this);
+            if (this.gameMode !== 'single' && this.player2) {
+                this.physics.add.overlap(this.player2, this.finishFlag, this.reachFlag, null, this);
+            }
         } else if (this.boss) {
             this.physics.add.collider(this.boss, this.platforms);  // Boss collides with platforms
             this.physics.add.collider(this.player, this.boss, this.hitBoss, null, this);
-            this.physics.add.collider(this.player2, this.boss, this.hitBoss2, null, this);
             this.physics.add.overlap(this.fireballs, this.boss, this.fireballHitBoss, null, this);
-            this.physics.add.overlap(this.fireballs2, this.boss, this.fireballHitBoss, null, this);
+            
+            if (this.gameMode !== 'single' && this.player2) {
+                this.physics.add.collider(this.player2, this.boss, this.hitBoss2, null, this);
+                this.physics.add.overlap(this.fireballs2, this.boss, this.fireballHitBoss, null, this);
+            }
         }
 
         // Keyboard controls
-        // Player 1 (Louis/Mario) - WASD keys
+        // Player 1 - WASD keys
         this.wasdKeys = {
             up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
             left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
@@ -194,9 +208,11 @@ export default class GameScene extends Phaser.Scene {
         };
         this.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
         
-        // Player 2 (Louisa/Luigi) - Arrow keys
-        this.cursors = this.input.keyboard.createCursorKeys();
-        this.fireKey2 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+        // Player 2 - Arrow keys (only if multiplayer)
+        if (this.gameMode !== 'single') {
+            this.cursors = this.input.keyboard.createCursorKeys();
+            this.fireKey2 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+        }
 
         // Initialize touch controls from registry
         this.registry.set('moveLeft', false);
@@ -342,29 +358,39 @@ export default class GameScene extends Phaser.Scene {
     
     updatePowerUpText() {
         let text = '';
+        
+        // Get character names based on selection
+        const char1Name = this.player1Character === 'mario' ? 'Mario' : 'Luigi';
+        const char1Type = this.player1Character === 'mario' ? 'Mario' : 'Luigi';
+        
         // Player 1 status
         if (this.hasFirePower) {
-            text = 'Louis: Fire Mario';
+            text = `Player 1: Fire ${char1Type}`;
         } else if (this.isPoweredUp) {
-            text = 'Louis: Super Mario';
+            text = `Player 1: Super ${char1Type}`;
         } else {
-            text = 'Louis: Mario';
+            text = `Player 1: ${char1Name}`;
         }
         if (this.isInvincible) {
             text += ' ⭐';
         }
         
-        // Player 2 status
-        text += ' | ';
-        if (this.hasFirePower2) {
-            text += 'Louisa: Fire Luigi';
-        } else if (this.isPoweredUp2) {
-            text += 'Louisa: Super Luigi';
-        } else {
-            text += 'Louisa: Luigi';
-        }
-        if (this.isInvincible2) {
-            text += ' ⭐';
+        // Player 2 status (only in multiplayer)
+        if (this.gameMode !== 'single' && this.player2) {
+            const char2Name = this.player2Character === 'mario' ? 'Mario' : 'Luigi';
+            const char2Type = this.player2Character === 'mario' ? 'Mario' : 'Luigi';
+            
+            text += ' | ';
+            if (this.hasFirePower2) {
+                text += `Player 2: Fire ${char2Type}`;
+            } else if (this.isPoweredUp2) {
+                text += `Player 2: Super ${char2Type}`;
+            } else {
+                text += `Player 2: ${char2Name}`;
+            }
+            if (this.isInvincible2) {
+                text += ' ⭐';
+            }
         }
         
         this.powerUpText.setText(text);
@@ -381,19 +407,25 @@ export default class GameScene extends Phaser.Scene {
     }
 
     createPlayer() {
-        // Create Mario character container
+        // Create character container based on selection
         this.player = this.add.container(100, 450);
         
-        // Mario body parts
-        // Body (red shirt)
-        const body = this.add.rectangle(0, 4, 28, 32, 0xff0000);
+        // Determine colors based on character selection
+        const isMario = this.player1Character === 'mario';
+        const bodyColor = isMario ? 0xff0000 : 0x00ff00; // Red for Mario, Green for Luigi
+        const hatColor = isMario ? 0xff0000 : 0x00ff00;
+        const hatBrimColor = isMario ? 0xcc0000 : 0x00cc00;
+        const logoText = isMario ? 'M' : 'L';
+        
+        // Body parts
+        const body = this.add.rectangle(0, 4, 28, 32, bodyColor);
         
         // Head (skin color)
         const head = this.add.circle(0, -12, 14, 0xffdbac);
         
-        // Hat (red cap)
-        const hat = this.add.ellipse(0, -20, 32, 16, 0xff0000);
-        const hatBrim = this.add.rectangle(0, -14, 32, 6, 0xcc0000);
+        // Hat
+        const hat = this.add.ellipse(0, -20, 32, 16, hatColor);
+        const hatBrim = this.add.rectangle(0, -14, 32, 6, hatBrimColor);
         
         // Overalls (blue)
         const overalls = this.add.rectangle(0, 12, 24, 16, 0x0066ff);
@@ -415,8 +447,8 @@ export default class GameScene extends Phaser.Scene {
         const shoe1 = this.add.ellipse(-8, 20, 10, 6, 0x654321);
         const shoe2 = this.add.ellipse(8, 20, 10, 6, 0x654321);
         
-        // Logo on hat (M)
-        const logo = this.add.text(0, -20, 'M', {
+        // Logo on hat
+        const logo = this.add.text(0, -20, logoText, {
             fontSize: '12px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -455,19 +487,25 @@ export default class GameScene extends Phaser.Scene {
     }
 
     createPlayer2() {
-        // Create Luigi character container (Louisa)
+        // Create character container based on selection
         this.player2 = this.add.container(150, 450);
         
-        // Luigi body parts - Green theme
-        // Body (green shirt)
-        const body = this.add.rectangle(0, 4, 28, 32, 0x00ff00);
+        // Determine colors based on character selection
+        const isMario = this.player2Character === 'mario';
+        const bodyColor = isMario ? 0xff0000 : 0x00ff00; // Red for Mario, Green for Luigi
+        const hatColor = isMario ? 0xff0000 : 0x00ff00;
+        const hatBrimColor = isMario ? 0xcc0000 : 0x00cc00;
+        const logoText = isMario ? 'M' : 'L';
+        
+        // Body parts
+        const body = this.add.rectangle(0, 4, 28, 32, bodyColor);
         
         // Head (skin color)
         const head = this.add.circle(0, -12, 14, 0xffdbac);
         
-        // Hat (green cap)
-        const hat = this.add.ellipse(0, -20, 32, 16, 0x00ff00);
-        const hatBrim = this.add.rectangle(0, -14, 32, 6, 0x00cc00);
+        // Hat
+        const hat = this.add.ellipse(0, -20, 32, 16, hatColor);
+        const hatBrim = this.add.rectangle(0, -14, 32, 6, hatBrimColor);
         
         // Overalls (blue)
         const overalls = this.add.rectangle(0, 12, 24, 16, 0x0066ff);
@@ -489,8 +527,8 @@ export default class GameScene extends Phaser.Scene {
         const shoe1 = this.add.ellipse(-8, 20, 10, 6, 0x654321);
         const shoe2 = this.add.ellipse(8, 20, 10, 6, 0x654321);
         
-        // Logo on hat (L)
-        const logo = this.add.text(0, -20, 'L', {
+        // Logo on hat
+        const logo = this.add.text(0, -20, logoText, {
             fontSize: '12px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -1418,7 +1456,9 @@ export default class GameScene extends Phaser.Scene {
                 if (this.hasFirePower) {
                     this.hasFirePower = false;
                     if (this.player.body_part) {
-                        this.player.body_part.setFillStyle(0xff0000);
+                        // Restore original character color
+                        const color = this.player1Character === 'mario' ? 0xff0000 : 0x00ff00;
+                        this.player.body_part.setFillStyle(color);
                     }
                     // Emit fire power state for UI
                     this.game.events.emit('hasFirePower', false);
@@ -1494,7 +1534,9 @@ export default class GameScene extends Phaser.Scene {
                 if (this.hasFirePower2) {
                     this.hasFirePower2 = false;
                     if (this.player2.body_part) {
-                        this.player2.body_part.setFillStyle(0x00ff00);
+                        // Restore original character color
+                        const color = this.player2Character === 'mario' ? 0xff0000 : 0x00ff00;
+                        this.player2.body_part.setFillStyle(color);
                     }
                     // Emit fire power state for UI
                     this.game.events.emit('hasFirePower', this.hasFirePower || this.hasFirePower2);
@@ -1774,33 +1816,38 @@ export default class GameScene extends Phaser.Scene {
             this.shootFireball();
         }
         
-        // Player 2 movement - Arrow keys
-        const scaleX2 = this.isPoweredUp2 ? (this.player2.scaleX < 0 ? -1.3 : 1.3) : 1;
-        const scaleY2 = this.isPoweredUp2 ? 1.3 : 1;
-        
-        if (this.cursors.left.isDown || moveLeft) {
-            this.player2.body.setVelocityX(-200);
-            this.player2.setScale(-Math.abs(scaleX2), scaleY2);
-        } else if (this.cursors.right.isDown || moveRight) {
-            this.player2.body.setVelocityX(200);
-            this.player2.setScale(Math.abs(scaleX2), scaleY2);
-        } else {
-            this.player2.body.setVelocityX(0);
+        // Player 2 movement - Arrow keys (only in multiplayer)
+        if (this.gameMode !== 'single' && this.player2 && this.cursors) {
+            const scaleX2 = this.isPoweredUp2 ? (this.player2.scaleX < 0 ? -1.3 : 1.3) : 1;
+            const scaleY2 = this.isPoweredUp2 ? 1.3 : 1;
+            
+            if (this.cursors.left.isDown || moveLeft) {
+                this.player2.body.setVelocityX(-200);
+                this.player2.setScale(-Math.abs(scaleX2), scaleY2);
+            } else if (this.cursors.right.isDown || moveRight) {
+                this.player2.body.setVelocityX(200);
+                this.player2.setScale(Math.abs(scaleX2), scaleY2);
+            } else {
+                this.player2.body.setVelocityX(0);
+            }
+
+            // Jump - Up arrow or touch for player 2
+            if ((this.cursors.up.isDown || jumpPressed) && this.player2.body.touching.down) {
+                this.player2.body.setVelocityY(-400);
+            }
+            
+            // Fire - X key or touch for player 2
+            if (Phaser.Input.Keyboard.JustDown(this.fireKey2) || (firePressed && !this.lastFirePressed)) {
+                this.shootFireball2();
+            }
+            this.lastFirePressed = firePressed;
         }
 
-        // Jump - Up arrow or touch for player 2
-        if ((this.cursors.up.isDown || jumpPressed) && this.player2.body.touching.down) {
-            this.player2.body.setVelocityY(-400);
-        }
+        // Check if player(s) fell off the world
+        const player1Fell = this.player.y > this.cameras.main.height + 50;
+        const player2Fell = this.gameMode !== 'single' && this.player2 && this.player2.y > this.cameras.main.height + 50;
         
-        // Fire - X key or touch for player 2
-        if (Phaser.Input.Keyboard.JustDown(this.fireKey2) || (firePressed && !this.lastFirePressed)) {
-            this.shootFireball2();
-        }
-        this.lastFirePressed = firePressed;
-
-        // Check if players fell off the world
-        if (this.player.y > this.cameras.main.height + 50 || this.player2.y > this.cameras.main.height + 50) {
+        if (player1Fell || player2Fell) {
             this.resetGameState();
             this.scene.restart();
         }

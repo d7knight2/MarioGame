@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import GameScene from './scenes/GameScene.js';
 import StartScene from './scenes/StartScene.js';
+import MenuScene from './scenes/MenuScene.js';
+import CharacterSelectScene from './scenes/CharacterSelectScene.js';
+import OnlineMultiplayerScene from './scenes/OnlineMultiplayerScene.js';
 
 const config = {
     type: Phaser.AUTO,
@@ -21,7 +24,7 @@ const config = {
             debug: false
         }
     },
-    scene: [StartScene, GameScene]
+    scene: [MenuScene, CharacterSelectScene, OnlineMultiplayerScene, StartScene, GameScene]
 };
 
 const game = new Phaser.Game(config);
