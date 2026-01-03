@@ -326,19 +326,42 @@ export default class GameScene extends Phaser.Scene {
     }
 
     createPlayer() {
-        // Create Mario character container
+        // Get selected character from registry
+        const selectedCharacter = this.registry.get('selectedCharacter') || 'mario';
+        
+        // Create character container
         this.player = this.add.container(100, 450);
         
-        // Mario body parts
-        // Body (red shirt)
-        const body = this.add.rectangle(0, 4, 28, 32, 0xff0000);
+        // Character-specific colors and attributes
+        let bodyColor, hatColor, logoText;
+        switch(selectedCharacter) {
+            case 'luigi':
+                bodyColor = 0x00aa00; // Green
+                hatColor = 0x00aa00;
+                logoText = 'L';
+                break;
+            case 'toad':
+                bodyColor = 0xff69b4; // Pink
+                hatColor = 0xff69b4;
+                logoText = 'T';
+                break;
+            case 'mario':
+            default:
+                bodyColor = 0xff0000; // Red
+                hatColor = 0xff0000;
+                logoText = 'M';
+                break;
+        }
+        
+        // Body parts
+        const body = this.add.rectangle(0, 4, 28, 32, bodyColor);
         
         // Head (skin color)
         const head = this.add.circle(0, -12, 14, 0xffdbac);
         
-        // Hat (red cap)
-        const hat = this.add.ellipse(0, -20, 32, 16, 0xff0000);
-        const hatBrim = this.add.rectangle(0, -14, 32, 6, 0xcc0000);
+        // Hat
+        const hat = this.add.ellipse(0, -20, 32, 16, hatColor);
+        const hatBrim = this.add.rectangle(0, -14, 32, 6, hatColor - 0x110000);
         
         // Overalls (blue)
         const overalls = this.add.rectangle(0, 12, 24, 16, 0x0066ff);
@@ -353,15 +376,18 @@ export default class GameScene extends Phaser.Scene {
         const eye1 = this.add.circle(-4, -12, 3, 0x000000);
         const eye2 = this.add.circle(4, -12, 3, 0x000000);
         
-        // Mustache
-        const mustache = this.add.rectangle(0, -6, 16, 4, 0x654321);
+        // Mustache (Toad doesn't have mustache)
+        let mustache = null;
+        if (selectedCharacter !== 'toad') {
+            mustache = this.add.rectangle(0, -6, 16, 4, 0x654321);
+        }
         
         // Shoes (brown)
         const shoe1 = this.add.ellipse(-8, 20, 10, 6, 0x654321);
         const shoe2 = this.add.ellipse(8, 20, 10, 6, 0x654321);
         
-        // Logo on hat (M)
-        const logo = this.add.text(0, -20, 'M', {
+        // Logo on hat
+        const logo = this.add.text(0, -20, logoText, {
             fontSize: '12px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -370,7 +396,9 @@ export default class GameScene extends Phaser.Scene {
         logo.setOrigin(0.5);
         
         // Add all parts to container
-        this.player.add([shoe1, shoe2, overalls, strap1, strap2, button1, button2, body, head, mustache, hatBrim, hat, eye1, eye2, logo]);
+        const parts = [shoe1, shoe2, overalls, strap1, strap2, button1, button2, body, head, hatBrim, hat, eye1, eye2, logo];
+        if (mustache) parts.push(mustache);
+        this.player.add(parts);
         
         // Add physics to container
         this.physics.add.existing(this.player);
@@ -469,11 +497,21 @@ export default class GameScene extends Phaser.Scene {
             coin.body.setAllowGravity(false);
             this.coins.add(coin);
             
-            // Add rotating/spinning animation
+            // Add smooth rotating/spinning animation
             this.tweens.add({
                 targets: coin,
                 scaleX: 0.2,
                 duration: 400,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+            
+            // Add subtle bobbing animation
+            this.tweens.add({
+                targets: coin,
+                y: pos.y - 5,
+                duration: 600,
                 yoyo: true,
                 repeat: -1,
                 ease: 'Sine.easeInOut'
