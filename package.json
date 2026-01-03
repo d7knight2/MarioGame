@@ -1,0 +1,25 @@
+{
+  "name": "mario-game",
+  "version": "1.0.0",
+  "description": "Mobile-friendly Mario game built with Phaser 3",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "phaser",
+    "game",
+    "mario",
+    "mobile"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "phaser": "^3.80.1"
+  }
+}
