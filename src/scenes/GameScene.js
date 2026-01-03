@@ -2,6 +2,12 @@ import Phaser from 'phaser';
 
 // Game constants
 const POWER_UP_SPAWN_DELAY_MS = 300; // Delay before power-ups start moving horizontally
+const DEFAULT_SPAWN_X = 150; // Default X position for player spawn
+const DEFAULT_SPAWN_Y = 450; // Default Y position for player spawn
+const REVIVAL_STAR_POINTS = 5; // Number of points on revival stars
+const REVIVAL_STAR_INNER_RADIUS = 8; // Inner radius of revival stars
+const REVIVAL_STAR_OUTER_RADIUS = 4; // Outer radius of revival stars
+const REVIVAL_STAR_COLOR = 0xffff00; // Color of revival stars (yellow)
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -51,6 +57,7 @@ export default class GameScene extends Phaser.Scene {
         this.revivalCountdownText = null;
         this.revivalCountdownInterval = null;
         this.REVIVAL_DELAY_MS = 30000; // 30 seconds
+        this.cameraFollowState = null; // Track camera state: 'player1', 'player2', 'both', or null
     }
 
     create() {
@@ -491,6 +498,26 @@ export default class GameScene extends Phaser.Scene {
         const gameMode = this.registry.get('gameMode') || 1;
         const player1Name = this.registry.get('player1Name') || 'Player 1';
         const player2Name = this.registry.get('player2Name') || 'Player 2';
+        
+        // Clean up revival timers to prevent memory leaks
+        if (this.revivalTimer) {
+            this.revivalTimer.remove();
+            this.revivalTimer = null;
+        }
+        
+        if (this.revivalCountdownInterval) {
+            this.revivalCountdownInterval.remove();
+            this.revivalCountdownInterval = null;
+        }
+        
+        if (this.revivalCountdownText) {
+            this.revivalCountdownText.destroy();
+            this.revivalCountdownText = null;
+        }
+        
+        // Reset death states
+        this.player1Dead = false;
+        this.player2Dead = false;
         
         this.registry.set('currentLevel', 1);
         this.registry.set('score', 0);
@@ -2146,7 +2173,7 @@ export default class GameScene extends Phaser.Scene {
         // Safety check - if alive player doesn't exist, use default spawn position
         if (!alivePlayer) {
             console.warn('Revival: Alive player not found, using default position');
-            player.setPosition(150, 450);
+            player.setPosition(DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y);
         } else {
             // Position the revived player near the alive player
             player.setPosition(alivePlayer.x + 50, alivePlayer.y);
@@ -2202,7 +2229,7 @@ export default class GameScene extends Phaser.Scene {
             const starX = player.x + Math.cos(angle) * distance;
             const starY = player.y + Math.sin(angle) * distance;
             
-            const star = this.add.star(starX, starY, 5, 8, 4, 0xffff00);
+            const star = this.add.star(starX, starY, REVIVAL_STAR_POINTS, REVIVAL_STAR_INNER_RADIUS, REVIVAL_STAR_OUTER_RADIUS, REVIVAL_STAR_COLOR);
             star.setAlpha(0);
             
             this.tweens.add({
@@ -2485,12 +2512,24 @@ export default class GameScene extends Phaser.Scene {
                     targetCameraY - this.cameras.main.height / 2,
                     lerpFactor
                 );
+                
+                // Update camera state
+                if (this.cameraFollowState !== 'both') {
+                    this.cameraFollowState = 'both';
+                    this.cameras.main.stopFollow();
+                }
             } else if (player1Visible) {
                 // Only player 1 alive - follow player 1
-                this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+                if (this.cameraFollowState !== 'player1') {
+                    this.cameraFollowState = 'player1';
+                    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+                }
             } else if (player2Visible) {
                 // Only player 2 alive - follow player 2
-                this.cameras.main.startFollow(this.player2, true, 0.1, 0.1);
+                if (this.cameraFollowState !== 'player2') {
+                    this.cameraFollowState = 'player2';
+                    this.cameras.main.startFollow(this.player2, true, 0.1, 0.1);
+                }
             }
         }
 
