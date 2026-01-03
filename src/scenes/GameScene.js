@@ -361,7 +361,9 @@ export default class GameScene extends Phaser.Scene {
         
         // Hat
         const hat = this.add.ellipse(0, -20, 32, 16, hatColor);
-        const hatBrim = this.add.rectangle(0, -14, 32, 6, hatColor - 0x110000);
+        // Calculate darker shade for hat brim safely
+        const hatBrimColor = Math.max(0, hatColor - 0x330000);
+        const hatBrim = this.add.rectangle(0, -14, 32, 6, hatBrimColor);
         
         // Overalls (blue)
         const overalls = this.add.rectangle(0, 12, 24, 16, 0x0066ff);

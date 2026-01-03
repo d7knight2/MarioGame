@@ -121,14 +121,9 @@ export default class CharacterSelectionScene extends Phaser.Scene {
         // Check game mode
         const gameMode = this.registry.get('gameMode') || 'single';
         
-        if (gameMode === 'single') {
-            // Start single player game
-            this.registry.set('currentLevel', 1);
-            this.registry.set('score', 0);
-            this.scene.start('GameScene');
-        } else {
-            // For multiplayer, this will be handled by MultiplayerLobbyScene
-            this.scene.start('MultiplayerLobbyScene');
-        }
+        // Start game for both single and multiplayer modes
+        this.registry.set('currentLevel', 1);
+        this.registry.set('score', 0);
+        this.scene.start('GameScene');
     }
 }

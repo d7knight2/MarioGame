@@ -151,18 +151,24 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             document.body.appendChild(input);
         }
 
-        // Clean up on scene shutdown
-        this.events.on('shutdown', () => {
+        // Clean up on scene shutdown or destroy
+        const cleanup = () => {
             const existingInput = document.getElementById('game-code-input');
             if (existingInput) {
                 existingInput.remove();
             }
-        });
+        };
+        
+        this.events.on('shutdown', cleanup);
+        this.events.on('destroy', cleanup);
     }
 
     hostGame() {
-        // Generate a random 6-digit game code
-        this.gameCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        // Generate a robust 6-character game code
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid confusing characters
+        this.gameCode = Array.from({ length: 6 }, () => 
+            chars[Math.floor(Math.random() * chars.length)]
+        ).join('');
         this.isHost = true;
         
         this.codeDisplay.setText(`Game Code: ${this.gameCode}`);
