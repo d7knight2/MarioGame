@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
 
+// Game constants
+const POWER_UP_SPAWN_DELAY_MS = 300; // Delay before power-ups start moving horizontally
+
 export default class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
@@ -335,19 +338,25 @@ export default class GameScene extends Phaser.Scene {
         let blockPositions;
         
         if (currentLevel === 1) {
+            // Boxes centered on platforms above where Mario can jump
+            // Platform centers: (300+75=375, 480), (550+75=625, 420), (150+75=225, 380)
+            // (900+100=1000, 450), (1200+75=1275, 400), (1800+75=1875, 420), (2300+75=2375, 450)
             blockPositions = [
-                { x: 250, y: 440, type: 'mushroom' },      // Reachable from ground
-                { x: 600, y: 380, type: 'mushroom' },      // Reachable from platform at 420
-                { x: 1150, y: 360, type: 'flower' },       // Reachable from platform at 400
-                { x: 1850, y: 380, type: 'star' },         // Reachable from platform at 420
-                { x: 2350, y: 410, type: 'mushroom' }      // Reachable from platform at 450
+                { x: 375, y: 380, type: 'mushroom' },      // Centered above platform at (300, 480)
+                { x: 625, y: 320, type: 'mushroom' },      // Centered above platform at (550, 420)
+                { x: 1275, y: 300, type: 'flower' },       // Centered above platform at (1200, 400)
+                { x: 1875, y: 320, type: 'star' },         // Centered above platform at (1800, 420)
+                { x: 2375, y: 350, type: 'mushroom' }      // Centered above platform at (2300, 450)
             ];
         } else {
+            // Level 2 boxes centered on platforms
+            // Platform centers: (200+60=260, 500), (380+60=440, 450), (560+60=620, 400)
+            // (850+50=900, 480), (1050+50=1100, 450), (1750+60=1810, 480), (2400+60=2460, 460)
             blockPositions = [
-                { x: 420, y: 410, type: 'mushroom' },      // Reachable from platform at 450
-                { x: 1000, y: 410, type: 'flower' },       // Reachable from platform at 450
-                { x: 1700, y: 440, type: 'star' },         // Reachable from platform at 480
-                { x: 2350, y: 420, type: 'mushroom' }      // Reachable from platform at 460
+                { x: 440, y: 350, type: 'mushroom' },      // Centered above platform at (380, 450)
+                { x: 1100, y: 350, type: 'flower' },       // Centered above platform at (1050, 450)
+                { x: 1810, y: 380, type: 'star' },         // Centered above platform at (1750, 480)
+                { x: 2460, y: 360, type: 'mushroom' }      // Centered above platform at (2400, 460)
             ];
         }
         
@@ -431,19 +440,44 @@ export default class GameScene extends Phaser.Scene {
     }
 
     createPlayer() {
-        // Create Mario character container
+        // Get selected character from registry
+        const selectedCharacter = this.registry.get('selectedCharacter') || 'mario';
+        
+        // Create character container
         this.player = this.add.container(100, 450);
         
-        // Mario body parts
-        // Body (red shirt)
-        const body = this.add.rectangle(0, 4, 28, 32, 0xff0000);
+        // Character-specific colors and attributes
+        let bodyColor, hatColor, logoText;
+        switch(selectedCharacter) {
+            case 'luigi':
+                bodyColor = 0x00aa00; // Green
+                hatColor = 0x00aa00;
+                logoText = 'L';
+                break;
+            case 'toad':
+                bodyColor = 0xff69b4; // Pink
+                hatColor = 0xff69b4;
+                logoText = 'T';
+                break;
+            case 'mario':
+            default:
+                bodyColor = 0xff0000; // Red
+                hatColor = 0xff0000;
+                logoText = 'M';
+                break;
+        }
+        
+        // Body parts
+        const body = this.add.rectangle(0, 4, 28, 32, bodyColor);
         
         // Head (skin color)
         const head = this.add.circle(0, -12, 14, 0xffdbac);
         
-        // Hat (red cap)
-        const hat = this.add.ellipse(0, -20, 32, 16, 0xff0000);
-        const hatBrim = this.add.rectangle(0, -14, 32, 6, 0xcc0000);
+        // Hat
+        const hat = this.add.ellipse(0, -20, 32, 16, hatColor);
+        // Calculate darker shade for hat brim safely
+        const hatBrimColor = Math.max(0, hatColor - 0x330000);
+        const hatBrim = this.add.rectangle(0, -14, 32, 6, hatBrimColor);
         
         // Overalls (blue)
         const overalls = this.add.rectangle(0, 12, 24, 16, 0x0066ff);
@@ -458,15 +492,18 @@ export default class GameScene extends Phaser.Scene {
         const eye1 = this.add.circle(-4, -12, 3, 0x000000);
         const eye2 = this.add.circle(4, -12, 3, 0x000000);
         
-        // Mustache
-        const mustache = this.add.rectangle(0, -6, 16, 4, 0x654321);
+        // Mustache (Toad doesn't have mustache)
+        let mustache = null;
+        if (selectedCharacter !== 'toad') {
+            mustache = this.add.rectangle(0, -6, 16, 4, 0x654321);
+        }
         
         // Shoes (brown)
         const shoe1 = this.add.ellipse(-8, 20, 10, 6, 0x654321);
         const shoe2 = this.add.ellipse(8, 20, 10, 6, 0x654321);
         
-        // Logo on hat (M)
-        const logo = this.add.text(0, -20, 'M', {
+        // Logo on hat
+        const logo = this.add.text(0, -20, logoText, {
             fontSize: '12px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -475,7 +512,9 @@ export default class GameScene extends Phaser.Scene {
         logo.setOrigin(0.5);
         
         // Add all parts to container
-        this.player.add([shoe1, shoe2, overalls, strap1, strap2, button1, button2, body, head, mustache, hatBrim, hat, eye1, eye2, logo]);
+        const parts = [shoe1, shoe2, overalls, strap1, strap2, button1, button2, body, head, hatBrim, hat, eye1, eye2, logo];
+        if (mustache) parts.push(mustache);
+        this.player.add(parts);
         
         // Add physics to container
         this.physics.add.existing(this.player);
@@ -634,19 +673,35 @@ export default class GameScene extends Phaser.Scene {
         }
 
         coinPositions.forEach(pos => {
-            // Larger coins (16px radius instead of 12px)
-            const coin = this.add.circle(pos.x, pos.y, 16, 0xffff00);
-            const coinInner = this.add.circle(pos.x, pos.y, 12, 0xffcc00);
+            // Create single coin with gradient-like effect using graphics
+            const graphics = this.add.graphics();
+            graphics.fillStyle(0xffff00, 1);
+            graphics.fillCircle(16, 16, 16);  // Draw at center of 32x32 texture
+            graphics.fillStyle(0xffcc00, 1);
+            graphics.fillCircle(16, 16, 12);  // Draw inner circle at same center
+            graphics.generateTexture(`coin_${pos.x}_${pos.y}`, 32, 32);
+            graphics.destroy();
+            
+            const coin = this.add.image(pos.x, pos.y, `coin_${pos.x}_${pos.y}`);
             this.physics.add.existing(coin);
             coin.body.setAllowGravity(false);
-            coin.innerCircle = coinInner;
             this.coins.add(coin);
             
-            // Add rotating/spinning animation
+            // Add smooth rotating/spinning animation
             this.tweens.add({
-                targets: [coin, coinInner],
+                targets: coin,
                 scaleX: 0.2,
                 duration: 400,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+            
+            // Add subtle bobbing animation
+            this.tweens.add({
+                targets: coin,
+                y: pos.y - 5,
+                duration: 600,
                 yoyo: true,
                 repeat: -1,
                 ease: 'Sine.easeInOut'
@@ -1061,9 +1116,9 @@ export default class GameScene extends Phaser.Scene {
             block.questionMark.destroy();
         }
         
-        // Spawn power-up based on type
+        // Spawn power-up based on type - spawn at block position, will pop out
         const powerUpType = block.powerUpType;
-        this.spawnPowerUp(block.x, block.y - 50, powerUpType);
+        this.spawnPowerUp(block.x, block.y, powerUpType);
         
         // Block bump animation
         this.tweens.add({
@@ -1142,12 +1197,24 @@ export default class GameScene extends Phaser.Scene {
         powerUp.body.setBounce(0.5);
         powerUp.body.setCollideWorldBounds(true);
         
-        // Mushrooms and stars move
-        if (type === 'mushroom' || type === 'star') {
-            powerUp.body.setVelocityX(type === 'star' ? 150 : 100);
-        } else {
-            powerUp.body.setAllowGravity(false);
-        }
+        // All power-ups now fall with gravity enabled
+        // They pop out of the block with upward velocity, then fall and start moving
+        powerUp.body.setVelocityY(-150);  // Pop out upward
+        
+        // After popping out, give them horizontal movement after a delay
+        this.time.delayedCall(POWER_UP_SPAWN_DELAY_MS, () => {
+            if (powerUp && powerUp.active) {
+                // Determine direction based on player position
+                const direction = this.player.x < powerUp.x ? -1 : 1;
+                // Slowly start moving in determined direction
+                if (type === 'mushroom' || type === 'star') {
+                    powerUp.body.setVelocityX(direction * (type === 'star' ? 100 : 80));
+                } else if (type === 'flower') {
+                    // Flowers move slower
+                    powerUp.body.setVelocityX(direction * 50);
+                }
+            }
+        });
         
         this.powerUps.add(powerUp);
     }
@@ -1271,10 +1338,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     collectCoin(player, coin) {
-        // Destroy both the coin and its inner circle
-        if (coin.innerCircle) {
-            coin.innerCircle.destroy();
-        }
+        // Destroy the coin
         coin.destroy();
         this.score += 10;
         this.scoreText.setText('Score: ' + this.score);
