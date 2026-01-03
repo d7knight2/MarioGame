@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
 
+// Game constants
+const POWER_UP_SPAWN_DELAY_MS = 300; // Delay before power-ups start moving horizontally
+
 export default class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
@@ -458,10 +461,10 @@ export default class GameScene extends Phaser.Scene {
             graphics.fillCircle(0, 0, 16);
             graphics.fillStyle(0xffcc00, 1);
             graphics.fillCircle(0, 0, 12);
-            graphics.generateTexture('coin_' + pos.x + '_' + pos.y, 32, 32);
+            graphics.generateTexture(`coin_${pos.x}_${pos.y}`, 32, 32);
             graphics.destroy();
             
-            const coin = this.add.image(pos.x, pos.y, 'coin_' + pos.x + '_' + pos.y);
+            const coin = this.add.image(pos.x, pos.y, `coin_${pos.x}_${pos.y}`);
             this.physics.add.existing(coin);
             coin.body.setAllowGravity(false);
             this.coins.add(coin);
@@ -937,7 +940,7 @@ export default class GameScene extends Phaser.Scene {
         powerUp.body.setVelocityY(-150);  // Pop out upward
         
         // After popping out, give them horizontal movement after a delay
-        this.time.delayedCall(300, () => {
+        this.time.delayedCall(POWER_UP_SPAWN_DELAY_MS, () => {
             if (powerUp && powerUp.active) {
                 // Determine direction based on player position
                 const direction = this.player.x < powerUp.x ? -1 : 1;
