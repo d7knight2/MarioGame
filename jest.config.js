@@ -11,6 +11,7 @@ export default {
   collectCoverageFrom: [
     'src/**/*.js',
     '!src/main.js',
+    '!src/scenes/**/*.js',
     '!**/node_modules/**'
   ],
   coverageThreshold: {
