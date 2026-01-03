@@ -45,6 +45,17 @@ npm run build
 
 The production build will be in the `dist` folder.
 
+### Deploying to Vercel
+
+This project is configured for easy deployment to Vercel:
+
+1. Push your code to GitHub
+2. Import your repository in [Vercel](https://vercel.com)
+3. Vercel will automatically detect the configuration from `vercel.json`
+4. Click "Deploy"
+
+The `vercel.json` file is already configured with the correct build settings for this Vite project.
+
 ## 🎯 How to Play
 
 ### Desktop Controls
