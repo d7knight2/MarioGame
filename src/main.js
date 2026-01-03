@@ -4,6 +4,9 @@ import StartScene from './scenes/StartScene.js';
 import ModeSelectionScene from './scenes/ModeSelectionScene.js';
 import CharacterSelectionScene from './scenes/CharacterSelectionScene.js';
 import MultiplayerLobbyScene from './scenes/MultiplayerLobbyScene.js';
+import LoginScene from './scenes/LoginScene.js';
+import MenuScene from './scenes/MenuScene.js';
+import FriendsScene from './scenes/FriendsScene.js';
 
 const config = {
     type: Phaser.AUTO,
@@ -24,7 +27,7 @@ const config = {
             debug: false
         }
     },
-    scene: [ModeSelectionScene, CharacterSelectionScene, MultiplayerLobbyScene, StartScene, GameScene]
+    scene: [LoginScene, MenuScene, FriendsScene, ModeSelectionScene, CharacterSelectionScene, MultiplayerLobbyScene, StartScene, GameScene]
 };
 
 const game = new Phaser.Game(config);
