@@ -76,8 +76,13 @@ export default class FriendsScene extends Phaser.Scene {
         const userDataKey = `userData_${this.username}`;
         const userData = localStorage.getItem(userDataKey);
         if (userData) {
-            const data = JSON.parse(userData);
-            this.friends = data.friends || [];
+            try {
+                const data = JSON.parse(userData);
+                this.friends = Array.isArray(data.friends) ? data.friends : [];
+            } catch (e) {
+                console.error('Failed to parse user data:', e);
+                this.friends = [];
+            }
         }
     }
 

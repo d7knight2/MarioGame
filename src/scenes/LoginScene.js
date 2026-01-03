@@ -14,7 +14,12 @@ export default class LoginScene extends Phaser.Scene {
         const urlParams = new URLSearchParams(window.location.search);
         const inviteCode = urlParams.get('invite');
         if (inviteCode) {
-            this.registry.set('pendingInviteCode', inviteCode);
+            // Validate invite code format (6-character alphanumeric)
+            if (/^[A-Z0-9]{6}$/i.test(inviteCode)) {
+                this.registry.set('pendingInviteCode', inviteCode);
+            } else {
+                console.warn('Invalid invite code format:', inviteCode);
+            }
         }
 
         // Check if already logged in

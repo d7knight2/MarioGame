@@ -162,8 +162,13 @@ export default class MenuScene extends Phaser.Scene {
         const userDataKey = `userData_${this.username}`;
         const userData = localStorage.getItem(userDataKey);
         if (userData) {
-            const data = JSON.parse(userData);
-            this.friends = data.friends || [];
+            try {
+                const data = JSON.parse(userData);
+                this.friends = Array.isArray(data.friends) ? data.friends : [];
+            } catch (e) {
+                console.error('Failed to parse user data:', e);
+                this.friends = [];
+            }
         }
     }
 
@@ -171,14 +176,20 @@ export default class MenuScene extends Phaser.Scene {
         const userDataKey = `userData_${this.username}`;
         const userData = localStorage.getItem(userDataKey);
         if (userData) {
-            const data = JSON.parse(userData);
-            if (data.pendingInvites && data.pendingInvites.length > 0) {
-                const invite = data.pendingInvites[0];
-                this.notificationText.setText(`🔔 ${invite.from} invited you to play!\nClick to accept`);
-                this.notificationText.setInteractive({ useHandCursor: true });
-                this.notificationText.on('pointerdown', () => {
-                    this.acceptInvite(invite);
-                });
+            try {
+                const data = JSON.parse(userData);
+                if (data.pendingInvites && Array.isArray(data.pendingInvites) && data.pendingInvites.length > 0) {
+                    const invite = data.pendingInvites[0];
+                    if (invite && invite.from && invite.code) {
+                        this.notificationText.setText(`🔔 ${invite.from} invited you to play!\nClick to accept`);
+                        this.notificationText.setInteractive({ useHandCursor: true });
+                        this.notificationText.on('pointerdown', () => {
+                            this.acceptInvite(invite);
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to parse user data:', e);
             }
         }
     }
@@ -186,9 +197,13 @@ export default class MenuScene extends Phaser.Scene {
     acceptInvite(invite) {
         // Remove invite from pending
         const userDataKey = `userData_${this.username}`;
-        const userData = JSON.parse(localStorage.getItem(userDataKey));
-        userData.pendingInvites = userData.pendingInvites.filter(i => i.code !== invite.code);
-        localStorage.setItem(userDataKey, JSON.stringify(userData));
+        try {
+            const userData = JSON.parse(localStorage.getItem(userDataKey) || '{}');
+            userData.pendingInvites = (userData.pendingInvites || []).filter(i => i.code !== invite.code);
+            localStorage.setItem(userDataKey, JSON.stringify(userData));
+        } catch (e) {
+            console.error('Failed to update user data:', e);
+        }
 
         // Join the game with the invite code
         this.registry.set('gameMode', 'multiplayer');
@@ -264,12 +279,23 @@ export default class MenuScene extends Phaser.Scene {
         copyBtn.setInteractive({ useHandCursor: true });
 
         copyBtn.on('pointerdown', () => {
-            navigator.clipboard.writeText(inviteLink).then(() => {
-                copyText.setText('✓ Copied!');
-                this.time.delayedCall(2000, () => {
-                    copyText.setText('Copy Link');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(inviteLink).then(() => {
+                    copyText.setText('✓ Copied!');
+                    this.time.delayedCall(2000, () => {
+                        copyText.setText('Copy Link');
+                    });
+                }).catch((err) => {
+                    console.error('Failed to copy:', err);
+                    copyText.setText('Copy failed');
+                    this.time.delayedCall(2000, () => {
+                        copyText.setText('Copy Link');
+                    });
                 });
-            });
+            } else {
+                // Fallback for browsers without clipboard API
+                alert('Copy this link: ' + inviteLink);
+            }
         });
 
         // Invite specific friend
