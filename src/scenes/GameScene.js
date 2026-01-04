@@ -287,11 +287,11 @@ export default class GameScene extends Phaser.Scene {
     createLevel1Platforms() {
         const height = this.cameras.main.height;
         
-        // Vertical platforms above starting point (~100px spacing)
-        // These platforms create a vertical climbing challenge near the spawn point
-        this.createPlatform(100, 350, 120, 32, 0x228B22);
-        this.createPlatform(250, 250, 120, 32, 0x228B22);
-        this.createPlatform(100, 150, 120, 32, 0x228B22);
+        // Vertical platforms above starting point (spaced ~100px apart vertically)
+        // Player 1 spawns at (100, 450), so these create a vertical climbing challenge
+        this.createPlatform(100, 350, 120, 32, 0x228B22);  // 100px above spawn
+        this.createPlatform(250, 250, 120, 32, 0x228B22);  // 200px above spawn
+        this.createPlatform(100, 150, 120, 32, 0x228B22);  // 300px above spawn
         
         // Floating platforms - lowered and better distributed
         // First section
