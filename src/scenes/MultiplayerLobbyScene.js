@@ -87,8 +87,8 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         });
 
         // Switch to Join Button (hidden initially)
-        this.switchToJoinBtn = this.add.rectangle(width / 2, height / 2 + 80, 250, 60, 0xcc6600);
-        this.switchToJoinText = this.add.text(width / 2, height / 2 + 80, 'SWITCH TO JOIN', {
+        this.switchToJoinBtn = this.add.rectangle(width / 2, height / 2 + 150, 250, 60, 0xcc6600);
+        this.switchToJoinText = this.add.text(width / 2, height / 2 + 150, 'SWITCH TO JOIN', {
             fontSize: '22px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',

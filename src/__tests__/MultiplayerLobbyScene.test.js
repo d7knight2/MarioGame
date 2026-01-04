@@ -80,7 +80,7 @@ describe('MultiplayerLobbyScene Logic', () => {
       const joinLabelY = height / 2; // 300
       const codeDisplayY = height / 2 + 60; // 360
       const joinBtnY = height / 2 + 130; // 430
-      const switchBtnY = height / 2 + 80; // 380
+      const switchBtnY = height / 2 + 150; // 450 (fixed from 380 to prevent overlap)
       const statusTextY = height - 100; // 500
       const backBtnY = height - 50; // 550
       
@@ -88,7 +88,7 @@ describe('MultiplayerLobbyScene Logic', () => {
       expect(titleY).toBeLessThan(hostBtnY);
       expect(hostBtnY).toBeLessThan(joinLabelY);
       expect(joinLabelY).toBeLessThan(codeDisplayY);
-      expect(codeDisplayY).toBeLessThan(joinBtnY);
+      expect(codeDisplayY).toBeLessThan(switchBtnY);
       expect(statusTextY).toBeLessThan(backBtnY);
       
       // Verify no overlap between status text and back button (critical fix)
@@ -139,6 +139,66 @@ describe('MultiplayerLobbyScene Logic', () => {
       
       // Verify 50 pixel gap
       expect(Math.abs(statusTextY - backBtnY)).toBe(50);
+    });
+  });
+
+  describe('Button Overlap Prevention', () => {
+    test('should not overlap switchToJoinBtn with codeDisplay in hosting mode', () => {
+      const height = 600;
+      const codeDisplayY = height / 2 + 60; // 360
+      const codeDisplayHeight = 32;
+      const switchBtnY = height / 2 + 150; // 450
+      const switchBtnHeight = 60;
+      
+      const codeDisplayBottom = codeDisplayY + codeDisplayHeight / 2; // 376
+      const switchBtnTop = switchBtnY - switchBtnHeight / 2; // 420
+      
+      // Verify no overlap - switchBtn should start after codeDisplay ends
+      expect(switchBtnTop).toBeGreaterThan(codeDisplayBottom);
+      
+      // Verify adequate spacing (at least 40px)
+      const gap = switchBtnTop - codeDisplayBottom;
+      expect(gap).toBeGreaterThanOrEqual(40);
+    });
+
+    test('should allow joinBtn and switchToJoinBtn to overlap since they are never visible together', () => {
+      const height = 600;
+      const joinBtnY = height / 2 + 130; // 430
+      const joinBtnHeight = 60;
+      const switchBtnY = height / 2 + 150; // 450
+      const switchBtnHeight = 60;
+      
+      const joinBtnTop = joinBtnY - joinBtnHeight / 2; // 400
+      const joinBtnBottom = joinBtnY + joinBtnHeight / 2; // 460
+      const switchBtnTop = switchBtnY - switchBtnHeight / 2; // 420
+      const switchBtnBottom = switchBtnY + switchBtnHeight / 2; // 480
+      
+      // These buttons overlap, but it's OK because:
+      // - joinBtn is visible only in 'initial' state
+      // - switchToJoinBtn is visible only in 'hosting' state
+      // Verify they do overlap (for documentation purposes)
+      const hasOverlap = !(joinBtnBottom < switchBtnTop || switchBtnBottom < joinBtnTop);
+      expect(hasOverlap).toBe(true);
+    });
+
+    test('should have adequate spacing between visible elements in hosting mode', () => {
+      const height = 600;
+      
+      // Elements visible in hosting mode
+      const codeDisplayY = height / 2 + 60; // 360
+      const codeDisplayHeight = 32;
+      const switchBtnY = height / 2 + 150; // 450
+      const switchBtnHeight = 60;
+      const statusTextY = height - 100; // 500
+      const statusTextHeight = 18;
+      
+      // Calculate gaps
+      const gap1 = (switchBtnY - switchBtnHeight / 2) - (codeDisplayY + codeDisplayHeight / 2);
+      const gap2 = (statusTextY - statusTextHeight / 2) - (switchBtnY + switchBtnHeight / 2);
+      
+      // Verify minimum spacing of 10px between all visible elements
+      expect(gap1).toBeGreaterThanOrEqual(10);
+      expect(gap2).toBeGreaterThanOrEqual(10);
     });
   });
 
