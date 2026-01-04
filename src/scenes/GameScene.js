@@ -1,4 +1,8 @@
 import Phaser from 'phaser';
+import SpriteFactory from '../utils/SpriteFactory.js';
+import ParticleEffects from '../utils/ParticleEffects.js';
+import AnimationManager from '../utils/AnimationManager.js';
+import BackgroundGenerator from '../utils/BackgroundGenerator.js';
 
 // Game constants
 const POWER_UP_SPAWN_DELAY_MS = 300; // Delay before power-ups start moving horizontally
