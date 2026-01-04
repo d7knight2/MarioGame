@@ -97,12 +97,13 @@ export default class GameScene extends Phaser.Scene {
         const shouldShowFireButton = this.gameMode === 1 ? this.hasFirePower : this.hasFirePower2;
         this.game.events.emit('hasFirePower', shouldShowFireButton);
         
-        // Extend world bounds for side-scrolling
-        this.physics.world.setBounds(0, 0, 3200, height);
-        this.cameras.main.setBounds(0, 0, 3200, height);
+        // Extend world bounds for side-scrolling and vertical gameplay
+        const worldHeight = height + 400; // Add vertical space for platforms above
+        this.physics.world.setBounds(0, 0, 3200, worldHeight);
+        this.cameras.main.setBounds(0, 0, 3200, worldHeight);
 
-        // Create sky background gradient
-        this.add.rectangle(1600, height / 2, 3200, height, 0x5c94fc);
+        // Create sky background gradient (extended for vertical gameplay)
+        this.add.rectangle(1600, worldHeight / 2, 3200, worldHeight, 0x5c94fc);
 
         // Create platforms group
         this.platforms = this.physics.add.staticGroup();
@@ -159,8 +160,8 @@ export default class GameScene extends Phaser.Scene {
             this.createFinishFlag();
         }
 
-        // Score text - fixed to camera
-        this.scoreText = this.add.text(16, 16, 'Score: ' + this.score, {
+        // Score text - fixed to camera (moved to top of screen)
+        this.scoreText = this.add.text(16, 8, 'Score: ' + this.score, {
             fontSize: '28px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -170,8 +171,8 @@ export default class GameScene extends Phaser.Scene {
         });
         this.scoreText.setScrollFactor(0);
         
-        // Level text - fixed to camera
-        this.levelText = this.add.text(width - 16, 16, 'Level: ' + currentLevel, {
+        // Level text - fixed to camera (moved to top of screen)
+        this.levelText = this.add.text(width - 16, 8, 'Level: ' + currentLevel, {
             fontSize: '28px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -182,8 +183,8 @@ export default class GameScene extends Phaser.Scene {
         this.levelText.setOrigin(1, 0);
         this.levelText.setScrollFactor(0);
         
-        // Power-up status text
-        this.powerUpText = this.add.text(16, 56, '', {
+        // Power-up status text (adjusted position to account for HUD move)
+        this.powerUpText = this.add.text(16, 48, '', {
             fontSize: '24px',
             fontFamily: 'Arial',
             color: '#ffff00',
@@ -285,6 +286,11 @@ export default class GameScene extends Phaser.Scene {
     
     createLevel1Platforms() {
         const height = this.cameras.main.height;
+        
+        // Vertical platforms above starting point (~100px spacing)
+        this.createPlatform(100, height - 150, 120, 32, 0x228B22);
+        this.createPlatform(250, height - 250, 120, 32, 0x228B22);
+        this.createPlatform(100, height - 350, 120, 32, 0x228B22);
         
         // Floating platforms - lowered and better distributed
         // First section
