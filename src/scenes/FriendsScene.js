@@ -111,17 +111,25 @@ export default class FriendsScene extends Phaser.Scene {
             return;
         }
 
-        // Layout constants for better spacing
-        const CARD_SPACING = 80; // Increased from 70 to prevent overlap
-        const CARD_HEIGHT = 60;
-        const CARD_START_Y = 200;
+        // Layout constants for better spacing and positioning
+        const CARD_LAYOUT = {
+            spacing: 80,        // Vertical spacing between cards
+            height: 60,         // Card height
+            startY: 200,        // Starting Y position
+            width: 600,         // Card width
+            centerX: 400,       // Card center X
+            inviteBtnX: 540,    // Invite button X position
+            inviteBtnWidth: 110,
+            removeBtnX: 660,    // Remove button X position
+            removeBtnSize: 40
+        };
 
         // Display each friend
         this.friends.forEach((friend, index) => {
-            const yPos = CARD_START_Y + (index * CARD_SPACING);
+            const yPos = CARD_LAYOUT.startY + (index * CARD_LAYOUT.spacing);
             
             // Friend card background with depth
-            const card = this.add.rectangle(400, yPos, 600, CARD_HEIGHT, 0x444444);
+            const card = this.add.rectangle(CARD_LAYOUT.centerX, yPos, CARD_LAYOUT.width, CARD_LAYOUT.height, 0x444444);
             card.setStrokeStyle(2, 0x666666);
             card.setDepth(10);
 
@@ -150,8 +158,8 @@ export default class FriendsScene extends Phaser.Scene {
             statusText.setDepth(12);
 
             // Invite button with proper spacing
-            const inviteBtn = this.add.rectangle(540, yPos, 110, 40, 0xff6600);
-            const inviteText = this.add.text(540, yPos, 'Invite', {
+            const inviteBtn = this.add.rectangle(CARD_LAYOUT.inviteBtnX, yPos, CARD_LAYOUT.inviteBtnWidth, 40, 0xff6600);
+            const inviteText = this.add.text(CARD_LAYOUT.inviteBtnX, yPos, 'Invite', {
                 fontSize: '18px',
                 fontFamily: 'Arial, sans-serif',
                 color: '#ffffff',
@@ -173,8 +181,8 @@ export default class FriendsScene extends Phaser.Scene {
             });
 
             // Remove button with spacing
-            const removeBtn = this.add.rectangle(660, yPos, 40, 40, 0xcc0000);
-            const removeText = this.add.text(660, yPos, '✕', {
+            const removeBtn = this.add.rectangle(CARD_LAYOUT.removeBtnX, yPos, CARD_LAYOUT.removeBtnSize, CARD_LAYOUT.removeBtnSize, 0xcc0000);
+            const removeText = this.add.text(CARD_LAYOUT.removeBtnX, yPos, '✕', {
                 fontSize: '24px',
                 fontFamily: 'Arial, sans-serif',
                 color: '#ffffff',

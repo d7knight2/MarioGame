@@ -202,7 +202,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             color: #ffff00;
             font-weight: bold;
             border-radius: 5px;
-            z-index: 100;
+            z-index: 1000;
         `;
         
         const gameContainer = document.getElementById('game-container');

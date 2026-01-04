@@ -160,14 +160,26 @@ export default class GameScene extends Phaser.Scene {
         }
 
         // UI Layout constants - prevent overlapping in multiplayer
+        const UI_DEPTH = {
+            hud: 100,
+            notification: 150
+        };
+        
+        const UI_POSITION_OFFSETS = {
+            singlePlayer: { powerUpY: 56, revivalY: 50 },
+            multiPlayer: { powerUpY: 96, revivalY: 60 }
+        };
+        
+        const uiMode = this.gameMode === 2 ? 'multiPlayer' : 'singlePlayer';
+        
         const UI_LAYOUT = {
             scoreX: 16,
             scoreY: 16,
             levelX: width - 16,
             levelY: 16,
             powerUpX: 16,
-            powerUpY: this.gameMode === 2 ? 96 : 56,  // Lower position in 2-player mode
-            revivalY: this.gameMode === 2 ? 60 : 50   // Adjusted for 2-player mode
+            powerUpY: UI_POSITION_OFFSETS[uiMode].powerUpY,
+            revivalY: UI_POSITION_OFFSETS[uiMode].revivalY
         };
 
         // Score text - fixed to camera
@@ -180,7 +192,7 @@ export default class GameScene extends Phaser.Scene {
             strokeThickness: 4
         });
         this.scoreText.setScrollFactor(0);
-        this.scoreText.setDepth(100);
+        this.scoreText.setDepth(UI_DEPTH.hud);
         
         // Level text - fixed to camera
         this.levelText = this.add.text(UI_LAYOUT.levelX, UI_LAYOUT.levelY, 'Level: ' + currentLevel, {
@@ -193,7 +205,7 @@ export default class GameScene extends Phaser.Scene {
         });
         this.levelText.setOrigin(1, 0);
         this.levelText.setScrollFactor(0);
-        this.levelText.setDepth(100);
+        this.levelText.setDepth(UI_DEPTH.hud);
         
         // Power-up status text with adjusted position for multiplayer
         this.powerUpText = this.add.text(UI_LAYOUT.powerUpX, UI_LAYOUT.powerUpY, '', {
@@ -205,11 +217,12 @@ export default class GameScene extends Phaser.Scene {
             strokeThickness: 4
         });
         this.powerUpText.setScrollFactor(0);
-        this.powerUpText.setDepth(100);
+        this.powerUpText.setDepth(UI_DEPTH.hud);
         this.updatePowerUpText();
         
-        // Store UI layout for later use
+        // Store UI layout and depth for later use
         this.uiLayout = UI_LAYOUT;
+        this.uiDepth = UI_DEPTH;
 
         // Colliders for Player 1
         this.physics.add.collider(this.player, this.platforms);
@@ -2117,6 +2130,7 @@ export default class GameScene extends Phaser.Scene {
         
         // Use stored UI layout position to prevent overlap
         const revivalY = this.uiLayout ? this.uiLayout.revivalY : 50;
+        const notificationDepth = this.uiDepth ? this.uiDepth.notification : 150;
         
         this.revivalCountdownText = this.add.text(
             this.cameras.main.centerX,
@@ -2135,7 +2149,7 @@ export default class GameScene extends Phaser.Scene {
         );
         this.revivalCountdownText.setOrigin(0.5);
         this.revivalCountdownText.setScrollFactor(0);
-        this.revivalCountdownText.setDepth(150);  // Higher depth to stay on top
+        this.revivalCountdownText.setDepth(notificationDepth);  // Higher depth to stay on top
         
         // Start countdown timer
         let timeLeft = 30;
