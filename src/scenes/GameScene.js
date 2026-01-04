@@ -159,8 +159,19 @@ export default class GameScene extends Phaser.Scene {
             this.createFinishFlag();
         }
 
+        // UI Layout constants - prevent overlapping in multiplayer
+        const UI_LAYOUT = {
+            scoreX: 16,
+            scoreY: 16,
+            levelX: width - 16,
+            levelY: 16,
+            powerUpX: 16,
+            powerUpY: this.gameMode === 2 ? 96 : 56,  // Lower position in 2-player mode
+            revivalY: this.gameMode === 2 ? 60 : 50   // Adjusted for 2-player mode
+        };
+
         // Score text - fixed to camera
-        this.scoreText = this.add.text(16, 16, 'Score: ' + this.score, {
+        this.scoreText = this.add.text(UI_LAYOUT.scoreX, UI_LAYOUT.scoreY, 'Score: ' + this.score, {
             fontSize: '28px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -169,9 +180,10 @@ export default class GameScene extends Phaser.Scene {
             strokeThickness: 4
         });
         this.scoreText.setScrollFactor(0);
+        this.scoreText.setDepth(100);
         
         // Level text - fixed to camera
-        this.levelText = this.add.text(width - 16, 16, 'Level: ' + currentLevel, {
+        this.levelText = this.add.text(UI_LAYOUT.levelX, UI_LAYOUT.levelY, 'Level: ' + currentLevel, {
             fontSize: '28px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -181,10 +193,11 @@ export default class GameScene extends Phaser.Scene {
         });
         this.levelText.setOrigin(1, 0);
         this.levelText.setScrollFactor(0);
+        this.levelText.setDepth(100);
         
-        // Power-up status text
-        this.powerUpText = this.add.text(16, 56, '', {
-            fontSize: '24px',
+        // Power-up status text with adjusted position for multiplayer
+        this.powerUpText = this.add.text(UI_LAYOUT.powerUpX, UI_LAYOUT.powerUpY, '', {
+            fontSize: this.gameMode === 2 ? '20px' : '24px',  // Smaller font in 2-player
             fontFamily: 'Arial',
             color: '#ffff00',
             fontStyle: 'bold',
@@ -192,7 +205,11 @@ export default class GameScene extends Phaser.Scene {
             strokeThickness: 4
         });
         this.powerUpText.setScrollFactor(0);
+        this.powerUpText.setDepth(100);
         this.updatePowerUpText();
+        
+        // Store UI layout for later use
+        this.uiLayout = UI_LAYOUT;
 
         // Colliders for Player 1
         this.physics.add.collider(this.player, this.platforms);
@@ -2097,24 +2114,28 @@ export default class GameScene extends Phaser.Scene {
         }
         
         const playerName = playerNumber === 1 ? this.player1Name : this.player2Name;
+        
+        // Use stored UI layout position to prevent overlap
+        const revivalY = this.uiLayout ? this.uiLayout.revivalY : 50;
+        
         this.revivalCountdownText = this.add.text(
             this.cameras.main.centerX,
-            50,
+            revivalY,
             `${playerName} will revive in 30s`,
             {
-                fontSize: '24px',
+                fontSize: '22px',
                 fontFamily: 'Arial',
                 color: '#ff0000',
                 fontStyle: 'bold',
                 stroke: '#000000',
                 strokeThickness: 4,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                padding: { x: 10, y: 5 }
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                padding: { x: 12, y: 6 }
             }
         );
         this.revivalCountdownText.setOrigin(0.5);
         this.revivalCountdownText.setScrollFactor(0);
-        this.revivalCountdownText.setDepth(1000);
+        this.revivalCountdownText.setDepth(150);  // Higher depth to stay on top
         
         // Start countdown timer
         let timeLeft = 30;

@@ -12,8 +12,21 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
+        // UI Layout constants for consistent spacing
+        const UI_SPACING = {
+            titleY: 60,
+            hostBtnY: height / 2 - 120,
+            joinLabelY: height / 2 + 20,
+            codeDisplayY: height / 2 + 100,
+            inputOffsetY: height / 2 + 70,
+            joinBtnY: height / 2 + 170,
+            switchBtnY: height / 2 + 120,
+            statusTextY: height - 100,
+            backBtnY: height - 50
+        };
+
         // Title
-        this.title = this.add.text(width / 2, 60, 'Multiplayer Lobby', {
+        this.title = this.add.text(width / 2, UI_SPACING.titleY, 'Multiplayer Lobby', {
             fontSize: '48px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
@@ -22,16 +35,19 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             strokeThickness: 6
         });
         this.title.setOrigin(0.5);
+        this.title.setDepth(10);
 
         // Host Game Button
-        this.hostBtn = this.add.rectangle(width / 2, height / 2 - 100, 300, 70, 0x00aa00);
-        this.hostText = this.add.text(width / 2, height / 2 - 100, 'HOST GAME', {
+        this.hostBtn = this.add.rectangle(width / 2, UI_SPACING.hostBtnY, 300, 70, 0x00aa00);
+        this.hostText = this.add.text(width / 2, UI_SPACING.hostBtnY, 'HOST GAME', {
             fontSize: '28px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold'
         });
         this.hostText.setOrigin(0.5);
+        this.hostBtn.setDepth(20);
+        this.hostText.setDepth(21);
 
         this.hostBtn.setInteractive({ useHandCursor: true });
         this.hostBtn.on('pointerover', () => {
@@ -45,7 +61,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         });
 
         // Join Game Section
-        this.joinLabel = this.add.text(width / 2, height / 2, 'Or Enter Game Code:', {
+        this.joinLabel = this.add.text(width / 2, UI_SPACING.joinLabelY, 'Or Enter Game Code:', {
             fontSize: '24px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
@@ -53,9 +69,10 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             strokeThickness: 4
         });
         this.joinLabel.setOrigin(0.5);
+        this.joinLabel.setDepth(10);
 
-        // Game Code Display
-        this.codeDisplay = this.add.text(width / 2, height / 2 + 60, '', {
+        // Game Code Display (shown when hosting)
+        this.codeDisplay = this.add.text(width / 2, UI_SPACING.codeDisplayY, '', {
             fontSize: '32px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffff00',
@@ -64,16 +81,19 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             strokeThickness: 4
         });
         this.codeDisplay.setOrigin(0.5);
+        this.codeDisplay.setDepth(30);
 
         // Join Button
-        this.joinBtn = this.add.rectangle(width / 2, height / 2 + 130, 200, 60, 0x0066cc);
-        this.joinText = this.add.text(width / 2, height / 2 + 130, 'JOIN GAME', {
+        this.joinBtn = this.add.rectangle(width / 2, UI_SPACING.joinBtnY, 200, 60, 0x0066cc);
+        this.joinText = this.add.text(width / 2, UI_SPACING.joinBtnY, 'JOIN GAME', {
             fontSize: '24px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold'
         });
         this.joinText.setOrigin(0.5);
+        this.joinBtn.setDepth(20);
+        this.joinText.setDepth(21);
 
         this.joinBtn.setInteractive({ useHandCursor: true });
         this.joinBtn.on('pointerover', () => {
@@ -86,9 +106,9 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             this.joinGame();
         });
 
-        // Switch to Join Button (hidden initially)
-        this.switchToJoinBtn = this.add.rectangle(width / 2, height / 2 + 80, 250, 60, 0xcc6600);
-        this.switchToJoinText = this.add.text(width / 2, height / 2 + 80, 'SWITCH TO JOIN', {
+        // Switch to Join Button (hidden initially, positioned below code display)
+        this.switchToJoinBtn = this.add.rectangle(width / 2, UI_SPACING.switchBtnY, 250, 60, 0xcc6600);
+        this.switchToJoinText = this.add.text(width / 2, UI_SPACING.switchBtnY, 'SWITCH TO JOIN', {
             fontSize: '22px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
@@ -97,6 +117,8 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         this.switchToJoinText.setOrigin(0.5);
         this.switchToJoinBtn.setVisible(false);
         this.switchToJoinText.setVisible(false);
+        this.switchToJoinBtn.setDepth(20);
+        this.switchToJoinText.setDepth(21);
 
         this.switchToJoinBtn.setInteractive({ useHandCursor: true });
         this.switchToJoinBtn.on('pointerover', () => {
@@ -110,13 +132,15 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         });
 
         // Back button
-        this.backBtn = this.add.rectangle(100, height - 50, 150, 50, 0x666666);
-        this.backText = this.add.text(100, height - 50, 'BACK', {
+        this.backBtn = this.add.rectangle(100, UI_SPACING.backBtnY, 150, 50, 0x666666);
+        this.backText = this.add.text(100, UI_SPACING.backBtnY, 'BACK', {
             fontSize: '20px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff'
         });
         this.backText.setOrigin(0.5);
+        this.backBtn.setDepth(20);
+        this.backText.setDepth(21);
 
         this.backBtn.setInteractive({ useHandCursor: true });
         this.backBtn.on('pointerover', () => {
@@ -129,8 +153,8 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             this.scene.start('ModeSelectionScene');
         });
 
-        // Status text (now properly positioned above back button)
-        this.statusText = this.add.text(width / 2, height - 100, 'Choose to host or join a game', {
+        // Status text
+        this.statusText = this.add.text(width / 2, UI_SPACING.statusTextY, 'Choose to host or join a game', {
             fontSize: '18px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
@@ -139,6 +163,10 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             strokeThickness: 3
         });
         this.statusText.setOrigin(0.5);
+        this.statusText.setDepth(10);
+
+        // Store UI spacing for HTML input positioning
+        this.uiSpacing = UI_SPACING;
 
         // Create HTML input for game code
         this.createCodeInput();
@@ -151,15 +179,19 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         input.placeholder = 'Enter 6-digit code';
         input.maxLength = 6;
         
-        // Calculate responsive positioning based on game canvas
+        // Calculate responsive positioning based on game canvas and UI spacing
         const canvas = this.game.canvas;
         const canvasRect = canvas.getBoundingClientRect();
+        const height = this.cameras.main.height;
+        
+        // Position input at the calculated offset (between label and join button)
+        const inputYRatio = this.uiSpacing.inputOffsetY / height;
         
         input.style.cssText = `
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
-            top: ${canvasRect.top + canvasRect.height * 0.57}px;
+            top: ${canvasRect.top + canvasRect.height * inputYRatio}px;
             width: min(200px, 40vw);
             height: 40px;
             font-size: 24px;
@@ -170,7 +202,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             color: #ffff00;
             font-weight: bold;
             border-radius: 5px;
-            z-index: 1000;
+            z-index: 100;
         `;
         
         const gameContainer = document.getElementById('game-container');
@@ -183,7 +215,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         // Update position on window resize
         this.handleResize = () => {
             const rect = canvas.getBoundingClientRect();
-            input.style.top = `${rect.top + rect.height * 0.57}px`;
+            input.style.top = `${rect.top + rect.height * inputYRatio}px`;
         };
         window.addEventListener('resize', this.handleResize);
 
