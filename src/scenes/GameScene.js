@@ -115,7 +115,7 @@ export default class GameScene extends Phaser.Scene {
         this.add.rectangle(1600, height / 2, 3200, height, 0x5c94fc);
         
         // Create parallax background layers
-        this.backgroundLayers = BackgroundGenerator.createParallaxBackground(this, 3200, height);
+        BackgroundGenerator.createParallaxBackground(this, 3200, height);
 
         // Create platforms group
         this.platforms = this.physics.add.staticGroup();
@@ -1609,6 +1609,7 @@ export default class GameScene extends Phaser.Scene {
         this.scoreText.setText('Score: ' + this.score);
         
         // Check for extra life (100 coins = 1 life)
+        // In 2-player mode, coins are shared - give life to player who collected the 100th coin
         if (this.coinsCollected % 100 === 0) {
             if (this.gameMode === 1 || player === this.player) {
                 this.lives++;
@@ -1617,7 +1618,7 @@ export default class GameScene extends Phaser.Scene {
             }
             this.updateLivesText();
             
-            // Show 1-UP message
+            // Show 1-UP message at world coordinates (will scroll with camera)
             const oneUpText = this.add.text(player.x, player.y - 50, '1-UP!', {
                 fontSize: '32px',
                 fontFamily: 'Arial',
@@ -1627,6 +1628,8 @@ export default class GameScene extends Phaser.Scene {
                 strokeThickness: 4
             });
             oneUpText.setOrigin(0.5);
+            // Text should move with the world, not fixed to camera
+            oneUpText.setScrollFactor(1);
             
             this.tweens.add({
                 targets: oneUpText,
