@@ -156,7 +156,7 @@ describe('MultiplayerLobbyScene Logic', () => {
       // Verify no overlap - switchBtn should start after codeDisplay ends
       expect(switchBtnTop).toBeGreaterThan(codeDisplayBottom);
       
-      // Verify adequate spacing (at least 40px)
+      // Verify adequate spacing (44px clearance with a minimum of 40px)
       const gap = switchBtnTop - codeDisplayBottom;
       expect(gap).toBeGreaterThanOrEqual(40);
     });
