@@ -62,6 +62,16 @@ export default class GameScene extends Phaser.Scene {
         this.revivalCountdownInterval = null;
         this.REVIVAL_DELAY_MS = 30000; // 30 seconds
         this.cameraFollowState = null; // Track camera state: 'player1', 'player2', 'both', or null
+        // Variable jump mechanics
+        this.isJumping = false;
+        this.isJumping2 = false;
+        this.jumpHoldTime = 0;
+        this.jumpHoldTime2 = 0;
+        this.MAX_JUMP_HOLD_TIME = 300; // milliseconds
+        // Lives and coins system
+        this.lives = 3;
+        this.lives2 = 3;
+        this.livesText = null;
     }
 
     create() {
@@ -103,6 +113,9 @@ export default class GameScene extends Phaser.Scene {
 
         // Create sky background gradient
         this.add.rectangle(1600, height / 2, 3200, height, 0x5c94fc);
+        
+        // Create parallax background layers
+        this.backgroundLayers = BackgroundGenerator.createParallaxBackground(this, 3200, height);
 
         // Create platforms group
         this.platforms = this.physics.add.staticGroup();
@@ -181,6 +194,33 @@ export default class GameScene extends Phaser.Scene {
         });
         this.levelText.setOrigin(1, 0);
         this.levelText.setScrollFactor(0);
+        
+        // Lives text - fixed to camera
+        const livesY = 16;
+        const livesX = width / 2;
+        if (this.gameMode === 1) {
+            this.livesText = this.add.text(livesX, livesY, '♥ × ' + this.lives, {
+                fontSize: '28px',
+                fontFamily: 'Arial',
+                color: '#ff0000',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4
+            });
+            this.livesText.setOrigin(0.5, 0);
+        } else {
+            // 2-player mode: show both lives
+            this.livesText = this.add.text(livesX, livesY, `P1: ♥×${this.lives} | P2: ♥×${this.lives2}`, {
+                fontSize: '24px',
+                fontFamily: 'Arial',
+                color: '#ff0000',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4
+            });
+            this.livesText.setOrigin(0.5, 0);
+        }
+        this.livesText.setScrollFactor(0);
         
         // Power-up status text
         this.powerUpText = this.add.text(16, 56, '', {
@@ -495,6 +535,14 @@ export default class GameScene extends Phaser.Scene {
         }
         
         this.powerUpText.setText(text);
+    }
+    
+    updateLivesText() {
+        if (this.gameMode === 1) {
+            this.livesText.setText('♥ × ' + this.lives);
+        } else {
+            this.livesText.setText(`P1: ♥×${this.lives} | P2: ♥×${this.lives2}`);
+        }
     }
     
     resetGameState() {
@@ -1557,6 +1605,36 @@ export default class GameScene extends Phaser.Scene {
         this.score += 10;
         this.coinsCollected++; // Track coins collected
         this.scoreText.setText('Score: ' + this.score);
+        
+        // Check for extra life (100 coins = 1 life)
+        if (this.coinsCollected % 100 === 0) {
+            if (this.gameMode === 1 || player === this.player) {
+                this.lives++;
+            } else {
+                this.lives2++;
+            }
+            this.updateLivesText();
+            
+            // Show 1-UP message
+            const oneUpText = this.add.text(player.x, player.y - 50, '1-UP!', {
+                fontSize: '32px',
+                fontFamily: 'Arial',
+                color: '#00ff00',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4
+            });
+            oneUpText.setOrigin(0.5);
+            
+            this.tweens.add({
+                targets: oneUpText,
+                y: oneUpText.y - 50,
+                alpha: 0,
+                duration: 1500,
+                ease: 'Cubic.easeOut',
+                onComplete: () => oneUpText.destroy()
+            });
+        }
         
         // Play a simple sound effect (visual feedback)
         this.tweens.add({
@@ -2625,9 +2703,31 @@ export default class GameScene extends Phaser.Scene {
                     this.player.body.setVelocityX(0);
                 }
 
-                // Jump - Up arrow or touch
+                // Jump - Up arrow or touch (variable jump height)
                 if ((this.cursors.up.isDown || jumpPressed) && this.player.body.touching.down) {
                     this.player.body.setVelocityY(-400);
+                    this.isJumping = true;
+                    this.jumpHoldTime = 0;
+                } else if (!this.cursors.up.isDown && !jumpPressed && this.isJumping) {
+                    // Button released early - cut jump short
+                    if (this.player.body.velocity.y < 0) {
+                        this.player.body.setVelocityY(this.player.body.velocity.y * 0.5);
+                    }
+                    this.isJumping = false;
+                }
+                
+                // Track jump hold time
+                if (this.isJumping && (this.cursors.up.isDown || jumpPressed)) {
+                    this.jumpHoldTime += this.game.loop.delta;
+                    if (this.jumpHoldTime >= this.MAX_JUMP_HOLD_TIME) {
+                        this.isJumping = false;
+                    }
+                }
+                
+                // Reset jump state when landing
+                if (this.player.body.touching.down) {
+                    this.isJumping = false;
+                    this.jumpHoldTime = 0;
                 }
                 
                 // Fire - X key or touch
@@ -2652,9 +2752,31 @@ export default class GameScene extends Phaser.Scene {
                     this.player.body.setVelocityX(0);
                 }
 
-                // Jump - W key for player 1
+                // Jump - W key for player 1 (variable jump height)
                 if (this.wasdKeys.up.isDown && this.player.body.touching.down) {
                     this.player.body.setVelocityY(-400);
+                    this.isJumping = true;
+                    this.jumpHoldTime = 0;
+                } else if (!this.wasdKeys.up.isDown && this.isJumping) {
+                    // Button released early - cut jump short
+                    if (this.player.body.velocity.y < 0) {
+                        this.player.body.setVelocityY(this.player.body.velocity.y * 0.5);
+                    }
+                    this.isJumping = false;
+                }
+                
+                // Track jump hold time
+                if (this.isJumping && this.wasdKeys.up.isDown) {
+                    this.jumpHoldTime += this.game.loop.delta;
+                    if (this.jumpHoldTime >= this.MAX_JUMP_HOLD_TIME) {
+                        this.isJumping = false;
+                    }
+                }
+                
+                // Reset jump state when landing
+                if (this.player.body.touching.down) {
+                    this.isJumping = false;
+                    this.jumpHoldTime = 0;
                 }
                 
                 // Fire - Shift key for player 1
@@ -2678,9 +2800,31 @@ export default class GameScene extends Phaser.Scene {
                     this.player2.body.setVelocityX(0);
                 }
 
-                // Jump - Up arrow or touch for player 2
+                // Jump - Up arrow or touch for player 2 (variable jump height)
                 if ((this.cursors.up.isDown || jumpPressed) && this.player2.body.touching.down) {
                     this.player2.body.setVelocityY(-400);
+                    this.isJumping2 = true;
+                    this.jumpHoldTime2 = 0;
+                } else if (!this.cursors.up.isDown && !jumpPressed && this.isJumping2) {
+                    // Button released early - cut jump short
+                    if (this.player2.body.velocity.y < 0) {
+                        this.player2.body.setVelocityY(this.player2.body.velocity.y * 0.5);
+                    }
+                    this.isJumping2 = false;
+                }
+                
+                // Track jump hold time
+                if (this.isJumping2 && (this.cursors.up.isDown || jumpPressed)) {
+                    this.jumpHoldTime2 += this.game.loop.delta;
+                    if (this.jumpHoldTime2 >= this.MAX_JUMP_HOLD_TIME) {
+                        this.isJumping2 = false;
+                    }
+                }
+                
+                // Reset jump state when landing
+                if (this.player2.body.touching.down) {
+                    this.isJumping2 = false;
+                    this.jumpHoldTime2 = 0;
                 }
                 
                 // Fire - X key or touch for player 2
