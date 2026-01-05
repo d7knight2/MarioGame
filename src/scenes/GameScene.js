@@ -245,6 +245,8 @@ export default class GameScene extends Phaser.Scene {
         if (this.gameMode === 2) {
             this.physics.add.collider(this.player2, this.platforms);
             this.physics.add.collider(this.fireballs2, this.platforms, this.hitPlatformWithFireball, null, this);
+            // Player-to-player collision (bounce off heads)
+            this.physics.add.collider(this.player, this.player2, this.handlePlayerCollision, null, this);
         }
         
         // Power-up block collision
@@ -2027,30 +2029,39 @@ export default class GameScene extends Phaser.Scene {
                     this.player.setAlpha(1);
                 });
             } else {
-                // Player 1 dies
-                if (this.gameMode === 2 && this.player2 && !this.player2Dead) {
-                    // Multiplayer mode and player 2 is alive - mark player 1 as dead and start revival timer
-                    this.handlePlayerDeath(this.player, 1);
+                // Player 1 loses a life
+                this.lives--;
+                this.updateLivesText();
+                
+                if (this.lives <= 0) {
+                    // No more lives - check multiplayer or game over
+                    if (this.gameMode === 2 && this.player2 && !this.player2Dead) {
+                        // Multiplayer mode and player 2 is alive - mark player 1 as dead and start revival timer
+                        this.handlePlayerDeath(this.player, 1);
+                    } else {
+                        // Single player mode or both players dead - game over
+                        this.gameOver = true;
+                        this.physics.pause();
+                        
+                        // Death animation - Mario spins and falls
+                        this.tweens.add({
+                            targets: this.player,
+                            angle: 720,
+                            y: this.player.y - 100,
+                            alpha: 0,
+                            duration: 1000,
+                            ease: 'Cubic.easeIn',
+                            onComplete: () => {
+                                // Return to start screen after animation
+                                this.resetGameState();
+                                this.scene.start('StartScene');
+                                this.gameOver = false;
+                            }
+                        });
+                    }
                 } else {
-                    // Single player mode or both players dead - game over
-                    this.gameOver = true;
-                    this.physics.pause();
-                    
-                    // Death animation - Mario spins and falls
-                    this.tweens.add({
-                        targets: this.player,
-                        angle: 720,
-                        y: this.player.y - 100,
-                        alpha: 0,
-                        duration: 1000,
-                        ease: 'Cubic.easeIn',
-                        onComplete: () => {
-                            // Return to start screen after animation
-                            this.resetGameState();
-                            this.scene.start('StartScene');
-                            this.gameOver = false;
-                        }
-                    });
+                    // Still have lives - respawn player
+                    this.respawnPlayer(this.player, 1);
                 }
             }
         }
@@ -2117,33 +2128,115 @@ export default class GameScene extends Phaser.Scene {
                     this.player2.setAlpha(1);
                 });
             } else {
-                // Player 2 dies
-                if (!this.player1Dead) {
-                    // Player 1 is alive - mark player 2 as dead and start revival timer
-                    this.handlePlayerDeath(this.player2, 2);
+                // Player 2 loses a life
+                this.lives2--;
+                this.updateLivesText();
+                
+                if (this.lives2 <= 0) {
+                    // No more lives - check if player 1 is alive
+                    if (!this.player1Dead) {
+                        // Player 1 is alive - mark player 2 as dead and start revival timer
+                        this.handlePlayerDeath(this.player2, 2);
+                    } else {
+                        // Both players dead - game over
+                        this.gameOver = true;
+                        this.physics.pause();
+                        
+                        // Death animation for player 2
+                        this.tweens.add({
+                            targets: this.player2,
+                            angle: 720,
+                            y: this.player2.y - 100,
+                            alpha: 0,
+                            duration: 1000,
+                            ease: 'Cubic.easeIn',
+                            onComplete: () => {
+                                // Return to start screen after animation
+                                this.resetGameState();
+                                this.scene.start('StartScene');
+                                this.gameOver = false;
+                            }
+                        });
+                    }
                 } else {
-                    // Both players dead - game over
-                    this.gameOver = true;
-                    this.physics.pause();
-                    
-                    // Death animation for player 2
-                    this.tweens.add({
-                        targets: this.player2,
-                        angle: 720,
-                        y: this.player2.y - 100,
-                        alpha: 0,
-                        duration: 1000,
-                        ease: 'Cubic.easeIn',
-                        onComplete: () => {
-                            // Return to start screen after animation
-                            this.resetGameState();
-                            this.scene.start('StartScene');
-                            this.gameOver = false;
-                        }
-                    });
+                    // Still have lives - respawn player
+                    this.respawnPlayer(this.player2, 2);
                 }
             }
         }
+    }
+    
+    handlePlayerCollision(player1, player2) {
+        // Check if one player is above the other (bounce mechanic)
+        const player1Bottom = player1.y + (player1.body.height / 2);
+        const player2Bottom = player2.y + (player2.body.height / 2);
+        
+        // If player1 is above player2 and moving down, bounce player1
+        if (player1Bottom < player2.y && player1.body.velocity.y > 0) {
+            player1.body.setVelocityY(-250);
+        }
+        // If player2 is above player1 and moving down, bounce player2
+        else if (player2Bottom < player1.y && player2.body.velocity.y > 0) {
+            player2.body.setVelocityY(-250);
+        }
+        // Otherwise just let them push each other (default collision behavior)
+    }
+    
+    respawnPlayer(player, playerNumber) {
+        // Show brief death animation
+        this.tweens.add({
+            targets: player,
+            alpha: 0,
+            duration: 200,
+            onComplete: () => {
+                // Reset position to start
+                player.x = DEFAULT_SPAWN_X;
+                player.y = DEFAULT_SPAWN_Y;
+                player.angle = 0;
+                
+                // Reset power-ups
+                if (playerNumber === 1) {
+                    this.isPoweredUp = false;
+                    this.hasFirePower = false;
+                    this.isInvincible = false;
+                    player.setScale(1);
+                    player.body.setSize(28, 44);
+                    player.body.setOffset(-14, -22);
+                } else {
+                    this.isPoweredUp2 = false;
+                    this.hasFirePower2 = false;
+                    this.isInvincible2 = false;
+                    player.setScale(1);
+                    player.body.setSize(28, 44);
+                    player.body.setOffset(-14, -22);
+                }
+                this.updatePowerUpText();
+                
+                // Flash player back in
+                this.tweens.add({
+                    targets: player,
+                    alpha: 1,
+                    duration: 100,
+                    yoyo: true,
+                    repeat: 5
+                });
+                
+                // Brief invincibility after respawn
+                if (playerNumber === 1) {
+                    this.isInvincible = true;
+                    this.time.delayedCall(2000, () => {
+                        this.isInvincible = false;
+                        player.setAlpha(1);
+                    });
+                } else {
+                    this.isInvincible2 = true;
+                    this.time.delayedCall(2000, () => {
+                        this.isInvincible2 = false;
+                        player.setAlpha(1);
+                    });
+                }
+            }
+        });
     }
     
     handlePlayerDeath(player, playerNumber) {
