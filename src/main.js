@@ -32,6 +32,13 @@ const config = {
 
 const game = new Phaser.Game(config);
 
+// Expose game instance to window for testing purposes
+if (typeof window !== 'undefined') {
+    window.Phaser = window.Phaser || {};
+    window.Phaser.GAMES = window.Phaser.GAMES || [];
+    window.Phaser.GAMES.push(game);
+}
+
 // Handle mobile controls
 window.addEventListener('load', () => {
     const leftBtn = document.getElementById('left-btn');
