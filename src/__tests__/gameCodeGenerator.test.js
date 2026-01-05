@@ -133,7 +133,7 @@ describe('Game Code Generator', () => {
       const code = generateGameCode();
       const formatted = formatGameCode(code);
       expect(formatted).toContain('-');
-      expect(formatted.replace('-', '')).toBe(code);
+      expect(formatted.replaceAll('-', '')).toBe(code);
     });
   });
 });
