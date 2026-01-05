@@ -128,5 +128,12 @@ describe('Game Code Generator', () => {
       expect(formatGameCode(null)).toBe(null);
       expect(formatGameCode(undefined)).toBe(undefined);
     });
+
+    test('should produce valid formatted codes for multiplayer sessions', () => {
+      const code = generateGameCode();
+      const formatted = formatGameCode(code);
+      expect(formatted).toContain('-');
+      expect(formatted.replace('-', '')).toBe(code);
+    });
   });
 });
