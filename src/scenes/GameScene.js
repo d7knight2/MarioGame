@@ -2796,9 +2796,16 @@ export default class GameScene extends Phaser.Scene {
                     this.player.body.setVelocityX(0);
                 }
 
-                // Jump - Up arrow or touch (variable jump height)
+                // Jump - Up arrow or touch (variable jump height with momentum)
                 if ((this.cursors.up.isDown || jumpPressed) && this.player.body.touching.down) {
+                    // Base jump velocity
                     this.player.body.setVelocityY(-400);
+                    // Add horizontal momentum boost (running jump goes further)
+                    const currentVelX = this.player.body.velocity.x;
+                    if (Math.abs(currentVelX) > 0) {
+                        // Add 20% horizontal boost when jumping while moving
+                        this.player.body.setVelocityX(currentVelX * 1.2);
+                    }
                     this.isJumping = true;
                     this.jumpHoldTime = 0;
                 } else if (!this.cursors.up.isDown && !jumpPressed && this.isJumping) {
@@ -2845,9 +2852,16 @@ export default class GameScene extends Phaser.Scene {
                     this.player.body.setVelocityX(0);
                 }
 
-                // Jump - W key for player 1 (variable jump height)
+                // Jump - W key for player 1 (variable jump height with momentum)
                 if (this.wasdKeys.up.isDown && this.player.body.touching.down) {
+                    // Base jump velocity
                     this.player.body.setVelocityY(-400);
+                    // Add horizontal momentum boost (running jump goes further)
+                    const currentVelX = this.player.body.velocity.x;
+                    if (Math.abs(currentVelX) > 0) {
+                        // Add 20% horizontal boost when jumping while moving
+                        this.player.body.setVelocityX(currentVelX * 1.2);
+                    }
                     this.isJumping = true;
                     this.jumpHoldTime = 0;
                 } else if (!this.wasdKeys.up.isDown && this.isJumping) {
@@ -2893,9 +2907,16 @@ export default class GameScene extends Phaser.Scene {
                     this.player2.body.setVelocityX(0);
                 }
 
-                // Jump - Up arrow or touch for player 2 (variable jump height)
+                // Jump - Up arrow or touch for player 2 (variable jump height with momentum)
                 if ((this.cursors.up.isDown || jumpPressed) && this.player2.body.touching.down) {
+                    // Base jump velocity
                     this.player2.body.setVelocityY(-400);
+                    // Add horizontal momentum boost (running jump goes further)
+                    const currentVelX = this.player2.body.velocity.x;
+                    if (Math.abs(currentVelX) > 0) {
+                        // Add 20% horizontal boost when jumping while moving
+                        this.player2.body.setVelocityX(currentVelX * 1.2);
+                    }
                     this.isJumping2 = true;
                     this.jumpHoldTime2 = 0;
                 } else if (!this.cursors.up.isDown && !jumpPressed && this.isJumping2) {
