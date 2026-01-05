@@ -5,3 +5,8 @@ dist/
 .vite/
 coverage/
 .jest-cache/
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/

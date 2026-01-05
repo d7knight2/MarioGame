@@ -7,9 +7,9 @@
 describe('Game Logic Tests', () => {
   describe('Coin Collection', () => {
     test('should have unique coin positions in Level 1', () => {
-      // Level 1 coin positions
+      // Level 1 coin positions (updated with 60px spacing)
       const coinPositions = [
-        { x: 300, y: 430 }, { x: 350, y: 430 }, { x: 400, y: 430 },
+        { x: 300, y: 430 }, { x: 360, y: 430 }, { x: 420, y: 430 },
         { x: 550, y: 370 }, { x: 610, y: 370 },
         { x: 150, y: 330 }, { x: 210, y: 330 },
         { x: 900, y: 400 }, { x: 960, y: 400 }, { x: 1020, y: 400 },

@@ -8,6 +8,10 @@ export default {
     '**/__tests__/**/*.test.js',
     '**/?(*.)+(spec|test).js'
   ],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/tests/'
+  ],
   collectCoverageFrom: [
     'src/**/*.js',
     '!src/main.js',

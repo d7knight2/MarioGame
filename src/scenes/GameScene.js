@@ -160,8 +160,31 @@ export default class GameScene extends Phaser.Scene {
             this.createFinishFlag();
         }
 
-        // Score text - fixed to camera (moved to top of screen)
-        this.scoreText = this.add.text(16, 8, 'Score: ' + this.score, {
+        // UI Layout constants - prevent overlapping in multiplayer
+        const UI_DEPTH = {
+            hud: 100,
+            notification: 150
+        };
+        
+        const UI_POSITION_OFFSETS = {
+            singlePlayer: { powerUpY: 48, revivalY: 50 },
+            multiPlayer: { powerUpY: 88, revivalY: 60 }
+        };
+        
+        const uiMode = this.gameMode === 2 ? 'multiPlayer' : 'singlePlayer';
+        
+        const UI_LAYOUT = {
+            scoreX: 16,
+            scoreY: 8,  // Moved to very top of screen
+            levelX: width - 16,
+            levelY: 8,  // Moved to very top of screen
+            powerUpX: 16,
+            powerUpY: UI_POSITION_OFFSETS[uiMode].powerUpY,
+            revivalY: UI_POSITION_OFFSETS[uiMode].revivalY
+        };
+
+        // Score text - fixed to camera
+        this.scoreText = this.add.text(UI_LAYOUT.scoreX, UI_LAYOUT.scoreY, 'Score: ' + this.score, {
             fontSize: '28px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -170,9 +193,10 @@ export default class GameScene extends Phaser.Scene {
             strokeThickness: 4
         });
         this.scoreText.setScrollFactor(0);
+        this.scoreText.setDepth(UI_DEPTH.hud);
         
-        // Level text - fixed to camera (moved to top of screen)
-        this.levelText = this.add.text(width - 16, 8, 'Level: ' + currentLevel, {
+        // Level text - fixed to camera
+        this.levelText = this.add.text(UI_LAYOUT.levelX, UI_LAYOUT.levelY, 'Level: ' + currentLevel, {
             fontSize: '28px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -182,10 +206,11 @@ export default class GameScene extends Phaser.Scene {
         });
         this.levelText.setOrigin(1, 0);
         this.levelText.setScrollFactor(0);
+        this.levelText.setDepth(UI_DEPTH.hud);
         
-        // Power-up status text (adjusted position to account for HUD move)
-        this.powerUpText = this.add.text(16, 48, '', {
-            fontSize: '24px',
+        // Power-up status text with adjusted position for multiplayer
+        this.powerUpText = this.add.text(UI_LAYOUT.powerUpX, UI_LAYOUT.powerUpY, '', {
+            fontSize: this.gameMode === 2 ? '20px' : '24px',  // Smaller font in 2-player
             fontFamily: 'Arial',
             color: '#ffff00',
             fontStyle: 'bold',
@@ -193,7 +218,12 @@ export default class GameScene extends Phaser.Scene {
             strokeThickness: 4
         });
         this.powerUpText.setScrollFactor(0);
+        this.powerUpText.setDepth(UI_DEPTH.hud);
         this.updatePowerUpText();
+        
+        // Store UI layout and depth for later use
+        this.uiLayout = UI_LAYOUT;
+        this.uiDepth = UI_DEPTH;
 
         // Colliders for Player 1
         this.physics.add.collider(this.player, this.platforms);
@@ -731,22 +761,22 @@ export default class GameScene extends Phaser.Scene {
         
         if (currentLevel === 1) {
             coinPositions = [
-                // First section - single row, well spaced
-                { x: 300, y: 430 }, { x: 350, y: 430 }, { x: 400, y: 430 },
+                // First section - 60px horizontal spacing
+                { x: 300, y: 430 }, { x: 360, y: 430 }, { x: 420, y: 430 },
                 { x: 550, y: 370 }, { x: 610, y: 370 },
                 { x: 150, y: 330 }, { x: 210, y: 330 },
                 
-                // Second section
+                // Second section - 60px horizontal spacing
                 { x: 900, y: 400 }, { x: 960, y: 400 }, { x: 1020, y: 400 },
                 { x: 1200, y: 350 }, { x: 1260, y: 350 },
                 { x: 1450, y: 430 }, { x: 1510, y: 430 },
                 
-                // Third section
+                // Third section - 60px horizontal spacing
                 { x: 1800, y: 370 }, { x: 1860, y: 370 },
                 { x: 2050, y: 330 }, { x: 2110, y: 330 }, { x: 2170, y: 330 },
                 { x: 2300, y: 400 }, { x: 2360, y: 400 },
                 
-                // Final section
+                // Final section - 60px horizontal spacing
                 { x: 2600, y: 370 }, { x: 2660, y: 370 },
                 { x: 2850, y: 430 }, { x: 2910, y: 430 }
             ];
@@ -800,13 +830,13 @@ export default class GameScene extends Phaser.Scene {
         }
 
         coinPositions.forEach(pos => {
-            // Create single coin with gradient-like effect using graphics
+            // Create single coin with gradient-like effect using graphics (16px size as required)
             const graphics = this.add.graphics();
             graphics.fillStyle(0xffff00, 1);
-            graphics.fillCircle(16, 16, 16);  // Draw at center of 32x32 texture
+            graphics.fillCircle(8, 8, 8);  // Draw at center of 16x16 texture with radius 8
             graphics.fillStyle(0xffcc00, 1);
-            graphics.fillCircle(16, 16, 12);  // Draw inner circle at same center
-            graphics.generateTexture(`coin_${pos.x}_${pos.y}`, 32, 32);
+            graphics.fillCircle(8, 8, 6);  // Draw inner circle at same center
+            graphics.generateTexture(`coin_${pos.x}_${pos.y}`, 16, 16);
             graphics.destroy();
             
             const coin = this.add.image(pos.x, pos.y, `coin_${pos.x}_${pos.y}`);
@@ -1895,9 +1925,9 @@ export default class GameScene extends Phaser.Scene {
     hitEnemy(player, enemy) {
         if (this.gameOver) return;
         
-        // If invincible, destroy enemy
+        // If invincible, destroy enemy with animation
         if (this.isInvincible) {
-            enemy.destroy();
+            this.destroyEnemyWithAnimation(enemy);
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
@@ -1906,16 +1936,17 @@ export default class GameScene extends Phaser.Scene {
         
         // Check if player is falling onto enemy from above
         // Player must be above enemy's center and moving downward
-        // Use a more generous threshold for better jump detection
+        // Use 15px threshold for reliable jump-kill detection
         const playerBottom = player.y + (player.body.height / 2);
         const enemyTop = enemy.y - (enemy.body.height / 2);
-        const isPlayerAbove = playerBottom < enemy.y;
+        const JUMP_KILL_THRESHOLD = 15;
+        const isPlayerAbove = playerBottom < enemy.y + JUMP_KILL_THRESHOLD;
         const isMovingDown = player.body.velocity.y > 0;
         
         if (isPlayerAbove && isMovingDown) {
             // Successfully jumped on enemy - kill enemy without taking damage
             player.body.setVelocityY(-300);
-            enemy.destroy();
+            this.destroyEnemyWithAnimation(enemy);
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
@@ -1988,9 +2019,9 @@ export default class GameScene extends Phaser.Scene {
     hitEnemy2(player, enemy) {
         if (this.gameOver) return;
         
-        // If invincible, destroy enemy
+        // If invincible, destroy enemy with animation
         if (this.isInvincible2) {
-            enemy.destroy();
+            this.destroyEnemyWithAnimation(enemy);
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
@@ -1999,15 +2030,17 @@ export default class GameScene extends Phaser.Scene {
         
         // Check if player is falling onto enemy from above
         // Player must be above enemy's center and moving downward
+        // Use 15px threshold for reliable jump-kill detection
         const playerBottom = player.y + (player.body.height / 2);
         const enemyTop = enemy.y - (enemy.body.height / 2);
-        const isPlayerAbove = playerBottom < enemy.y;
+        const JUMP_KILL_THRESHOLD = 15;
+        const isPlayerAbove = playerBottom < enemy.y + JUMP_KILL_THRESHOLD;
         const isMovingDown = player.body.velocity.y > 0;
         
         if (isPlayerAbove && isMovingDown) {
             // Successfully jumped on enemy - kill enemy without taking damage
             player.body.setVelocityY(-300);
-            enemy.destroy();
+            this.destroyEnemyWithAnimation(enemy);
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
@@ -2104,24 +2137,29 @@ export default class GameScene extends Phaser.Scene {
         }
         
         const playerName = playerNumber === 1 ? this.player1Name : this.player2Name;
+        
+        // Use stored UI layout position to prevent overlap
+        const revivalY = this.uiLayout ? this.uiLayout.revivalY : 50;
+        const notificationDepth = this.uiDepth ? this.uiDepth.notification : 150;
+        
         this.revivalCountdownText = this.add.text(
             this.cameras.main.centerX,
-            50,
+            revivalY,
             `${playerName} will revive in 30s`,
             {
-                fontSize: '24px',
+                fontSize: '22px',
                 fontFamily: 'Arial',
                 color: '#ff0000',
                 fontStyle: 'bold',
                 stroke: '#000000',
                 strokeThickness: 4,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                padding: { x: 10, y: 5 }
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                padding: { x: 12, y: 6 }
             }
         );
         this.revivalCountdownText.setOrigin(0.5);
         this.revivalCountdownText.setScrollFactor(0);
-        this.revivalCountdownText.setDepth(1000);
+        this.revivalCountdownText.setDepth(notificationDepth);  // Higher depth to stay on top
         
         // Start countdown timer
         let timeLeft = 30;
@@ -2314,6 +2352,25 @@ export default class GameScene extends Phaser.Scene {
         }
     }
     
+    
+    destroyEnemyWithAnimation(enemy) {
+        // Disable physics body to prevent further collisions
+        enemy.body.enable = false;
+        
+        // Enemy death animation - 720° spin and fade-out
+        this.tweens.add({
+            targets: enemy,
+            angle: 720,
+            alpha: 0,
+            y: enemy.y - 50,
+            duration: 500,
+            ease: 'Cubic.easeOut',
+            onComplete: () => {
+                enemy.destroy();
+            }
+        });
+    }
+    
     fireballHitEnemy(fireball, enemy) {
         // Stop animations
         const tweenTargets = [fireball];
@@ -2328,7 +2385,9 @@ export default class GameScene extends Phaser.Scene {
             fireball.destructionTimer.remove();
         }
         fireball.destroy();
-        enemy.destroy();
+        
+        // Destroy enemy with animation
+        this.destroyEnemyWithAnimation(enemy);
         this.score += 50;
         this.enemiesDefeated++; // Track enemies defeated
         this.scoreText.setText('Score: ' + this.score);
@@ -2372,7 +2431,7 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.existing(fireball);
         fireball.body.setVelocityX(direction * 400);
         fireball.body.setVelocityY(-150);  // Consistent upward velocity for arc
-        fireball.body.setBounce(0.5);  // Moderate bounce factor
+        fireball.body.setBounce(0.8);  // Increased bounce factor for better bounce effect
         fireball.body.setAllowGravity(true);
         fireball.body.setCollideWorldBounds(false);  // Manual bounds checking for cleanup
         fireball.innerCircle = fireballInner;
@@ -2427,7 +2486,7 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.existing(fireball);
         fireball.body.setVelocityX(direction * 400);
         fireball.body.setVelocityY(-150);
-        fireball.body.setBounce(0.5);
+        fireball.body.setBounce(0.8);  // Increased bounce factor for better bounce effect
         fireball.body.setAllowGravity(true);
         fireball.body.setCollideWorldBounds(false);
         fireball.innerCircle = fireballInner;
