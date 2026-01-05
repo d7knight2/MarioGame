@@ -754,22 +754,22 @@ export default class GameScene extends Phaser.Scene {
         
         if (currentLevel === 1) {
             coinPositions = [
-                // First section - single row, well spaced
-                { x: 300, y: 430 }, { x: 350, y: 430 }, { x: 400, y: 430 },
+                // First section - 60px horizontal spacing
+                { x: 300, y: 430 }, { x: 360, y: 430 }, { x: 420, y: 430 },
                 { x: 550, y: 370 }, { x: 610, y: 370 },
                 { x: 150, y: 330 }, { x: 210, y: 330 },
                 
-                // Second section
+                // Second section - 60px horizontal spacing
                 { x: 900, y: 400 }, { x: 960, y: 400 }, { x: 1020, y: 400 },
                 { x: 1200, y: 350 }, { x: 1260, y: 350 },
                 { x: 1450, y: 430 }, { x: 1510, y: 430 },
                 
-                // Third section
+                // Third section - 60px horizontal spacing
                 { x: 1800, y: 370 }, { x: 1860, y: 370 },
                 { x: 2050, y: 330 }, { x: 2110, y: 330 }, { x: 2170, y: 330 },
                 { x: 2300, y: 400 }, { x: 2360, y: 400 },
                 
-                // Final section
+                // Final section - 60px horizontal spacing
                 { x: 2600, y: 370 }, { x: 2660, y: 370 },
                 { x: 2850, y: 430 }, { x: 2910, y: 430 }
             ];
@@ -823,13 +823,13 @@ export default class GameScene extends Phaser.Scene {
         }
 
         coinPositions.forEach(pos => {
-            // Create single coin with gradient-like effect using graphics
+            // Create single coin with gradient-like effect using graphics (16px size as required)
             const graphics = this.add.graphics();
             graphics.fillStyle(0xffff00, 1);
-            graphics.fillCircle(16, 16, 16);  // Draw at center of 32x32 texture
+            graphics.fillCircle(8, 8, 8);  // Draw at center of 16x16 texture with radius 8
             graphics.fillStyle(0xffcc00, 1);
-            graphics.fillCircle(16, 16, 12);  // Draw inner circle at same center
-            graphics.generateTexture(`coin_${pos.x}_${pos.y}`, 32, 32);
+            graphics.fillCircle(8, 8, 6);  // Draw inner circle at same center
+            graphics.generateTexture(`coin_${pos.x}_${pos.y}`, 16, 16);
             graphics.destroy();
             
             const coin = this.add.image(pos.x, pos.y, `coin_${pos.x}_${pos.y}`);
@@ -1918,9 +1918,9 @@ export default class GameScene extends Phaser.Scene {
     hitEnemy(player, enemy) {
         if (this.gameOver) return;
         
-        // If invincible, destroy enemy
+        // If invincible, destroy enemy with animation
         if (this.isInvincible) {
-            enemy.destroy();
+            this.destroyEnemyWithAnimation(enemy);
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
@@ -1929,16 +1929,17 @@ export default class GameScene extends Phaser.Scene {
         
         // Check if player is falling onto enemy from above
         // Player must be above enemy's center and moving downward
-        // Use a more generous threshold for better jump detection
+        // Use 15px threshold for reliable jump-kill detection
         const playerBottom = player.y + (player.body.height / 2);
         const enemyTop = enemy.y - (enemy.body.height / 2);
-        const isPlayerAbove = playerBottom < enemy.y;
+        const JUMP_KILL_THRESHOLD = 15;
+        const isPlayerAbove = playerBottom < enemy.y + JUMP_KILL_THRESHOLD;
         const isMovingDown = player.body.velocity.y > 0;
         
         if (isPlayerAbove && isMovingDown) {
             // Successfully jumped on enemy - kill enemy without taking damage
             player.body.setVelocityY(-300);
-            enemy.destroy();
+            this.destroyEnemyWithAnimation(enemy);
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
@@ -2011,9 +2012,9 @@ export default class GameScene extends Phaser.Scene {
     hitEnemy2(player, enemy) {
         if (this.gameOver) return;
         
-        // If invincible, destroy enemy
+        // If invincible, destroy enemy with animation
         if (this.isInvincible2) {
-            enemy.destroy();
+            this.destroyEnemyWithAnimation(enemy);
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
@@ -2022,15 +2023,17 @@ export default class GameScene extends Phaser.Scene {
         
         // Check if player is falling onto enemy from above
         // Player must be above enemy's center and moving downward
+        // Use 15px threshold for reliable jump-kill detection
         const playerBottom = player.y + (player.body.height / 2);
         const enemyTop = enemy.y - (enemy.body.height / 2);
-        const isPlayerAbove = playerBottom < enemy.y;
+        const JUMP_KILL_THRESHOLD = 15;
+        const isPlayerAbove = playerBottom < enemy.y + JUMP_KILL_THRESHOLD;
         const isMovingDown = player.body.velocity.y > 0;
         
         if (isPlayerAbove && isMovingDown) {
             // Successfully jumped on enemy - kill enemy without taking damage
             player.body.setVelocityY(-300);
-            enemy.destroy();
+            this.destroyEnemyWithAnimation(enemy);
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
@@ -2342,6 +2345,25 @@ export default class GameScene extends Phaser.Scene {
         }
     }
     
+    
+    destroyEnemyWithAnimation(enemy) {
+        // Disable physics body to prevent further collisions
+        enemy.body.enable = false;
+        
+        // Enemy death animation - 720° spin and fade-out
+        this.tweens.add({
+            targets: enemy,
+            angle: 720,
+            alpha: 0,
+            y: enemy.y - 50,
+            duration: 500,
+            ease: 'Cubic.easeOut',
+            onComplete: () => {
+                enemy.destroy();
+            }
+        });
+    }
+    
     fireballHitEnemy(fireball, enemy) {
         // Stop animations
         const tweenTargets = [fireball];
@@ -2356,7 +2378,9 @@ export default class GameScene extends Phaser.Scene {
             fireball.destructionTimer.remove();
         }
         fireball.destroy();
-        enemy.destroy();
+        
+        // Destroy enemy with animation
+        this.destroyEnemyWithAnimation(enemy);
         this.score += 50;
         this.enemiesDefeated++; // Track enemies defeated
         this.scoreText.setText('Score: ' + this.score);
@@ -2400,7 +2424,7 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.existing(fireball);
         fireball.body.setVelocityX(direction * 400);
         fireball.body.setVelocityY(-150);  // Consistent upward velocity for arc
-        fireball.body.setBounce(0.5);  // Moderate bounce factor
+        fireball.body.setBounce(0.8);  // Increased bounce factor for better bounce effect
         fireball.body.setAllowGravity(true);
         fireball.body.setCollideWorldBounds(false);  // Manual bounds checking for cleanup
         fireball.innerCircle = fireballInner;
@@ -2455,7 +2479,7 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.existing(fireball);
         fireball.body.setVelocityX(direction * 400);
         fireball.body.setVelocityY(-150);
-        fireball.body.setBounce(0.5);
+        fireball.body.setBounce(0.8);  // Increased bounce factor for better bounce effect
         fireball.body.setAllowGravity(true);
         fireball.body.setCollideWorldBounds(false);
         fireball.innerCircle = fireballInner;
