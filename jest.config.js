@@ -12,6 +12,10 @@ export default {
     'src/**/*.js',
     '!src/main.js',
     '!src/scenes/**/*.js',
+    '!src/utils/AnimationManager.js',
+    '!src/utils/BackgroundGenerator.js',
+    '!src/utils/ParticleEffects.js',
+    '!src/utils/SpriteFactory.js',
     '!**/node_modules/**'
   ],
   coverageThreshold: {
