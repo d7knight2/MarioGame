@@ -15,8 +15,8 @@ export default class CheckpointManager {
      * Save checkpoint state for a level
      * @param {number} level - Current level number
      * @param {object} state - State to save
-     * @param {number} state.x - Player x position
-     * @param {number} state.y - Player y position
+     * @param {number} state.x - Player 1 x position
+     * @param {number} state.y - Player 1 y position
      * @param {number} state.score - Current score
      * @param {boolean} state.isPoweredUp - Player 1 powered up state
      * @param {boolean} state.hasFirePower - Player 1 fire power state
@@ -26,6 +26,35 @@ export default class CheckpointManager {
      * @param {number} state.enemiesDefeated - Total enemies defeated
      */
     saveCheckpoint(level, state) {
+        // Validate required properties
+        if (typeof level !== 'number' || level < 1) {
+            console.warn('Invalid level number provided to saveCheckpoint');
+            return;
+        }
+        
+        if (!state || typeof state !== 'object') {
+            console.warn('Invalid state object provided to saveCheckpoint');
+            return;
+        }
+        
+        // Validate required numeric properties
+        const requiredNumbers = ['x', 'y', 'score', 'coinsCollected', 'enemiesDefeated'];
+        for (const prop of requiredNumbers) {
+            if (typeof state[prop] !== 'number') {
+                console.warn(`Invalid or missing required property: ${prop}`);
+                return;
+            }
+        }
+        
+        // Validate required boolean properties
+        const requiredBooleans = ['isPoweredUp', 'hasFirePower'];
+        for (const prop of requiredBooleans) {
+            if (typeof state[prop] !== 'boolean') {
+                console.warn(`Invalid or missing required property: ${prop}`);
+                return;
+            }
+        }
+        
         this.checkpoints[level] = {
             x: state.x,
             y: state.y,

@@ -279,6 +279,12 @@ export default class GameScene extends Phaser.Scene {
             this.physics.add.overlap(this.fireballs2, this.enemies, this.fireballHitEnemy, null, this);
         }
         
+        // Overlap with checkpoints
+        this.physics.add.overlap(this.player, this.checkpoints, this.reachCheckpoint, null, this);
+        if (this.gameMode === 2) {
+            this.physics.add.overlap(this.player2, this.checkpoints, this.reachCheckpoint, null, this);
+        }
+        
         // Overlap with finish flag (if not boss level)
         if (currentLevel !== 2) {
             this.physics.add.overlap(this.player, this.finishFlag, this.reachFlag, null, this);
@@ -564,6 +570,9 @@ export default class GameScene extends Phaser.Scene {
         // Reset death states
         this.player1Dead = false;
         this.player2Dead = false;
+        
+        // Clear all checkpoints when resetting game
+        GameScene.checkpointManager.clearAllCheckpoints();
         
         this.registry.set('currentLevel', 1);
         this.registry.set('score', 0);
@@ -958,6 +967,83 @@ export default class GameScene extends Phaser.Scene {
             enemy.body.setCollideWorldBounds(true);
             enemy.body.setVelocityX(pos.speed);
             this.enemies.add(enemy);
+        });
+    }
+    
+    createCheckpoints() {
+        // Create checkpoints group
+        this.checkpoints = this.physics.add.group();
+        
+        const currentLevel = this.registry.get('currentLevel') || 1;
+        const height = this.cameras.main.height;
+        let checkpointPositions;
+        
+        // Define checkpoint positions for each level
+        // Checkpoints are placed at strategic points (roughly 1/3 and 2/3 through each level)
+        if (currentLevel === 1) {
+            checkpointPositions = [
+                { x: 1100, y: height - 100 },  // First checkpoint around 1/3 of level
+                { x: 2100, y: height - 100 }   // Second checkpoint around 2/3 of level
+            ];
+        } else if (currentLevel === 2) {
+            checkpointPositions = [
+                { x: 1000, y: height - 100 },  // First checkpoint
+                { x: 2000, y: height - 100 }   // Second checkpoint
+            ];
+        } else {
+            // Level 3
+            checkpointPositions = [
+                { x: 1050, y: height - 100 },  // First checkpoint
+                { x: 2050, y: height - 100 }   // Second checkpoint
+            ];
+        }
+        
+        checkpointPositions.forEach((pos, index) => {
+            // Create checkpoint flag pole
+            const poleHeight = 80;
+            const pole = this.add.rectangle(pos.x, pos.y - poleHeight/2, 6, poleHeight, 0x00ff00);
+            
+            // Create checkpoint flag
+            const flag = this.add.polygon(pos.x + 3, pos.y - poleHeight + 15, [
+                0, 0,
+                40, 10,
+                0, 20
+            ], 0x00ff00);
+            
+            // Add checkmark symbol on flag
+            const checkmark = this.add.text(pos.x + 15, pos.y - poleHeight + 5, '✓', {
+                fontSize: '16px',
+                color: '#ffffff',
+                fontStyle: 'bold'
+            });
+            
+            // Top of pole
+            const poleTop = this.add.circle(pos.x, pos.y - poleHeight, 4, 0xffff00);
+            
+            // Create checkpoint container
+            const checkpoint = this.add.container(pos.x, pos.y - poleHeight/2);
+            checkpoint.add([pole, flag, checkmark, poleTop]);
+            
+            // Add physics to checkpoint
+            this.physics.add.existing(checkpoint);
+            checkpoint.body.setAllowGravity(false);
+            checkpoint.body.setSize(50, poleHeight);
+            checkpoint.body.setOffset(-25, -poleHeight/2);
+            
+            // Store checkpoint index for identification
+            checkpoint.checkpointIndex = index;
+            checkpoint.activated = false;
+            
+            this.checkpoints.add(checkpoint);
+            
+            // Animate flag waving
+            this.tweens.add({
+                targets: flag,
+                scaleX: 0.85,
+                duration: 400,
+                yoyo: true,
+                repeat: -1
+            });
         });
     }
     
@@ -1610,6 +1696,87 @@ export default class GameScene extends Phaser.Scene {
         });
     }
     
+    reachCheckpoint(player, checkpoint) {
+        // Only activate each checkpoint once
+        if (checkpoint.activated) return;
+        
+        checkpoint.activated = true;
+        this.lastCheckpoint = checkpoint;
+        
+        // Change checkpoint color to indicate activation
+        const pole = checkpoint.list[0];
+        const flag = checkpoint.list[1];
+        pole.setFillStyle(0xffaa00);  // Orange color when activated
+        flag.setFillStyle(0xffaa00);
+        
+        // Save checkpoint state
+        const currentLevel = this.registry.get('currentLevel') || 1;
+        const checkpointState = {
+            x: checkpoint.x,
+            y: checkpoint.y + 40,  // Spawn slightly below checkpoint
+            score: this.score,
+            isPoweredUp: this.isPoweredUp,
+            hasFirePower: this.hasFirePower,
+            isPoweredUp2: this.isPoweredUp2,
+            hasFirePower2: this.hasFirePower2,
+            coinsCollected: this.coinsCollected,
+            enemiesDefeated: this.enemiesDefeated
+        };
+        
+        GameScene.checkpointManager.saveCheckpoint(currentLevel, checkpointState);
+        
+        // Visual feedback - create sparkle particles
+        for (let i = 0; i < 12; i++) {
+            const angle = (i * Math.PI * 2) / 12;
+            const speed = 80 + Math.random() * 40;
+            
+            const particle = this.add.circle(checkpoint.x, checkpoint.y - 40, 4, 0x00ff00);
+            this.physics.add.existing(particle);
+            particle.body.setVelocity(
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed - 30
+            );
+            particle.body.setGravity(0, 200);
+            
+            this.tweens.add({
+                targets: particle,
+                alpha: 0,
+                scale: 0,
+                duration: 600,
+                onComplete: () => particle.destroy()
+            });
+        }
+        
+        // Show checkpoint saved message
+        const checkpointText = this.add.text(
+            checkpoint.x,
+            checkpoint.y - 80,
+            'CHECKPOINT!',
+            {
+                fontSize: '24px',
+                fontFamily: 'Arial',
+                color: '#00ff00',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        );
+        checkpointText.setOrigin(0.5);
+        
+        // Fade out checkpoint message
+        this.tweens.add({
+            targets: checkpointText,
+            alpha: 0,
+            y: checkpoint.y - 120,
+            duration: 1500,
+            ease: 'Cubic.easeOut',
+            onComplete: () => checkpointText.destroy()
+        });
+        
+        // Brief camera shake for feedback
+        this.cameras.main.shake(100, 0.002);
+    }
+    
     reachFlag(player, flag) {
         if (this.gameOver || this.levelComplete) return;
         
@@ -1694,6 +1861,9 @@ export default class GameScene extends Phaser.Scene {
         this.registry.set('score', this.score);
         this.registry.set('coinsCollected', this.coinsCollected);
         this.registry.set('enemiesDefeated', this.enemiesDefeated);
+        
+        // Clear checkpoint for completed level
+        GameScene.checkpointManager.clearCheckpoint(currentLevel);
         
         this.input.once('pointerdown', () => {
             if (nextLevel <= 3) {
@@ -1997,25 +2167,34 @@ export default class GameScene extends Phaser.Scene {
                     // Multiplayer mode and player 2 is alive - mark player 1 as dead and start revival timer
                     this.handlePlayerDeath(this.player, 1);
                 } else {
-                    // Single player mode or both players dead - game over
-                    this.gameOver = true;
-                    this.physics.pause();
+                    // Single player mode or both players dead - check for checkpoint
+                    const currentLevel = this.registry.get('currentLevel') || 1;
+                    const checkpoint = GameScene.checkpointManager.getCheckpoint(currentLevel);
                     
-                    // Death animation - Mario spins and falls
-                    this.tweens.add({
-                        targets: this.player,
-                        angle: 720,
-                        y: this.player.y - 100,
-                        alpha: 0,
-                        duration: 1000,
-                        ease: 'Cubic.easeIn',
-                        onComplete: () => {
-                            // Return to start screen after animation
-                            this.resetGameState();
-                            this.scene.start('StartScene');
-                            this.gameOver = false;
-                        }
-                    });
+                    if (checkpoint) {
+                        // Respawn from checkpoint
+                        this.respawnFromCheckpoint();
+                    } else {
+                        // No checkpoint - game over
+                        this.gameOver = true;
+                        this.physics.pause();
+                        
+                        // Death animation - Mario spins and falls
+                        this.tweens.add({
+                            targets: this.player,
+                            angle: 720,
+                            y: this.player.y - 100,
+                            alpha: 0,
+                            duration: 1000,
+                            ease: 'Cubic.easeIn',
+                            onComplete: () => {
+                                // Return to start screen after animation
+                                this.resetGameState();
+                                this.scene.start('StartScene');
+                                this.gameOver = false;
+                            }
+                        });
+                    }
                 }
             }
         }
@@ -2089,28 +2268,143 @@ export default class GameScene extends Phaser.Scene {
                     // Player 1 is alive - mark player 2 as dead and start revival timer
                     this.handlePlayerDeath(this.player2, 2);
                 } else {
-                    // Both players dead - game over
-                    this.gameOver = true;
-                    this.physics.pause();
+                    // Both players dead - check for checkpoint
+                    const currentLevel = this.registry.get('currentLevel') || 1;
+                    const checkpoint = GameScene.checkpointManager.getCheckpoint(currentLevel);
                     
-                    // Death animation for player 2
-                    this.tweens.add({
-                        targets: this.player2,
-                        angle: 720,
-                        y: this.player2.y - 100,
-                        alpha: 0,
-                        duration: 1000,
-                        ease: 'Cubic.easeIn',
-                        onComplete: () => {
-                            // Return to start screen after animation
-                            this.resetGameState();
-                            this.scene.start('StartScene');
-                            this.gameOver = false;
-                        }
-                    });
+                    if (checkpoint) {
+                        // Respawn from checkpoint
+                        this.respawnFromCheckpoint();
+                    } else {
+                        // No checkpoint - game over
+                        this.gameOver = true;
+                        this.physics.pause();
+                        
+                        // Death animation for player 2
+                        this.tweens.add({
+                            targets: this.player2,
+                            angle: 720,
+                            y: this.player2.y - 100,
+                            alpha: 0,
+                            duration: 1000,
+                            ease: 'Cubic.easeIn',
+                            onComplete: () => {
+                                // Return to start screen after animation
+                                this.resetGameState();
+                                this.scene.start('StartScene');
+                                this.gameOver = false;
+                            }
+                        });
+                    }
                 }
             }
         }
+    }
+    
+    respawnFromCheckpoint() {
+        const currentLevel = this.registry.get('currentLevel') || 1;
+        const checkpoint = GameScene.checkpointManager.getCheckpoint(currentLevel);
+        
+        if (!checkpoint) {
+            console.warn('No checkpoint found for respawn');
+            return;
+        }
+        
+        // Pause briefly
+        this.physics.pause();
+        
+        // Show respawn message
+        const respawnText = this.add.text(
+            this.cameras.main.centerX,
+            this.cameras.main.centerY,
+            'Respawning from Checkpoint...',
+            {
+                fontSize: '32px',
+                fontFamily: 'Arial',
+                color: '#ffaa00',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 6
+            }
+        );
+        respawnText.setOrigin(0.5);
+        respawnText.setScrollFactor(0);
+        
+        // Wait briefly then respawn
+        this.time.delayedCall(1500, () => {
+            respawnText.destroy();
+            
+            // Restore player state from checkpoint
+            this.score = checkpoint.score;
+            this.isPoweredUp = checkpoint.isPoweredUp;
+            this.hasFirePower = checkpoint.hasFirePower;
+            this.isPoweredUp2 = checkpoint.isPoweredUp2;
+            this.hasFirePower2 = checkpoint.hasFirePower2;
+            this.coinsCollected = checkpoint.coinsCollected;
+            this.enemiesDefeated = checkpoint.enemiesDefeated;
+            
+            // Update registry
+            this.registry.set('score', this.score);
+            this.registry.set('isPoweredUp', this.isPoweredUp);
+            this.registry.set('hasFirePower', this.hasFirePower);
+            this.registry.set('isPoweredUp2', this.isPoweredUp2);
+            this.registry.set('hasFirePower2', this.hasFirePower2);
+            this.registry.set('coinsCollected', this.coinsCollected);
+            this.registry.set('enemiesDefeated', this.enemiesDefeated);
+            
+            // Reposition players
+            this.player.setPosition(checkpoint.x, checkpoint.y);
+            this.player.setAlpha(1);
+            this.player.setAngle(0);
+            this.player.body.setVelocity(0, 0);
+            
+            if (this.gameMode === 2 && this.player2) {
+                this.player2.setPosition(checkpoint.x + 50, checkpoint.y);
+                this.player2.setAlpha(1);
+                this.player2.setAngle(0);
+                this.player2.body.setVelocity(0, 0);
+            }
+            
+            // Update UI
+            this.scoreText.setText('Score: ' + this.score);
+            this.updatePowerUpText();
+            
+            // Restore fire button visibility if needed
+            const shouldShowFireButton = this.gameMode === 1 ? this.hasFirePower : this.hasFirePower2;
+            this.game.events.emit('hasFirePower', shouldShowFireButton);
+            
+            // Resume physics
+            this.physics.resume();
+            
+            // Brief invincibility after respawn
+            this.isInvincible = true;
+            this.tweens.add({
+                targets: this.player,
+                alpha: 0.5,
+                duration: 100,
+                yoyo: true,
+                repeat: 15
+            });
+            this.time.delayedCall(3000, () => {
+                this.isInvincible = false;
+                this.player.setAlpha(1);
+            });
+            
+            if (this.gameMode === 2 && this.player2) {
+                this.isInvincible2 = true;
+                this.tweens.add({
+                    targets: this.player2,
+                    alpha: 0.5,
+                    duration: 100,
+                    yoyo: true,
+                    repeat: 15
+                });
+                this.time.delayedCall(3000, () => {
+                    this.isInvincible2 = false;
+                    this.player2.setAlpha(1);
+                });
+            }
+        });
     }
     
     handlePlayerDeath(player, playerNumber) {
