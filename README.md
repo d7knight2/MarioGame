@@ -191,7 +191,12 @@ Contributions, issues, and feature requests are welcome!
 This repository uses GitHub Actions for automated testing and maintenance:
 - **Run Tests Automatically**: Runs unit tests with Jest on every commit and pull request
 - **Playwright UI Tests**: Runs end-to-end tests on multiple browsers
-- **Auto Resolve Merge Conflicts**: Runs nightly at 2 AM UTC to automatically detect and resolve merge conflicts in open pull requests
+- **AI-Powered Merge Conflict Resolution**: Runs hourly to automatically detect and resolve merge conflicts in open pull requests using intelligent conflict resolution strategies
+  - Gathers context from PR comments and file history
+  - Applies AI-powered resolution strategies
+  - Includes retry logic and automated testing
+  - Creates detailed logs for review
+  - See [AI Merge Conflict Resolution Documentation](.github/AI_MERGE_CONFLICT_RESOLUTION.md) for details
 
 ### Branch Protection (Repository Maintainers)
 
