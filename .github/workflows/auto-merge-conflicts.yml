@@ -69,20 +69,20 @@ jobs:
             echo "Attempting to resolve conflicts..."
 
             # Fetch latest changes
-            git fetch origin "$base_branch:$base_branch" 2>&1 || {
+            git fetch origin "$base_branch" 2>&1 || {
               echo "❌ Failed to fetch base branch: $base_branch"
               echo "Error: Unable to fetch origin/$base_branch"
               continue
             }
 
-            git fetch origin "$head_branch:$head_branch" 2>&1 || {
+            git fetch origin "$head_branch" 2>&1 || {
               echo "❌ Failed to fetch head branch: $head_branch"
               echo "Error: Unable to fetch origin/$head_branch"
               continue
             }
 
             # Checkout the PR branch
-            git checkout "$head_branch" 2>&1 || {
+            git checkout -B "$head_branch" "origin/$head_branch" 2>&1 || {
               echo "❌ Failed to checkout branch: $head_branch"
               echo "Error: Unable to checkout $head_branch"
               continue
@@ -109,7 +109,8 @@ jobs:
                 echo "❌ Failed to push conflict resolution for PR #$pr_number"
                 echo "Error: Git push failed"
 
-                # Reset the branch
+                # Reset the branch to its original state
+                git fetch origin "$head_branch" 2>&1
                 git reset --hard "origin/$head_branch" 2>&1
               fi
             else
@@ -128,8 +129,8 @@ jobs:
               gh pr comment "$pr_number" --body "$comment_msg" 2>&1 || echo "⚠️  Warning: Failed to add comment to PR #$pr_number"
             fi
 
-            # Return to main branch
-            git checkout main 2>&1 || git checkout master 2>&1 || true
+            # Return to base branch
+            git checkout "$base_branch" 2>&1 || true
           else
             echo "✅ No conflicts detected in PR #$pr_number"
           fi
