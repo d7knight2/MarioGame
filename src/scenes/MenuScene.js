@@ -156,6 +156,26 @@ export default class MenuScene extends Phaser.Scene {
             localStorage.removeItem('currentUser');
             this.scene.start('LoginScene');
         });
+
+        // Settings button
+        const settingsBtn = this.add.rectangle(width - 100, height - 40, 150, 40, 0x444444);
+        const settingsText = this.add.text(width - 100, height - 40, '⚙️ Settings', {
+            fontSize: '18px',
+            fontFamily: 'Arial, sans-serif',
+            color: '#ffffff'
+        });
+        settingsText.setOrigin(0.5);
+        settingsBtn.setInteractive({ useHandCursor: true });
+
+        settingsBtn.on('pointerover', () => {
+            settingsBtn.setFillStyle(0x666666);
+        });
+        settingsBtn.on('pointerout', () => {
+            settingsBtn.setFillStyle(0x444444);
+        });
+        settingsBtn.on('pointerdown', () => {
+            this.scene.start('SettingsScene');
+        });
     }
 
     loadUserData() {
