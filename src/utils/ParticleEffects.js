@@ -5,18 +5,156 @@
 
 export default class ParticleEffects {
     /**
-     * Create a coin collection particle effect
+     * Create continuous sparkle effect on an object (like gems)
+     * @param {Phaser.Scene} scene - The scene to create sparkles in
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {object} options - Configuration options
+     * @returns {Phaser.Time.TimerEvent} Timer event for sparkle generation
+     */
+    static createContinuousSparkle(scene, x, y, options = {}) {
+        const config = {
+            color: options.color || 0xffffff,
+            size: options.size || 3,
+            frequency: options.frequency || 200,
+            radius: options.radius || 15,
+            ...options
+        };
+        
+        return scene.time.addEvent({
+            delay: config.frequency,
+            loop: true,
+            callback: () => {
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * config.radius;
+                const sparkleX = x + Math.cos(angle) * distance;
+                const sparkleY = y + Math.sin(angle) * distance;
+                
+                const sparkle = scene.add.star(sparkleX, sparkleY, 4, 2, 4, config.color);
+                sparkle.setScale(0.5);
+                
+                scene.tweens.add({
+                    targets: sparkle,
+                    alpha: 0,
+                    scale: 0,
+                    y: sparkleY - 10,
+                    duration: 500,
+                    ease: 'Cubic.easeOut',
+                    onComplete: () => sparkle.destroy()
+                });
+            }
+        });
+    }
+    
+    /**
+     * Create a burst of gem sparkles
+     * @param {Phaser.Scene} scene - The scene to create sparkles in
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {object} options - Configuration options
+     */
+    static gemSparkle(scene, x, y, options = {}) {
+        const config = {
+            count: options.count || 12,
+            colors: options.colors || [0xffffff, 0xffff00, 0x00ffff, 0xff00ff],
+            size: options.size || 4,
+            ...options
+        };
+        
+        // Create radial sparkle burst
+        for (let i = 0; i < config.count; i++) {
+            const angle = (i * Math.PI * 2) / config.count;
+            const distance = 20 + Math.random() * 30;
+            const color = config.colors[Math.floor(Math.random() * config.colors.length)];
+            
+            const sparkle = scene.add.star(x, y, 5, 3, 6, color);
+            sparkle.setScale(0.6);
+            
+            const targetX = x + Math.cos(angle) * distance;
+            const targetY = y + Math.sin(angle) * distance;
+            
+            scene.tweens.add({
+                targets: sparkle,
+                x: targetX,
+                y: targetY,
+                alpha: 0,
+                scale: 0.2,
+                angle: 360,
+                duration: 600,
+                ease: 'Cubic.easeOut',
+                onComplete: () => sparkle.destroy()
+            });
+        }
+        
+        // Add expanding glow ring
+        const glow = scene.add.circle(x, y, 5, 0xffffff, 0);
+        glow.setStrokeStyle(3, 0xffffff, 0.8);
+        scene.tweens.add({
+            targets: glow,
+            scale: 6,
+            alpha: 0,
+            duration: 500,
+            onComplete: () => glow.destroy()
+        });
+    }
+    
+    /**
+     * Create a shimmering effect that pulses
+     * @param {Phaser.Scene} scene - The scene
+     * @param {Phaser.GameObjects.GameObject} target - Target object to shimmer
+     * @param {object} options - Configuration options
+     * @returns {Phaser.Tweens.Tween} The shimmer tween
+     */
+    static createShimmer(scene, target, options = {}) {
+        const config = {
+            duration: options.duration || 1000,
+            intensity: options.intensity || 0.3,
+            repeat: options.repeat !== undefined ? options.repeat : -1,
+            ...options
+        };
+        
+        // Store original tint if any
+        const originalTint = target.tint || 0xffffff;
+        
+        return scene.tweens.add({
+            targets: target,
+            alpha: 1 - config.intensity,
+            duration: config.duration / 2,
+            yoyo: true,
+            repeat: config.repeat,
+            ease: 'Sine.easeInOut',
+            onUpdate: () => {
+                // Add a subtle white tint during shimmer
+                const progress = Math.abs(Math.sin(scene.time.now / config.duration * Math.PI));
+                const tintValue = Phaser.Display.Color.Interpolate.ColorWithColor(
+                    Phaser.Display.Color.ValueToColor(originalTint),
+                    Phaser.Display.Color.ValueToColor(0xffffff),
+                    1,
+                    progress * config.intensity
+                );
+                target.setTint(Phaser.Display.Color.GetColor(tintValue.r, tintValue.g, tintValue.b));
+            },
+            onComplete: () => {
+                target.setAlpha(1);
+                target.setTint(originalTint);
+            }
+        });
+    }
+    /**
+     * Create a coin collection particle effect with gem sparkles
      * @param {Phaser.Scene} scene - The scene to create particles in
      * @param {number} x - X position
      * @param {number} y - Y position
      */
     static coinCollect(scene, x, y) {
-        // Create sparkle particles
+        // Create sparkle particles with varied colors
+        const colors = [0xffff00, 0xffffcc, 0xffaa00];
         for (let i = 0; i < 8; i++) {
             const angle = (i * Math.PI * 2) / 8;
             const speed = 100 + Math.random() * 50;
+            const color = colors[Math.floor(Math.random() * colors.length)];
             
-            const particle = scene.add.circle(x, y, 3, 0xffff00);
+            const particle = scene.add.circle(x, y, 3, color);
             scene.physics.add.existing(particle);
             particle.body.setVelocity(
                 Math.cos(angle) * speed,
@@ -31,6 +169,27 @@ export default class ParticleEffects {
                 scale: 0,
                 duration: 500,
                 onComplete: () => particle.destroy()
+            });
+        }
+        
+        // Add gem-like sparkle stars
+        for (let i = 0; i < 4; i++) {
+            const angle = (i * Math.PI * 2) / 4 + Math.PI / 4;
+            const distance = 15 + Math.random() * 10;
+            
+            const star = scene.add.star(x, y, 4, 2, 4, 0xffffff);
+            star.setScale(0.7);
+            
+            scene.tweens.add({
+                targets: star,
+                x: x + Math.cos(angle) * distance,
+                y: y + Math.sin(angle) * distance - 20,
+                alpha: 0,
+                scale: 0,
+                angle: 180,
+                duration: 500,
+                ease: 'Cubic.easeOut',
+                onComplete: () => star.destroy()
             });
         }
         
