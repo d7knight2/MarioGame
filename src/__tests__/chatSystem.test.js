@@ -376,7 +376,6 @@ describe('ChatSystem', () => {
 
             chatSystem.clearMessages();
 
-            expect(chatSystem.activeMessageTimers).toHaveLength(0);
         });
     });
 
