@@ -3,6 +3,7 @@ import SpriteFactory from '../utils/SpriteFactory.js';
 import ParticleEffects from '../utils/ParticleEffects.js';
 import AnimationManager from '../utils/AnimationManager.js';
 import BackgroundGenerator from '../utils/BackgroundGenerator.js';
+import CheckpointManager from '../utils/CheckpointManager.js';
 
 // Game constants
 const POWER_UP_SPAWN_DELAY_MS = 300; // Delay before power-ups start moving horizontally
@@ -62,6 +63,14 @@ export default class GameScene extends Phaser.Scene {
         this.revivalCountdownInterval = null;
         this.REVIVAL_DELAY_MS = 30000; // 30 seconds
         this.cameraFollowState = null; // Track camera state: 'player1', 'player2', 'both', or null
+        // Checkpoint system
+        this.checkpoints = null;
+        this.lastCheckpoint = null;
+        
+        // Initialize checkpoint manager as a static property so it persists across scene restarts
+        if (!GameScene.checkpointManager) {
+            GameScene.checkpointManager = new CheckpointManager();
+        }
     }
 
     create() {
@@ -151,6 +160,9 @@ export default class GameScene extends Phaser.Scene {
 
         // Create enemies
         this.createEnemies();
+        
+        // Create checkpoints
+        this.createCheckpoints();
         
         // Create finish flag or boss
         if (currentLevel === 2 || currentLevel === 3) {
