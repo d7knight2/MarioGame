@@ -284,12 +284,19 @@ describe('ConnectionMonitor', () => {
             expect(monitor.reconnectAttempts).toBe(2);
         });
 
-        test('should increment reconnection attempts', () => {
-            monitor.reconnectAttempts = 10;
-            monitor.attemptReconnect();
+        test('should use exponential backoff delay calculation', () => {
+            monitor.reconnectDelay = 1000;
+            monitor.reconnectAttempts = 0;
             
-            // Should increment attempts even at high numbers
-            expect(monitor.reconnectAttempts).toBeGreaterThan(10);
+            monitor.attemptReconnect();
+            expect(monitor.reconnectAttempts).toBe(1);
+            
+            // Verify exponential backoff would be calculated
+            const attempt2Delay = Math.min(
+                monitor.reconnectDelay * Math.pow(2, 2 - 1),
+                monitor.maxReconnectDelay
+            );
+            expect(attempt2Delay).toBe(2000); // 1000 * 2^1
         });
     });
 

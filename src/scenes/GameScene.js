@@ -3,6 +3,9 @@ import SpriteFactory from '../utils/SpriteFactory.js';
 import ParticleEffects from '../utils/ParticleEffects.js';
 import AnimationManager from '../utils/AnimationManager.js';
 import BackgroundGenerator from '../utils/BackgroundGenerator.js';
+import ChatSystem from '../utils/ChatSystem.js';
+import ConnectionMonitor from '../utils/ConnectionMonitor.js';
+import MultiplayerSync from '../utils/MultiplayerSync.js';
 
 // Game constants
 const POWER_UP_SPAWN_DELAY_MS = 300; // Delay before power-ups start moving horizontally
@@ -62,6 +65,12 @@ export default class GameScene extends Phaser.Scene {
         this.revivalCountdownInterval = null;
         this.REVIVAL_DELAY_MS = 30000; // 30 seconds
         this.cameraFollowState = null; // Track camera state: 'player1', 'player2', 'both', or null
+        
+        // Multiplayer networking utilities
+        this.chatSystem = null;
+        this.connectionMonitor = null;
+        this.multiplayerSync = null;
+        this.isMultiplayerOnline = false; // Flag to indicate if this is online multiplayer
     }
 
     create() {
@@ -311,6 +320,70 @@ export default class GameScene extends Phaser.Scene {
         this.registry.set('moveRight', false);
         this.registry.set('jump', false);
         this.registry.set('fire', false);
+        
+        // Initialize multiplayer utilities if in 2-player mode
+        if (this.gameMode === 2) {
+            // Check if this is online multiplayer based on game code
+            const gameCode = this.registry.get('gameCode');
+            const multiplayerRole = this.registry.get('multiplayerRole');
+            this.isMultiplayerOnline = !!(gameCode && multiplayerRole);
+            
+            if (this.isMultiplayerOnline) {
+                // Initialize chat system
+                this.chatSystem = new ChatSystem(this);
+                this.chatSystem.createUI();
+                this.chatSystem.addSystemMessage('Multiplayer session started');
+                
+                // Initialize connection monitor
+                this.connectionMonitor = new ConnectionMonitor();
+                this.connectionMonitor.start();
+                this.connectionMonitor.handleConnected(); // Simulate connection for now
+                
+                // Initialize multiplayer sync
+                this.multiplayerSync = new MultiplayerSync();
+                
+                // Create connection quality indicator
+                this.createConnectionQualityIndicator();
+            }
+        }
+    }
+    
+    createConnectionQualityIndicator() {
+        // Connection quality indicator (top right corner)
+        const width = this.cameras.main.width;
+        
+        this.connectionQualityBg = this.add.rectangle(width - 80, 80, 140, 40, 0x000000, 0.7);
+        this.connectionQualityBg.setScrollFactor(0);
+        this.connectionQualityBg.setDepth(1000);
+        
+        this.connectionQualityText = this.add.text(width - 80, 80, '', {
+            fontSize: '14px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        });
+        this.connectionQualityText.setOrigin(0.5);
+        this.connectionQualityText.setScrollFactor(0);
+        this.connectionQualityText.setDepth(1001);
+        
+        // Update indicator periodically
+        this.time.addEvent({
+            delay: 1000,
+            callback: this.updateConnectionQualityIndicator,
+            callbackScope: this,
+            loop: true
+        });
+    }
+    
+    updateConnectionQualityIndicator() {
+        if (!this.connectionMonitor || !this.connectionQualityText) return;
+        
+        const quality = this.connectionMonitor.getConnectionQuality();
+        const icon = this.connectionMonitor.getQualityIcon();
+        const color = this.connectionMonitor.getQualityColor();
+        
+        this.connectionQualityText.setText(`${icon} ${quality.latency}ms`);
+        this.connectionQualityText.setColor('#' + color.toString(16).padStart(6, '0'));
     }
     
     createLevel1Platforms() {
@@ -2512,8 +2585,55 @@ export default class GameScene extends Phaser.Scene {
         });
     }
 
+    syncMultiplayerState() {
+        // Simulate network latency for connection monitor
+        const simulatedLatency = 30 + Math.random() * 40; // 30-70ms
+        this.connectionMonitor.recordPing(simulatedLatency);
+        this.connectionMonitor.recordPacketSent();
+        this.connectionMonitor.recordPacketReceived();
+        
+        // Sync player 1 state (local player in host mode, remote in guest mode)
+        const multiplayerRole = this.registry.get('multiplayerRole');
+        
+        if (multiplayerRole === 'host' && this.player) {
+            // Host controls player 1 - serialize and send state
+            const state = this.multiplayerSync.serializeState(this.player);
+            this.multiplayerSync.addStateSnapshot('player1', state);
+            
+            // In a real implementation, send state over network here
+            // socket.emit('playerState', { player: 'player1', state });
+        } else if (multiplayerRole === 'guest' && this.player2) {
+            // Guest controls player 2 - serialize and send state
+            const state = this.multiplayerSync.serializeState(this.player2);
+            this.multiplayerSync.addStateSnapshot('player2', state);
+            
+            // In a real implementation, send state over network here
+            // socket.emit('playerState', { player: 'player2', state });
+        }
+        
+        // Apply interpolated state to remote player
+        if (multiplayerRole === 'host' && this.player2) {
+            // Host receives player 2 state from guest
+            const interpolatedState = this.multiplayerSync.getInterpolatedState('player2');
+            if (interpolatedState) {
+                this.multiplayerSync.applyState(this.player2, interpolatedState, true);
+            }
+        } else if (multiplayerRole === 'guest' && this.player) {
+            // Guest receives player 1 state from host
+            const interpolatedState = this.multiplayerSync.getInterpolatedState('player1');
+            if (interpolatedState) {
+                this.multiplayerSync.applyState(this.player, interpolatedState, true);
+            }
+        }
+    }
+
     update() {
         if (this.gameOver || this.levelComplete) return;
+
+        // Sync multiplayer state if online
+        if (this.isMultiplayerOnline && this.multiplayerSync) {
+            this.syncMultiplayerState();
+        }
 
         // Update camera in 2-player mode to keep both players on screen
         if (this.gameMode === 2 && this.player && this.player2) {
