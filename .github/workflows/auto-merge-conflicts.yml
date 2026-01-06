@@ -33,6 +33,8 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // Note: This fetches up to 100 open PRs. If there are more than 100 open PRs,
+            // pagination would be needed to process them all.
             const { data: pullRequests } = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -76,25 +78,37 @@ jobs:
                 if (pr.mergeable === false) {
                   core.warning(`PR #${prNumber} has merge conflicts. Attempting to resolve...`);
                   
+                  // Check if PR is from a deleted fork
+                  if (!pr.head.repo) {
+                    core.warning(`PR #${prNumber} is from a deleted fork. Cannot auto-resolve.`);
+                    await github.rest.issues.createComment({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: prNumber,
+                      body: `🤖 **Automatic Merge Conflict Resolution**\n\n` +
+                            `⚠️ This PR is from a deleted fork and cannot be automatically updated.\n\n` +
+                            `**Action Required:** The PR author needs to manually resolve conflicts.\n` +
+                            `**Timestamp:** ${new Date().toISOString()}`
+                    });
+                    continue;
+                  }
+                  
+                  const baseRef = pr.base.ref;
+                  
                   // Attempt to resolve conflicts by merging base into head
                   try {
-                    // Set up git remote for the PR
-                    const headRepo = pr.head.repo ? pr.head.repo.full_name : context.repo.owner + '/' + context.repo.repo;
-                    const headRef = pr.head.ref;
-                    const baseRef = pr.base.ref;
-                    
-                    core.info(`Fetching branch ${headRef} from ${headRepo}...`);
+                    core.info(`Attempting to merge ${baseRef} into PR #${prNumber}...`);
                     
                     // Use GitHub API to attempt merge
-                    // First, try to update the branch (GitHub's built-in update)
                     try {
                       await github.rest.pulls.updateBranch({
                         owner: context.repo.owner,
                         repo: context.repo.repo,
-                        pull_number: prNumber
+                        pull_number: prNumber,
+                        expected_head_sha: pr.head.sha
                       });
                       
-                      core.info(`✓ Successfully updated PR #${prNumber} by merging ${baseRef} into ${headRef}`);
+                      core.info(`✓ Successfully updated PR #${prNumber} by merging ${baseRef} into PR branch`);
                       
                       // Add success comment
                       await github.rest.issues.createComment({
