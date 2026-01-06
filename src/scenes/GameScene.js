@@ -674,6 +674,9 @@ export default class GameScene extends Phaser.Scene {
         // Initialize animation state tracking
         this.player.wasOnGround = true;
         this.player.isRunning = false;
+        
+        // Cache animation handlers for performance
+        this.player.animations = AnimationManager.createCharacterAnimations(this, selectedCharacter);
     }
 
     createPlayer2() {
@@ -752,6 +755,9 @@ export default class GameScene extends Phaser.Scene {
         // Initialize animation state tracking
         this.player2.wasOnGround = true;
         this.player2.isRunning = false;
+        
+        // Cache animation handlers for performance
+        this.player2.animations = AnimationManager.createCharacterAnimations(this, 'luigi');
     }
 
     createCoins() {
@@ -1495,8 +1501,7 @@ export default class GameScene extends Phaser.Scene {
             this.player.body.setOffset(-18, -28);
             
             // Power-up transformation animation
-            const animations = AnimationManager.createCharacterAnimations(this, 'mario');
-            animations.powerUp(this.player);
+            this.player.animations.powerUp(this.player);
             
             this.updatePowerUpText();
         } else if (type === 'flower') {
@@ -1508,8 +1513,7 @@ export default class GameScene extends Phaser.Scene {
                 this.player.body.setOffset(-18, -28);
                 
                 // Power-up transformation animation
-                const animations = AnimationManager.createCharacterAnimations(this, 'mario');
-                animations.powerUp(this.player);
+                this.player.animations.powerUp(this.player);
             }
             this.hasFirePower = true;
             if (this.player.body_part) {
@@ -1574,8 +1578,7 @@ export default class GameScene extends Phaser.Scene {
             this.player2.body.setOffset(-18, -28);
             
             // Power-up transformation animation
-            const animations = AnimationManager.createCharacterAnimations(this, 'luigi');
-            animations.powerUp(this.player2);
+            this.player2.animations.powerUp(this.player2);
             
             this.updatePowerUpText();
         } else if (type === 'flower') {
@@ -1587,8 +1590,7 @@ export default class GameScene extends Phaser.Scene {
                 this.player2.body.setOffset(-18, -28);
                 
                 // Power-up transformation animation
-                const animations = AnimationManager.createCharacterAnimations(this, 'luigi');
-                animations.powerUp(this.player2);
+                this.player2.animations.powerUp(this.player2);
             }
             this.hasFirePower2 = true;
             if (this.player2.body_part) {
@@ -2030,8 +2032,7 @@ export default class GameScene extends Phaser.Scene {
                 }
                 
                 // Add damage visual effect
-                const playerAnimations = AnimationManager.createCharacterAnimations(this, 'mario');
-                playerAnimations.damage(this.player);
+                this.player.animations.damage(this.player);
                 
                 // Add screen shake
                 ParticleEffects.screenShake(this, 5, 200);
@@ -2130,8 +2131,7 @@ export default class GameScene extends Phaser.Scene {
                 }
                 
                 // Add damage visual effect for player 2
-                const playerAnimations = AnimationManager.createCharacterAnimations(this, 'luigi');
-                playerAnimations.damage(this.player2);
+                this.player2.animations.damage(this.player2);
                 
                 // Add screen shake
                 ParticleEffects.screenShake(this, 5, 200);
@@ -2785,9 +2785,8 @@ export default class GameScene extends Phaser.Scene {
                 // Add running animation visual effect
                 if (isMovingHorizontally && this.player.body.touching.down && !this.player.isRunning) {
                     this.player.isRunning = true;
-                    const animations = AnimationManager.createCharacterAnimations(this, 'mario');
                     const direction = isMovingLeft ? -1 : 1;
-                    animations.running(this.player, direction);
+                    this.player.animations.running(this.player, direction);
                 } else if (!isMovingHorizontally && this.player.isRunning) {
                     this.player.isRunning = false;
                     // Stop running animation
@@ -2797,8 +2796,8 @@ export default class GameScene extends Phaser.Scene {
                     }
                 }
                 
-                // Add star trail effect when invincible
-                if (this.isInvincible && Math.random() < 0.3) {
+                // Add star trail effect when invincible (throttled)
+                if (this.isInvincible && this.time.now % 150 < 50) {
                     ParticleEffects.starTrail(this, this.player.x, this.player.y);
                 }
 
@@ -2810,16 +2809,14 @@ export default class GameScene extends Phaser.Scene {
                     ParticleEffects.jumpDust(this, this.player.x, this.player.y + 20);
                     
                     // Add jump animation
-                    const animations = AnimationManager.createCharacterAnimations(this, 'mario');
-                    animations.jumping(this.player);
+                    this.player.animations.jumping(this.player);
                 }
                 
                 // Detect landing and add landing effect
                 if (this.player.body.touching.down && !this.player.wasOnGround) {
                     ParticleEffects.landingDust(this, this.player.x, this.player.y + 20);
                     
-                    const animations = AnimationManager.createCharacterAnimations(this, 'mario');
-                    animations.landing(this.player);
+                    this.player.animations.landing(this.player);
                 }
                 this.player.wasOnGround = this.player.body.touching.down;
                 
@@ -2852,9 +2849,8 @@ export default class GameScene extends Phaser.Scene {
                 // Add running animation visual effect for player 1
                 if (isMovingHorizontally && this.player.body.touching.down && !this.player.isRunning) {
                     this.player.isRunning = true;
-                    const animations = AnimationManager.createCharacterAnimations(this, 'mario');
                     const direction = isMovingLeft ? -1 : 1;
-                    animations.running(this.player, direction);
+                    this.player.animations.running(this.player, direction);
                 } else if (!isMovingHorizontally && this.player.isRunning) {
                     this.player.isRunning = false;
                     if (this.player.runningTween) {
@@ -2863,8 +2859,8 @@ export default class GameScene extends Phaser.Scene {
                     }
                 }
                 
-                // Add star trail effect when invincible
-                if (this.isInvincible && Math.random() < 0.3) {
+                // Add star trail effect when invincible (throttled)
+                if (this.isInvincible && this.time.now % 150 < 50) {
                     ParticleEffects.starTrail(this, this.player.x, this.player.y);
                 }
 
@@ -2876,16 +2872,14 @@ export default class GameScene extends Phaser.Scene {
                     ParticleEffects.jumpDust(this, this.player.x, this.player.y + 20);
                     
                     // Add jump animation
-                    const animations = AnimationManager.createCharacterAnimations(this, 'mario');
-                    animations.jumping(this.player);
+                    this.player.animations.jumping(this.player);
                 }
                 
                 // Detect landing and add landing effect
                 if (this.player.body.touching.down && !this.player.wasOnGround) {
                     ParticleEffects.landingDust(this, this.player.x, this.player.y + 20);
                     
-                    const animations = AnimationManager.createCharacterAnimations(this, 'mario');
-                    animations.landing(this.player);
+                    this.player.animations.landing(this.player);
                 }
                 this.player.wasOnGround = this.player.body.touching.down;
                 
@@ -2917,9 +2911,8 @@ export default class GameScene extends Phaser.Scene {
                 // Add running animation visual effect for player 2
                 if (isMovingHorizontally2 && this.player2.body.touching.down && !this.player2.isRunning) {
                     this.player2.isRunning = true;
-                    const animations = AnimationManager.createCharacterAnimations(this, 'luigi');
                     const direction = isMovingLeft2 ? -1 : 1;
-                    animations.running(this.player2, direction);
+                    this.player2.animations.running(this.player2, direction);
                 } else if (!isMovingHorizontally2 && this.player2.isRunning) {
                     this.player2.isRunning = false;
                     if (this.player2.runningTween) {
@@ -2928,8 +2921,8 @@ export default class GameScene extends Phaser.Scene {
                     }
                 }
                 
-                // Add star trail effect when invincible
-                if (this.isInvincible2 && Math.random() < 0.3) {
+                // Add star trail effect when invincible (throttled)
+                if (this.isInvincible2 && this.time.now % 150 < 50) {
                     ParticleEffects.starTrail(this, this.player2.x, this.player2.y);
                 }
 
@@ -2941,16 +2934,14 @@ export default class GameScene extends Phaser.Scene {
                     ParticleEffects.jumpDust(this, this.player2.x, this.player2.y + 20);
                     
                     // Add jump animation
-                    const animations = AnimationManager.createCharacterAnimations(this, 'luigi');
-                    animations.jumping(this.player2);
+                    this.player2.animations.jumping(this.player2);
                 }
                 
                 // Detect landing and add landing effect
                 if (this.player2.body.touching.down && !this.player2.wasOnGround) {
                     ParticleEffects.landingDust(this, this.player2.x, this.player2.y + 20);
                     
-                    const animations = AnimationManager.createCharacterAnimations(this, 'luigi');
-                    animations.landing(this.player2);
+                    this.player2.animations.landing(this.player2);
                 }
                 this.player2.wasOnGround = this.player2.body.touching.down;
                 
