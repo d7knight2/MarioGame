@@ -188,9 +188,10 @@ Contributions, issues, and feature requests are welcome!
 
 ### Continuous Integration
 
-This repository uses GitHub Actions for automated testing:
+This repository uses GitHub Actions for automated testing and maintenance:
 - **Run Tests Automatically**: Runs unit tests with Jest on every commit and pull request
 - **Playwright UI Tests**: Runs end-to-end tests on multiple browsers
+- **Auto Resolve Merge Conflicts**: Runs nightly at 2 AM UTC to automatically detect and resolve merge conflicts in open pull requests
 
 ### Branch Protection (Repository Maintainers)
 
