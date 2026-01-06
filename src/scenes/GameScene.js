@@ -1288,9 +1288,11 @@ export default class GameScene extends Phaser.Scene {
         // Add screen shake for boss hit
         ParticleEffects.screenShake(this, 8, 300);
         
-        // Add boss hit animation
-        const bossAnimations = AnimationManager.createBossAnimations(this);
-        bossAnimations.hurt(this.boss);
+        // Add boss hit animation (lazy-create and cache for reuse)
+        if (!this.bossAnimations) {
+            this.bossAnimations = AnimationManager.createBossAnimations(this);
+        }
+        this.bossAnimations.hurt(this.boss);
         
         if (this.bossHealth <= 0) {
             // Boss defeated!
