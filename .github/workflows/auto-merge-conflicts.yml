@@ -36,7 +36,8 @@ jobs:
         echo "Starting PR Conflict Detection"
         echo "==================================="
 
-        # Get all open pull requests
+        # Get all open pull requests (limited to 100 for performance)
+        # If you have more than 100 open PRs, consider increasing this limit
         prs=$(gh pr list --state open --json number,headRefName,baseRefName,title,mergeable --limit 100)
         pr_count=$(echo "$prs" | jq '. | length')
 
