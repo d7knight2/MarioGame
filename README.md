@@ -186,6 +186,35 @@ MIT License - feel free to use this project for learning or as a base for your o
 
 Contributions, issues, and feature requests are welcome!
 
+### Continuous Integration
+
+This repository uses GitHub Actions for automated testing and maintenance:
+- **Run Tests Automatically**: Runs unit tests with Jest on every commit and pull request
+- **Playwright UI Tests**: Runs end-to-end tests on multiple browsers
+- **Auto Resolve Merge Conflicts**: Runs nightly at 2 AM UTC to automatically detect and resolve merge conflicts in open pull requests
+
+### Branch Protection (Repository Maintainers)
+
+To ensure code quality and prevent breaking changes, repository maintainers should enable branch protection rules:
+
+1. Go to **Settings** → **Branches** in the GitHub repository
+2. Click **Add branch protection rule**
+3. Set **Branch name pattern** to `main` (or `master`)
+4. Enable the following settings:
+   - ✅ **Require a pull request before merging**
+   - ✅ **Require status checks to pass before merging**
+   - ✅ **Require branches to be up to date before merging**
+   - Under "Status checks that are required", search for and select all required checks:
+     - `test (18.x)` - Unit tests on Node 18
+     - `test (20.x)` - Unit tests on Node 20
+     - `Playwright Tests (chromium)` - E2E tests on Chrome
+     - `Playwright Tests (firefox)` - E2E tests on Firefox
+     - `Playwright Tests (webkit)` - E2E tests on Safari
+   - Note: Status check names appear after the first PR runs the workflows
+5. Click **Create** or **Save changes**
+
+With these settings, all pull requests must pass automated tests before they can be merged, ensuring code quality and stability.
+
 ## 🎨 Graphics & Visual Effects
 
 The game features enhanced visual feedback and particle effects:
