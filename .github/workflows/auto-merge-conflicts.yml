@@ -91,6 +91,10 @@ jobs:
             # Attempt to merge base branch
             echo "Merging $base_branch into $head_branch..."
             merge_msg="chore: auto-merge $base_branch to resolve conflicts in PR #$pr_number"
+            
+            # Save the current commit hash before merging
+            original_commit=$(git rev-parse HEAD)
+            
             if git merge "origin/$base_branch" -m "$merge_msg" 2>&1; then
               echo "✅ Merge successful!"
 
@@ -98,20 +102,15 @@ jobs:
               if git push origin "$head_branch" 2>&1; then
                 echo "✅ Successfully pushed conflict resolution for PR #$pr_number"
 
-                # Add a comment to the PR - use echo with newlines
-                comment_msg="🤖 **Automated Conflict Resolution**
-
-                The base branch (\`$base_branch\`) has been automatically merged into this PR branch to resolve merge conflicts.
-
-                Please review the changes and ensure everything is working as expected."
+                # Add a comment to the PR
+                comment_msg="🤖 **Automated Conflict Resolution**"$'\n\n'"The base branch (\`$base_branch\`) has been automatically merged into this PR branch to resolve merge conflicts."$'\n\n'"Please review the changes and ensure everything is working as expected."
                 gh pr comment "$pr_number" --body "$comment_msg" 2>&1 || echo "⚠️  Warning: Failed to add comment to PR #$pr_number"
               else
                 echo "❌ Failed to push conflict resolution for PR #$pr_number"
                 echo "Error: Git push failed"
 
-                # Reset the branch to its original state
-                git fetch origin "$head_branch" 2>&1
-                git reset --hard "origin/$head_branch" 2>&1
+                # Reset to the commit before the merge
+                git reset --hard "$original_commit" 2>&1
               fi
             else
               echo "❌ Automatic merge failed for PR #$pr_number"
@@ -120,12 +119,8 @@ jobs:
               # Abort the merge
               git merge --abort 2>&1 || true
 
-              # Add a comment to the PR about the failure - use echo with newlines
-              comment_msg="🤖 **Automated Conflict Resolution Failed**
-
-              An automatic attempt to resolve merge conflicts was unsuccessful. The conflicts require manual intervention.
-
-              Please resolve the conflicts manually by merging \`$base_branch\` into your branch."
+              # Add a comment to the PR about the failure
+              comment_msg="🤖 **Automated Conflict Resolution Failed**"$'\n\n'"An automatic attempt to resolve merge conflicts was unsuccessful. The conflicts require manual intervention."$'\n\n'"Please resolve the conflicts manually by merging \`$base_branch\` into your branch."
               gh pr comment "$pr_number" --body "$comment_msg" 2>&1 || echo "⚠️  Warning: Failed to add comment to PR #$pr_number"
             fi
 
