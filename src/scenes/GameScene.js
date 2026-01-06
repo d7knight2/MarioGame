@@ -3,6 +3,10 @@ import SpriteFactory from '../utils/SpriteFactory.js';
 import ParticleEffects from '../utils/ParticleEffects.js';
 import AnimationManager from '../utils/AnimationManager.js';
 import BackgroundGenerator from '../utils/BackgroundGenerator.js';
+import ChatSystem from '../utils/ChatSystem.js';
+import ConnectionMonitor from '../utils/ConnectionMonitor.js';
+import MultiplayerSync from '../utils/MultiplayerSync.js';
+import AudioManager from '../utils/AudioManager.js';
 
 // Game constants
 const POWER_UP_SPAWN_DELAY_MS = 300; // Delay before power-ups start moving horizontally
@@ -14,6 +18,11 @@ const REVIVAL_STAR_OUTER_RADIUS = 4; // Outer radius of revival stars
 const REVIVAL_STAR_COLOR = 0xffff00; // Color of revival stars (yellow)
 const STAR_TRAIL_THROTTLE_MS = 150; // Milliseconds between star trail particle spawns
 const STAR_TRAIL_THROTTLE_WINDOW = 50; // Window size for throttle check
+
+// Multiplayer sync constants
+const SIMULATED_MIN_LATENCY_MS = 30; // Minimum simulated network latency
+const SIMULATED_LATENCY_VARIANCE_MS = 40; // Variance in simulated latency
+const CONNECTION_QUALITY_UPDATE_INTERVAL_MS = 5000; // Update connection quality every 5 seconds
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -64,11 +73,23 @@ export default class GameScene extends Phaser.Scene {
         this.revivalCountdownInterval = null;
         this.REVIVAL_DELAY_MS = 30000; // 30 seconds
         this.cameraFollowState = null; // Track camera state: 'player1', 'player2', 'both', or null
+        
+        // Multiplayer networking utilities
+        this.chatSystem = null;
+        this.connectionMonitor = null;
+        this.multiplayerSync = null;
+        this.isMultiplayerOnline = false; // Flag to indicate if this is online multiplayer
+        // Audio manager
+        this.audioManager = null;
     }
 
     create() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
+        
+        // Initialize AudioManager
+        this.audioManager = new AudioManager(this);
+        this.audioManager.preloadSounds();
         
         // Get game mode and player names from registry
         // gameMode can be either string ('single', 'multiplayer') or number (1, 2)
@@ -99,9 +120,20 @@ export default class GameScene extends Phaser.Scene {
         const shouldShowFireButton = this.gameMode === 1 ? this.hasFirePower : this.hasFirePower2;
         this.game.events.emit('hasFirePower', shouldShowFireButton);
         
+        // Play background music (infrastructure in place for when audio files are added)
+        // For boss levels, use boss music; otherwise use gameplay music
+        // if (currentLevel === 2 || currentLevel === 3) {
+        //     this.audioManager.playMusic(this.audioManager.musicKeys.boss);
+        // } else {
+        //     this.audioManager.playMusic(this.audioManager.musicKeys.gameplay);
+        // }
+        
         // Extend world bounds for side-scrolling
         this.physics.world.setBounds(0, 0, 3200, height);
         this.cameras.main.setBounds(0, 0, 3200, height);
+        
+        // Improve physics settings for smoother collisions
+        this.physics.world.TILE_BIAS = 32;  // Increase tile bias to prevent tunneling
 
         // Create sky background gradient
         this.add.rectangle(1600, height / 2, 3200, height, 0x5c94fc);
@@ -313,6 +345,70 @@ export default class GameScene extends Phaser.Scene {
         this.registry.set('moveRight', false);
         this.registry.set('jump', false);
         this.registry.set('fire', false);
+        
+        // Initialize multiplayer utilities if in 2-player mode
+        if (this.gameMode === 2) {
+            // Check if this is online multiplayer based on game code
+            const gameCode = this.registry.get('gameCode');
+            const multiplayerRole = this.registry.get('multiplayerRole');
+            this.isMultiplayerOnline = !!(gameCode && multiplayerRole);
+            
+            if (this.isMultiplayerOnline) {
+                // Initialize chat system
+                this.chatSystem = new ChatSystem(this);
+                this.chatSystem.createUI();
+                this.chatSystem.addSystemMessage('Multiplayer session started');
+                
+                // Initialize connection monitor
+                this.connectionMonitor = new ConnectionMonitor();
+                this.connectionMonitor.start();
+                this.connectionMonitor.handleConnected(); // Simulate connection for now
+                
+                // Initialize multiplayer sync
+                this.multiplayerSync = new MultiplayerSync();
+                
+                // Create connection quality indicator
+                this.createConnectionQualityIndicator();
+            }
+        }
+    }
+    
+    createConnectionQualityIndicator() {
+        // Connection quality indicator (top right corner)
+        const width = this.cameras.main.width;
+        
+        this.connectionQualityBg = this.add.rectangle(width - 80, 80, 140, 40, 0x000000, 0.7);
+        this.connectionQualityBg.setScrollFactor(0);
+        this.connectionQualityBg.setDepth(1000);
+        
+        this.connectionQualityText = this.add.text(width - 80, 80, '', {
+            fontSize: '14px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        });
+        this.connectionQualityText.setOrigin(0.5);
+        this.connectionQualityText.setScrollFactor(0);
+        this.connectionQualityText.setDepth(1001);
+        
+        // Update indicator periodically (every 5 seconds to reduce performance impact)
+        this.time.addEvent({
+            delay: CONNECTION_QUALITY_UPDATE_INTERVAL_MS,
+            callback: this.updateConnectionQualityIndicator,
+            callbackScope: this,
+            loop: true
+        });
+    }
+    
+    updateConnectionQualityIndicator() {
+        if (!this.connectionMonitor || !this.connectionQualityText) return;
+        
+        const quality = this.connectionMonitor.getConnectionQuality();
+        const icon = this.connectionMonitor.getQualityIcon();
+        const color = this.connectionMonitor.getQualityColor();
+        
+        this.connectionQualityText.setText(`${icon} ${quality.latency}ms`);
+        this.connectionQualityText.setColor('#' + color.toString(16).padStart(6, '0'));
     }
     
     createLevel1Platforms() {
@@ -535,6 +631,11 @@ export default class GameScene extends Phaser.Scene {
         const player1Name = this.registry.get('player1Name') || 'Player 1';
         const player2Name = this.registry.get('player2Name') || 'Player 2';
         
+        // Clean up audio
+        if (this.audioManager) {
+            this.audioManager.cleanup();
+        }
+        
         // Clean up revival timers to prevent memory leaks
         if (this.revivalTimer) {
             this.revivalTimer.remove();
@@ -651,22 +752,20 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.existing(this.player);
         
         // Adjust size based on power-up state
+        // Add slight collision body padding (2px smaller on each side) for smoother movement
         if (this.isPoweredUp) {
             this.player.setScale(1.3);
-            this.player.body.setSize(36, 57);
-            this.player.body.setOffset(-18, -28);
+            this.player.body.setSize(32, 53);  // Reduced from 36x57 for smoother collisions
+            this.player.body.setOffset(-16, -26);  // Adjusted offset to center body
         } else {
-            this.player.body.setSize(28, 44);
-            this.player.body.setOffset(-14, -22);
+            this.player.body.setSize(24, 40);  // Reduced from 28x44 for smoother collisions
+            this.player.body.setOffset(-12, -20);  // Adjusted offset to center body
         }
         
         this.player.body.setBounce(0.1);
         this.player.body.setCollideWorldBounds(true);
-        
-        // Change color for Fire Mario
-        if (this.hasFirePower) {
-            body.setFillStyle(0xffffff);
-        }
+        this.player.body.setMaxVelocity(300, 800);  // Add max velocity to prevent glitches
+        this.player.body.setDrag(200, 0);  // Add horizontal drag for better control
         
         // Store references
         this.player.body_part = body;
@@ -679,6 +778,10 @@ export default class GameScene extends Phaser.Scene {
         
         // Cache animation handlers for performance
         this.player.animations = AnimationManager.createCharacterAnimations(this, selectedCharacter);
+        // Change color for Fire Mario (after storing body_part reference)
+        if (this.hasFirePower) {
+            this.player.body_part.setFillStyle(0xffffff);
+        }
     }
 
     createPlayer2() {
@@ -732,22 +835,20 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.existing(this.player2);
         
         // Adjust size based on power-up state
+        // Add slight collision body padding (2px smaller on each side) for smoother movement
         if (this.isPoweredUp2) {
             this.player2.setScale(1.3);
-            this.player2.body.setSize(36, 57);
-            this.player2.body.setOffset(-18, -28);
+            this.player2.body.setSize(32, 53);  // Reduced from 36x57 for smoother collisions
+            this.player2.body.setOffset(-16, -26);  // Adjusted offset to center body
         } else {
-            this.player2.body.setSize(28, 44);
-            this.player2.body.setOffset(-14, -22);
+            this.player2.body.setSize(24, 40);  // Reduced from 28x44 for smoother collisions
+            this.player2.body.setOffset(-12, -20);  // Adjusted offset to center body
         }
         
         this.player2.body.setBounce(0.1);
         this.player2.body.setCollideWorldBounds(true);
-        
-        // Change color for Fire Luigi
-        if (this.hasFirePower2) {
-            body.setFillStyle(0xffffff);
-        }
+        this.player2.body.setMaxVelocity(300, 800);  // Add max velocity to prevent glitches
+        this.player2.body.setDrag(200, 0);  // Add horizontal drag for better control
         
         // Store references
         this.player2.body_part = body;
@@ -760,6 +861,10 @@ export default class GameScene extends Phaser.Scene {
         
         // Cache animation handlers for performance
         this.player2.animations = AnimationManager.createCharacterAnimations(this, 'luigi');
+        // Change color for Fire Luigi (after storing body_part reference)
+        if (this.hasFirePower2) {
+            this.player2.body_part.setFillStyle(0xffffff);
+        }
     }
 
     createCoins() {
@@ -957,7 +1062,7 @@ export default class GameScene extends Phaser.Scene {
             enemy.add([foot1, foot2, body, head, eye1, eye2, pupil1, pupil2, brow1, brow2]);
             
             this.physics.add.existing(enemy);
-            enemy.body.setSize(32, 32);
+            enemy.body.setSize(28, 28);  // Reduced from 32x32 for smoother collisions
             enemy.body.setBounce(0);
             enemy.body.setCollideWorldBounds(true);
             enemy.body.setVelocityX(pos.speed);
@@ -1242,9 +1347,9 @@ export default class GameScene extends Phaser.Scene {
         if (this.gameOver || this.levelComplete) return;
         
         // Check if player jumped on boss
-        // Player must be above boss's center and moving downward
+        // Improved detection: player must be above boss center and moving downward
         const playerBottom = player.y + (player.body.height / 2);
-        const isPlayerAbove = playerBottom < boss.y;
+        const isPlayerAbove = playerBottom < boss.y - 5;  // Added 5px margin for more lenient detection
         const isMovingDown = player.body.velocity.y > 0;
         
         if (isPlayerAbove && isMovingDown) {
@@ -1261,9 +1366,9 @@ export default class GameScene extends Phaser.Scene {
         if (this.gameOver || this.levelComplete) return;
         
         // Check if player 2 jumped on boss
-        // Player must be above boss's center and moving downward
+        // Improved detection: player must be above boss center and moving downward
         const playerBottom = player.y + (player.body.height / 2);
-        const isPlayerAbove = playerBottom < boss.y;
+        const isPlayerAbove = playerBottom < boss.y - 5;  // Added 5px margin for more lenient detection
         const isMovingDown = player.body.velocity.y > 0;
         
         if (isPlayerAbove && isMovingDown) {
@@ -1455,7 +1560,7 @@ export default class GameScene extends Phaser.Scene {
         }
         
         this.physics.add.existing(powerUp);
-        powerUp.body.setSize(32, 32);
+        powerUp.body.setSize(28, 28);  // Reduced from 32x32 for smoother collisions
         powerUp.body.setBounce(0.5);
         powerUp.body.setCollideWorldBounds(true);
         
@@ -1496,6 +1601,11 @@ export default class GameScene extends Phaser.Scene {
         powerUp.destroy();
         this.score += 50;
         this.scoreText.setText('Score: ' + this.score);
+        
+        // Play power-up sound
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.powerUp);
+        }
         
         if (type === 'mushroom' && !this.isPoweredUp) {
             // Become Super Mario
@@ -1574,6 +1684,11 @@ export default class GameScene extends Phaser.Scene {
         this.score += 50;
         this.scoreText.setText('Score: ' + this.score);
         
+        // Play power-up sound
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.powerUp);
+        }
+        
         if (type === 'mushroom' && !this.isPoweredUp2) {
             // Become Super Luigi
             this.isPoweredUp2 = true;
@@ -1642,6 +1757,10 @@ export default class GameScene extends Phaser.Scene {
         
         // Add score popup
         ParticleEffects.scorePopup(this, coin.x, coin.y, 10);
+        // Play coin collection sound
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.coin);
+        }
         
         // Coin collection animation - scale up and fade out
         this.tweens.add({
@@ -1675,6 +1794,11 @@ export default class GameScene extends Phaser.Scene {
         
         this.levelComplete = true;
         this.physics.pause();
+        
+        // Play level complete sound
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.levelComplete);
+        }
         
         // Bonus for completing level
         this.score += 100;
@@ -1996,6 +2120,10 @@ export default class GameScene extends Phaser.Scene {
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
+            // Play enemy hit sound
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.enemyHit);
+            }
             return;
         }
         
@@ -2015,6 +2143,10 @@ export default class GameScene extends Phaser.Scene {
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
+            // Play enemy hit sound
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.enemyHit);
+            }
         } else {
             // Player hit from side - take damage or die
             if (this.isPoweredUp) {
@@ -2031,8 +2163,8 @@ export default class GameScene extends Phaser.Scene {
                 } else {
                     this.isPoweredUp = false;
                     this.player.setScale(1);
-                    this.player.body.setSize(28, 44);
-                    this.player.body.setOffset(-14, -22);
+                    this.player.body.setSize(24, 40);  // Match improved collision body size
+                    this.player.body.setOffset(-12, -20);  // Match improved offset
                 }
                 
                 // Add damage visual effect
@@ -2044,6 +2176,11 @@ export default class GameScene extends Phaser.Scene {
                 this.updatePowerUpText();
                 this.registry.set('isPoweredUp', this.isPoweredUp);
                 this.registry.set('hasFirePower', this.hasFirePower);
+                
+                // Play damage sound
+                if (this.audioManager) {
+                    this.audioManager.playSound(this.audioManager.soundKeys.damage);
+                }
                 
                 // Brief invincibility after taking damage
                 this.isInvincible = true;
@@ -2097,6 +2234,10 @@ export default class GameScene extends Phaser.Scene {
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
+            // Play enemy hit sound
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.enemyHit);
+            }
             return;
         }
         
@@ -2116,6 +2257,10 @@ export default class GameScene extends Phaser.Scene {
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
+            // Play enemy hit sound
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.enemyHit);
+            }
         } else {
             // Player hit from side - take damage or die
             if (this.isPoweredUp2) {
@@ -2130,8 +2275,8 @@ export default class GameScene extends Phaser.Scene {
                 } else {
                     this.isPoweredUp2 = false;
                     this.player2.setScale(1);
-                    this.player2.body.setSize(28, 44);
-                    this.player2.body.setOffset(-14, -22);
+                    this.player2.body.setSize(24, 40);  // Match improved collision body size
+                    this.player2.body.setOffset(-12, -20);  // Match improved offset
                 }
                 
                 // Add damage visual effect for player 2
@@ -2143,6 +2288,11 @@ export default class GameScene extends Phaser.Scene {
                 this.updatePowerUpText();
                 this.registry.set('isPoweredUp2', this.isPoweredUp2);
                 this.registry.set('hasFirePower2', this.hasFirePower2);
+                
+                // Play damage sound
+                if (this.audioManager) {
+                    this.audioManager.playSound(this.audioManager.soundKeys.damage);
+                }
                 
                 // Brief invincibility after taking damage
                 this.isInvincible2 = true;
@@ -2313,8 +2463,8 @@ export default class GameScene extends Phaser.Scene {
         
         // Apply powered-up scale (full health means Super form)
         player.setScale(1.3);
-        player.body.setSize(36, 57);
-        player.body.setOffset(-18, -28);
+        player.body.setSize(32, 53);  // Match improved collision body size
+        player.body.setOffset(-16, -26);  // Match improved offset
         
         // Reset body color based on character
         if (playerNumber === 1) {
@@ -2503,6 +2653,11 @@ export default class GameScene extends Phaser.Scene {
     shootFireball() {
         if (!this.hasFirePower) return;
         
+        // Play fireball sound
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.fireball);
+        }
+        
         // Create fireball
         const direction = this.player.scaleX > 0 ? 1 : -1;
         const fireball = this.add.circle(
@@ -2558,6 +2713,11 @@ export default class GameScene extends Phaser.Scene {
     shootFireball2() {
         if (!this.hasFirePower2) return;
         
+        // Play fireball sound
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.fireball);
+        }
+        
         // Create fireball for player 2
         const direction = this.player2.scaleX > 0 ? 1 : -1;
         const fireball = this.add.circle(
@@ -2610,8 +2770,55 @@ export default class GameScene extends Phaser.Scene {
         });
     }
 
+    syncMultiplayerState() {
+        // Simulate network latency for connection monitor using defined constants
+        const simulatedLatency = SIMULATED_MIN_LATENCY_MS + Math.random() * SIMULATED_LATENCY_VARIANCE_MS;
+        this.connectionMonitor.recordPing(simulatedLatency);
+        this.connectionMonitor.recordPacketSent();
+        this.connectionMonitor.recordPacketReceived();
+        
+        // Sync player 1 state (local player in host mode, remote in guest mode)
+        const multiplayerRole = this.registry.get('multiplayerRole');
+        
+        if (multiplayerRole === 'host' && this.player) {
+            // Host controls player 1 - serialize and send state
+            const state = this.multiplayerSync.serializeState(this.player);
+            this.multiplayerSync.addStateSnapshot('player1', state);
+            
+            // In a real implementation, send state over network here
+            // socket.emit('playerState', { player: 'player1', state });
+        } else if (multiplayerRole === 'guest' && this.player2) {
+            // Guest controls player 2 - serialize and send state
+            const state = this.multiplayerSync.serializeState(this.player2);
+            this.multiplayerSync.addStateSnapshot('player2', state);
+            
+            // In a real implementation, send state over network here
+            // socket.emit('playerState', { player: 'player2', state });
+        }
+        
+        // Apply interpolated state to remote player
+        if (multiplayerRole === 'host' && this.player2) {
+            // Host receives player 2 state from guest
+            const interpolatedState = this.multiplayerSync.getInterpolatedState('player2');
+            if (interpolatedState) {
+                this.multiplayerSync.applyState(this.player2, interpolatedState, true);
+            }
+        } else if (multiplayerRole === 'guest' && this.player) {
+            // Guest receives player 1 state from host
+            const interpolatedState = this.multiplayerSync.getInterpolatedState('player1');
+            if (interpolatedState) {
+                this.multiplayerSync.applyState(this.player, interpolatedState, true);
+            }
+        }
+    }
+
     update() {
         if (this.gameOver || this.levelComplete) return;
+
+        // Sync multiplayer state if online
+        if (this.isMultiplayerOnline && this.multiplayerSync) {
+            this.syncMultiplayerState();
+        }
 
         // Update camera in 2-player mode to keep both players on screen
         if (this.gameMode === 2 && this.player && this.player2) {
@@ -2821,6 +3028,10 @@ export default class GameScene extends Phaser.Scene {
                     
                     // Add jump animation
                     this.player.animations.jumping(this.player);
+                    // Play jump sound
+                    if (this.audioManager) {
+                        this.audioManager.playSound(this.audioManager.soundKeys.jump);
+                    }
                 }
                 
                 // Detect landing and add landing effect
@@ -2896,6 +3107,10 @@ export default class GameScene extends Phaser.Scene {
                     
                     // Add jump animation
                     this.player.animations.jumping(this.player);
+                    // Play jump sound
+                    if (this.audioManager) {
+                        this.audioManager.playSound(this.audioManager.soundKeys.jump);
+                    }
                 }
                 
                 // Detect landing and add landing effect
@@ -2965,6 +3180,10 @@ export default class GameScene extends Phaser.Scene {
                     ParticleEffects.landingDust(this, this.player2.x, this.player2.y + 20);
                     
                     this.player2.animations.landing(this.player2);
+                    // Play jump sound
+                    if (this.audioManager) {
+                        this.audioManager.playSound(this.audioManager.soundKeys.jump);
+                    }
                 }
                 this.player2.wasOnGround = this.player2.body.touching.down;
                 

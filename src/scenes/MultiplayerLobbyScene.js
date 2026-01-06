@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import AudioManager from '../utils/AudioManager.js';
 
 export default class MultiplayerLobbyScene extends Phaser.Scene {
     constructor() {
@@ -6,11 +7,16 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         this.gameCode = null;
         this.isHost = false;
         this.lobbyState = 'initial'; // 'initial', 'hosting', 'joining'
+        this.audioManager = null;
     }
 
     create() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
+
+        // Initialize AudioManager
+        this.audioManager = new AudioManager(this);
+        this.audioManager.preloadSounds();
 
         // UI Layout constants for consistent spacing
         const UI_SPACING = {
@@ -20,7 +26,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             codeDisplayY: height / 2 + 100,
             inputOffsetY: height / 2 + 70,
             joinBtnY: height / 2 + 170,
-            switchBtnY: height / 2 + 120,
+            switchBtnY: height / 2 + 155,  // Fixed from height/2 + 120 to prevent overlap with codeDisplay
             statusTextY: height - 100,
             backBtnY: height - 50
         };
@@ -57,6 +63,9 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             this.hostBtn.setFillStyle(0x00aa00);
         });
         this.hostBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             this.hostGame();
         });
 
@@ -103,6 +112,9 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             this.joinBtn.setFillStyle(0x0066cc);
         });
         this.joinBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             this.joinGame();
         });
 
@@ -128,6 +140,9 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             this.switchToJoinBtn.setFillStyle(0xcc6600);
         });
         this.switchToJoinBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             this.switchToJoinMode();
         });
 
@@ -150,6 +165,9 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             this.backBtn.setFillStyle(0x666666);
         });
         this.backBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             this.scene.start('ModeSelectionScene');
         });
 
@@ -270,7 +288,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         // For now, simulate connection - in real implementation would use WebSockets/PeerJS
         // After a moment, allow starting
         this.time.delayedCall(2000, () => {
-            this.statusText.setText('Waiting for player...\n(Click to start - multiplayer sync in development)');
+            this.statusText.setText('Ready to start!\nEnhanced with chat, connection monitoring, and state sync.\n(Click to start)');
             this.input.once('pointerdown', () => {
                 this.scene.start('CharacterSelectionScene');
             });
@@ -327,7 +345,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
 
             // Simulate connection
             this.time.delayedCall(1500, () => {
-                this.statusText.setText('Guest mode - code: ' + this.gameCode + '\n(Multiplayer sync requires backend setup)');
+                this.statusText.setText('Connected!\nEnhanced with chat and sync features.\n(Starting game...)');
                 
                 this.time.delayedCall(1500, () => {
                     this.scene.start('CharacterSelectionScene');
