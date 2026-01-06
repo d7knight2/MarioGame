@@ -111,13 +111,27 @@ export default class FriendsScene extends Phaser.Scene {
             return;
         }
 
+        // Layout constants for better spacing and positioning
+        const CARD_LAYOUT = {
+            spacing: 80,        // Vertical spacing between cards
+            height: 60,         // Card height
+            startY: 200,        // Starting Y position
+            width: 600,         // Card width
+            centerX: 400,       // Card center X
+            inviteBtnX: 540,    // Invite button X position
+            inviteBtnWidth: 110,
+            removeBtnX: 660,    // Remove button X position
+            removeBtnSize: 40
+        };
+
         // Display each friend
         this.friends.forEach((friend, index) => {
-            const yPos = 200 + (index * 70);
+            const yPos = CARD_LAYOUT.startY + (index * CARD_LAYOUT.spacing);
             
-            // Friend card background
-            const card = this.add.rectangle(400, yPos, 600, 60, 0x444444);
+            // Friend card background with depth
+            const card = this.add.rectangle(CARD_LAYOUT.centerX, yPos, CARD_LAYOUT.width, CARD_LAYOUT.height, 0x444444);
             card.setStrokeStyle(2, 0x666666);
+            card.setDepth(10);
 
             // Friend name
             const nameText = this.add.text(150, yPos, friend, {
@@ -127,10 +141,13 @@ export default class FriendsScene extends Phaser.Scene {
                 fontStyle: 'bold'
             });
             nameText.setOrigin(0, 0.5);
+            nameText.setDepth(12);
 
             // Online status indicator (simulated)
             const isOnline = Math.random() > 0.5;
             const statusCircle = this.add.circle(120, yPos, 8, isOnline ? 0x00ff00 : 0x666666);
+            statusCircle.setDepth(12);
+            
             const statusText = this.add.text(nameText.x + nameText.width + 15, yPos, 
                 isOnline ? 'Online' : 'Offline', {
                 fontSize: '16px',
@@ -138,16 +155,19 @@ export default class FriendsScene extends Phaser.Scene {
                 color: isOnline ? '#00ff00' : '#999999'
             });
             statusText.setOrigin(0, 0.5);
+            statusText.setDepth(12);
 
-            // Invite button
-            const inviteBtn = this.add.rectangle(550, yPos, 120, 40, 0xff6600);
-            const inviteText = this.add.text(550, yPos, 'Invite', {
+            // Invite button with proper spacing
+            const inviteBtn = this.add.rectangle(CARD_LAYOUT.inviteBtnX, yPos, CARD_LAYOUT.inviteBtnWidth, 40, 0xff6600);
+            const inviteText = this.add.text(CARD_LAYOUT.inviteBtnX, yPos, 'Invite', {
                 fontSize: '18px',
                 fontFamily: 'Arial, sans-serif',
                 color: '#ffffff',
                 fontStyle: 'bold'
             });
             inviteText.setOrigin(0.5);
+            inviteBtn.setDepth(11);
+            inviteText.setDepth(12);
             inviteBtn.setInteractive({ useHandCursor: true });
 
             inviteBtn.on('pointerover', () => {
@@ -160,15 +180,17 @@ export default class FriendsScene extends Phaser.Scene {
                 this.inviteFriend(friend);
             });
 
-            // Remove button
-            const removeBtn = this.add.rectangle(670, yPos, 40, 40, 0xcc0000);
-            const removeText = this.add.text(670, yPos, '✕', {
+            // Remove button with spacing
+            const removeBtn = this.add.rectangle(CARD_LAYOUT.removeBtnX, yPos, CARD_LAYOUT.removeBtnSize, CARD_LAYOUT.removeBtnSize, 0xcc0000);
+            const removeText = this.add.text(CARD_LAYOUT.removeBtnX, yPos, '✕', {
                 fontSize: '24px',
                 fontFamily: 'Arial, sans-serif',
                 color: '#ffffff',
                 fontStyle: 'bold'
             });
             removeText.setOrigin(0.5);
+            removeBtn.setDepth(11);
+            removeText.setDepth(12);
             removeBtn.setInteractive({ useHandCursor: true });
 
             removeBtn.on('pointerover', () => {
