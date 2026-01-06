@@ -2801,8 +2801,15 @@ export default class GameScene extends Phaser.Scene {
                 }
                 
                 // Add star trail effect when invincible (throttled)
-                if (this.isInvincible && this.time.now % STAR_TRAIL_THROTTLE_MS < STAR_TRAIL_THROTTLE_WINDOW) {
-                    ParticleEffects.starTrail(this, this.player.x, this.player.y);
+                const now = this.time.now;
+                if (this.isInvincible) {
+                    if (typeof this.lastStarTrailTime !== 'number') {
+                        this.lastStarTrailTime = 0;
+                    }
+                    if (now - this.lastStarTrailTime >= STAR_TRAIL_THROTTLE_MS) {
+                        ParticleEffects.starTrail(this, this.player.x, this.player.y);
+                        this.lastStarTrailTime = now;
+                    }
                 }
 
                 // Jump - Up arrow or touch
