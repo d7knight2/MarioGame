@@ -1,14 +1,20 @@
 import Phaser from 'phaser';
+import AudioManager from '../utils/AudioManager.js';
 
 export default class LoginScene extends Phaser.Scene {
     constructor() {
         super({ key: 'LoginScene' });
         this.username = '';
+        this.audioManager = null;
     }
 
     create() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
+
+        // Initialize AudioManager
+        this.audioManager = new AudioManager(this);
+        this.audioManager.preloadSounds();
 
         // Check for invite code in URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -91,6 +97,9 @@ export default class LoginScene extends Phaser.Scene {
         inputBtn.setInteractive({ useHandCursor: true });
 
         inputBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             const username = prompt('Enter your username (3-15 characters):');
             if (username && username.trim() && username.trim().length >= 3) {
                 this.username = username.trim().substring(0, 15);
@@ -113,6 +122,9 @@ export default class LoginScene extends Phaser.Scene {
 
         continueBtn.on('pointerdown', () => {
             if (this.username) {
+                if (this.audioManager) {
+                    this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+                }
                 // Save user to localStorage
                 localStorage.setItem('currentUser', this.username);
                 
@@ -150,6 +162,9 @@ export default class LoginScene extends Phaser.Scene {
         guestBtn.setInteractive({ useHandCursor: true });
 
         guestBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             this.username = 'Guest' + Math.floor(Math.random() * 10000);
             localStorage.setItem('currentUser', this.username);
             this.scene.start('StartScene');
