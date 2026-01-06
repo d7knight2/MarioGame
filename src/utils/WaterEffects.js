@@ -44,7 +44,8 @@ export default class WaterEffects {
             config,
             activeRipples: [],
             waveTween: null,
-            surfacePoints: []
+            surfacePoints: [],
+            updateEvent: null
         };
         
         // Create animated surface points for wave effect
@@ -59,8 +60,8 @@ export default class WaterEffects {
                 });
             }
             
-            // Animate surface waves
-            scene.time.addEvent({
+            // Animate surface waves and store the event for cleanup
+            waterData.updateEvent = scene.time.addEvent({
                 delay: 50,
                 loop: true,
                 callback: () => {
@@ -245,11 +246,17 @@ export default class WaterEffects {
      * @param {object} waterData - Water surface data to destroy
      */
     static destroyWaterSurface(waterData) {
+        if (!waterData) {
+            return;
+        }
         if (waterData.graphics && waterData.graphics.active) {
             waterData.graphics.destroy();
         }
         if (waterData.waveTween) {
             waterData.waveTween.remove();
+        }
+        if (waterData.updateEvent) {
+            waterData.updateEvent.remove();
         }
         waterData.activeRipples = [];
         waterData.surfacePoints = [];
@@ -309,8 +316,8 @@ export default class WaterEffects {
         
         container.add(stream);
         
-        // Animate water droplets falling
-        scene.time.addEvent({
+        // Animate water droplets falling and store the event for cleanup
+        const dropletEvent = scene.time.addEvent({
             delay: 100,
             loop: true,
             callback: () => {
@@ -341,6 +348,7 @@ export default class WaterEffects {
         
         return {
             container,
+            dropletEvent,
             x, startY, endY, width
         };
     }

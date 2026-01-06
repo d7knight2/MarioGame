@@ -10,7 +10,9 @@ export default class ParticleEffects {
      * @param {number} x - X position
      * @param {number} y - Y position
      * @param {object} options - Configuration options
-     * @returns {Phaser.Time.TimerEvent} Timer event for sparkle generation
+     * @returns {Phaser.Time.TimerEvent} Timer event for sparkle generation.
+     *          The caller is responsible for removing this timer when the effect
+     *          is no longer needed to prevent memory leaks. Call timer.remove() for cleanup.
      */
     static createContinuousSparkle(scene, x, y, options = {}) {
         const config = {

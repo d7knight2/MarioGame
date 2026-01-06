@@ -335,6 +335,29 @@ export default class GameScene extends Phaser.Scene {
         this.registry.set('moveRight', false);
         this.registry.set('jump', false);
         this.registry.set('fire', false);
+        
+        // Setup cleanup on scene shutdown
+        this.events.once('shutdown', this.cleanupVisualEffects, this);
+    }
+    
+    cleanupVisualEffects() {
+        // Clean up water surfaces
+        if (this.waterSurfaces) {
+            this.waterSurfaces.forEach(water => {
+                WaterEffects.destroyWaterSurface(water);
+            });
+            this.waterSurfaces = [];
+        }
+        
+        // Clean up sparkle timers
+        if (this.coinSparkleTimers) {
+            this.coinSparkleTimers.forEach(timer => {
+                if (timer && timer.remove) {
+                    timer.remove();
+                }
+            });
+            this.coinSparkleTimers = [];
+        }
     }
     
     createLevel1Platforms() {
@@ -953,6 +976,17 @@ export default class GameScene extends Phaser.Scene {
                     radius: 12
                 });
                 this.coinSparkleTimers.push(sparkleTimer);
+                
+                // Clean up sparkle timer when the coin is collected
+                coin.on('destroy', () => {
+                    if (sparkleTimer && sparkleTimer.remove) {
+                        sparkleTimer.remove();
+                    }
+                    const index = this.coinSparkleTimers.indexOf(sparkleTimer);
+                    if (index !== -1) {
+                        this.coinSparkleTimers.splice(index, 1);
+                    }
+                });
             }
         });
     }
@@ -2859,21 +2893,5 @@ export default class GameScene extends Phaser.Scene {
             this.resetGameState();
             this.scene.restart();
         }
-    }
-    
-    shutdown() {
-        // Clean up water surfaces
-        this.waterSurfaces.forEach(water => {
-            WaterEffects.destroyWaterSurface(water);
-        });
-        this.waterSurfaces = [];
-        
-        // Clean up sparkle timers
-        this.coinSparkleTimers.forEach(timer => {
-            if (timer && timer.remove) {
-                timer.remove();
-            }
-        });
-        this.coinSparkleTimers = [];
     }
 }
