@@ -2850,11 +2850,23 @@ export default class GameScene extends Phaser.Scene {
                 
                 // Add running animation visual effect for player 1
                 if (isMovingHorizontally && this.player.body.touching.down && !this.player.isRunning) {
+                    // Capture the base Y position the first time we start the running animation
+                    if (typeof this.player.baseY !== 'number') {
+                        this.player.baseY = this.player.y;
+                    }
+                    // Ensure the running animation always starts from the base Y position
+                    if (typeof this.player.baseY === 'number') {
+                        this.player.y = this.player.baseY;
+                    }
                     this.player.isRunning = true;
                     const direction = isMovingLeft ? -1 : 1;
                     this.player.animations.running(this.player, direction);
                 } else if (!isMovingHorizontally && this.player.isRunning) {
                     this.player.isRunning = false;
+                    // Reset Y to the stored base position to prevent cumulative drift
+                    if (typeof this.player.baseY === 'number') {
+                        this.player.y = this.player.baseY;
+                    }
                     if (this.player.runningTween) {
                         this.player.runningTween.remove();
                         this.player.runningTween = null;
