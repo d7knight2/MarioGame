@@ -337,6 +337,8 @@ jobs:
                       git reset --hard "$original_commit" 2>&1 | tee -a "$PR_LOG"
                     fi
                   else
+                    # Count remaining conflicts for logging
+                    remaining_conflicts=$(git diff --name-only --diff-filter=U 2>/dev/null | wc -l)
                     echo "⚠️  Some conflicts remain unresolved ($remaining_conflicts files)" >> "$PR_LOG"
                   fi
                 fi
@@ -397,7 +399,7 @@ jobs:
         echo "- **Successfully Resolved**: $conflicts_resolved" >> "$SUMMARY_LOG"
         echo "- **Failed to Resolve**: $conflicts_failed" >> "$SUMMARY_LOG"
         
-        # Calculate success rate safely
+        # Calculate success rate safely (integer division, truncates decimals)
         if [[ $conflicts_detected -gt 0 ]]; then
           success_rate=$((conflicts_resolved * 100 / conflicts_detected))
           echo "- **Success Rate**: ${success_rate}%" >> "$SUMMARY_LOG"
