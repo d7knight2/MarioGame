@@ -3,6 +3,10 @@
  * Provides text chat and predefined signal system for player interaction
  */
 
+// Message display timing constants
+const MESSAGE_FADE_TIMEOUT_MS = 5000; // Messages fade after 5 seconds
+const MESSAGE_FADE_DELAY_MS = 2000; // Additional delay before complete fade
+
 export default class ChatSystem {
     constructor(scene) {
         this.scene = scene;
@@ -30,7 +34,7 @@ export default class ChatSystem {
         this.chatToggleButton = null;
         
         // Message timeout
-        this.messageTimeout = 5000; // Messages fade after 5 seconds
+        this.messageTimeout = MESSAGE_FADE_TIMEOUT_MS;
         this.activeMessageTimers = [];
         
         // Event callbacks
@@ -273,7 +277,12 @@ export default class ChatSystem {
             
             if (msg.type === 'signal') {
                 displayText = `${msg.icon} ${msg.text}`;
-                color = '#' + msg.color.toString(16).padStart(6, '0');
+                // Validate color is a number before converting
+                if (typeof msg.color === 'number' && Number.isFinite(msg.color)) {
+                    color = '#' + msg.color.toString(16).padStart(6, '0');
+                } else if (typeof msg.color === 'string' && msg.color.length > 0) {
+                    color = msg.color.startsWith('#') ? msg.color : '#' + msg.color;
+                }
             } else if (msg.type === 'text') {
                 const prefix = msg.sender === 'local' ? 'You' : 'Player';
                 displayText = `${prefix}: ${msg.text}`;
@@ -299,7 +308,7 @@ export default class ChatSystem {
             this.messageDisplay.add([bg, text]);
         });
         
-        // Set timer to fade out messages
+        // Set timer to fade out messages (using constant)
         const timer = this.scene.time.delayedCall(this.messageTimeout, () => {
             this.fadeOutOldMessages();
         });
@@ -316,8 +325,8 @@ export default class ChatSystem {
         if (this.messages.length > 0) {
             this.messageDisplay.setAlpha(0.3);
             
-            // Fade out completely after additional delay
-            this.scene.time.delayedCall(2000, () => {
+            // Fade out completely after additional delay (using constant)
+            this.scene.time.delayedCall(MESSAGE_FADE_DELAY_MS, () => {
                 if (this.messageDisplay) {
                     this.messageDisplay.setAlpha(0);
                 }

@@ -3,6 +3,9 @@
  * Tracks latency, packet loss, and connection stability for multiplayer games
  */
 
+// Connection stability threshold - jitter as percentage of average latency
+const JITTER_STABILITY_THRESHOLD = 0.3;
+
 export default class ConnectionMonitor {
     constructor() {
         // Connection state
@@ -95,9 +98,10 @@ export default class ConnectionMonitor {
         this.receivedPackets++;
         this.lastHeartbeat = Date.now();
         
-        // Update packet loss rate
+        // Update packet loss rate (ensure received never exceeds sent)
         if (this.sentPackets > 0) {
-            this.packetLossRate = 1 - (this.receivedPackets / this.sentPackets);
+            const effectiveReceived = Math.min(this.receivedPackets, this.sentPackets);
+            this.packetLossRate = 1 - (effectiveReceived / this.sentPackets);
         }
     }
 
@@ -145,8 +149,8 @@ export default class ConnectionMonitor {
         }, 0) / this.pingHistory.length;
         const jitter = Math.sqrt(variance);
         
-        // Connection is unstable if jitter is too high relative to average
-        return jitter < avg * 0.3;
+        // Connection is unstable if jitter is too high relative to average (using constant)
+        return jitter < avg * JITTER_STABILITY_THRESHOLD;
     }
 
     /**
@@ -208,6 +212,9 @@ export default class ConnectionMonitor {
         
         this.reconnectAttempts++;
         this.setConnectionState('reconnecting');
+        
+        // Clear any existing reconnection timer before setting a new one
+        this.clearReconnectTimer();
         
         // Calculate exponential backoff delay
         const delay = Math.min(

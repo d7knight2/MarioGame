@@ -3,6 +3,16 @@
  * Provides state interpolation, lag compensation, and network update handling
  */
 
+// Constants for prediction and interpolation
+const MOVE_SPEED = 200;
+const GRAVITY = 600;
+const JUMP_VELOCITY = -400;
+const FRICTION = 800;
+const RECONCILIATION_SMOOTHING = 0.3;
+const POSITION_INTERPOLATION_SMOOTHING = 0.3;
+const LATENCY_SMOOTHING_WEIGHT = 0.2; // Exponential moving average: new weight
+const JITTER_SMOOTHING_WEIGHT = 0.2; // Exponential moving average: new weight
+
 export default class MultiplayerSync {
     constructor() {
         // Player state history for interpolation (stores last N states)
@@ -16,12 +26,6 @@ export default class MultiplayerSync {
         
         // Interpolation delay (in ms) - buffer for smooth playback
         this.interpolationDelay = 100;
-        
-        // Last acknowledged server timestamp
-        this.serverTime = 0;
-        
-        // Client-side prediction buffer
-        this.pendingInputs = [];
         
         // Network statistics
         this.stats = {
@@ -114,7 +118,7 @@ export default class MultiplayerSync {
      * Predict future player position based on current input
      * Client-side prediction for local player
      * @param {Object} currentState - Current player state
-     * @param {Object} input - Input data {left, right, jump, deltaTime}
+     * @param {Object} input - Input data {left, right, jump, deltaTime, isOnGround}
      * @returns {Object} Predicted state
      */
     predictState(currentState, input) {
@@ -122,19 +126,28 @@ export default class MultiplayerSync {
         const deltaTime = input.deltaTime || 16; // Default to ~60fps
         const deltaSeconds = deltaTime / 1000;
         
-        // Apply movement input
-        const moveSpeed = 200;
+        // Apply movement input with friction
         if (input.left) {
-            predicted.velocityX = -moveSpeed;
+            predicted.velocityX = -MOVE_SPEED;
         } else if (input.right) {
-            predicted.velocityX = moveSpeed;
+            predicted.velocityX = MOVE_SPEED;
         } else {
-            predicted.velocityX = 0;
+            // Apply friction to gradually reduce horizontal velocity
+            if (predicted.velocityX !== 0) {
+                const sign = Math.sign(predicted.velocityX);
+                const decel = FRICTION * deltaSeconds;
+                const newSpeed = Math.abs(predicted.velocityX) - decel;
+                predicted.velocityX = newSpeed > 0 ? sign * newSpeed : 0;
+            }
+        }
+        
+        // Handle jumping
+        if (input.jump && input.isOnGround) {
+            predicted.velocityY = JUMP_VELOCITY;
         }
         
         // Apply gravity
-        const gravity = 600;
-        predicted.velocityY += gravity * deltaSeconds;
+        predicted.velocityY += GRAVITY * deltaSeconds;
         
         // Update position
         predicted.x += predicted.velocityX * deltaSeconds;
@@ -163,10 +176,9 @@ export default class MultiplayerSync {
         }
         
         // Apply server correction with smoothing
-        const smoothingFactor = 0.3; // How much to blend towards server state
         return {
-            x: this.lerp(clientState.x, serverState.x, smoothingFactor),
-            y: this.lerp(clientState.y, serverState.y, smoothingFactor),
+            x: this.lerp(clientState.x, serverState.x, RECONCILIATION_SMOOTHING),
+            y: this.lerp(clientState.y, serverState.y, RECONCILIATION_SMOOTHING),
             velocityX: serverState.velocityX,
             velocityY: serverState.velocityY,
             scaleX: serverState.scaleX,
@@ -181,14 +193,13 @@ export default class MultiplayerSync {
      */
     updateNetworkStats(latency) {
         const currentTime = Date.now();
-        const timeSinceLastUpdate = currentTime - this.stats.lastUpdateTime;
         
-        // Update latency with smoothing
-        this.stats.latency = this.stats.latency * 0.8 + latency * 0.2;
+        // Update latency with exponential moving average
+        this.stats.latency = this.stats.latency * (1 - LATENCY_SMOOTHING_WEIGHT) + latency * LATENCY_SMOOTHING_WEIGHT;
         
-        // Calculate jitter (variance in latency)
+        // Calculate jitter (variance in latency) with exponential moving average
         const latencyDiff = Math.abs(latency - this.stats.latency);
-        this.stats.jitter = this.stats.jitter * 0.8 + latencyDiff * 0.2;
+        this.stats.jitter = this.stats.jitter * (1 - JITTER_SMOOTHING_WEIGHT) + latencyDiff * JITTER_SMOOTHING_WEIGHT;
         
         this.stats.lastUpdateTime = currentTime;
     }
@@ -258,9 +269,9 @@ export default class MultiplayerSync {
      */
     applyState(player, state, useInterpolation = true) {
         if (useInterpolation) {
-            // Smooth transition to new state
-            player.x = this.lerp(player.x, state.x, 0.3);
-            player.y = this.lerp(player.y, state.y, 0.3);
+            // Smooth transition to new state using defined constant
+            player.x = this.lerp(player.x, state.x, POSITION_INTERPOLATION_SMOOTHING);
+            player.y = this.lerp(player.y, state.y, POSITION_INTERPOLATION_SMOOTHING);
         } else {
             // Direct application (no smoothing)
             player.x = state.x;

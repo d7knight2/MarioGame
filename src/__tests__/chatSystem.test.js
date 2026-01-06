@@ -373,7 +373,6 @@ describe('ChatSystem', () => {
 
         test('should clear timers', () => {
             chatSystem.addMessage({ type: 'text', text: 'Test', sender: 'local' });
-            const timerCount = chatSystem.activeMessageTimers.length;
 
             chatSystem.clearMessages();
 
