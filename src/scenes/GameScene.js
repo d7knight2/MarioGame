@@ -16,6 +16,11 @@ const REVIVAL_STAR_INNER_RADIUS = 8; // Inner radius of revival stars
 const REVIVAL_STAR_OUTER_RADIUS = 4; // Outer radius of revival stars
 const REVIVAL_STAR_COLOR = 0xffff00; // Color of revival stars (yellow)
 
+// Multiplayer sync constants
+const SIMULATED_MIN_LATENCY_MS = 30; // Minimum simulated network latency
+const SIMULATED_LATENCY_VARIANCE_MS = 40; // Variance in simulated latency
+const CONNECTION_QUALITY_UPDATE_INTERVAL_MS = 5000; // Update connection quality every 5 seconds
+
 export default class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
@@ -366,9 +371,9 @@ export default class GameScene extends Phaser.Scene {
         this.connectionQualityText.setScrollFactor(0);
         this.connectionQualityText.setDepth(1001);
         
-        // Update indicator periodically
+        // Update indicator periodically (every 5 seconds to reduce performance impact)
         this.time.addEvent({
-            delay: 1000,
+            delay: CONNECTION_QUALITY_UPDATE_INTERVAL_MS,
             callback: this.updateConnectionQualityIndicator,
             callbackScope: this,
             loop: true
@@ -2586,8 +2591,8 @@ export default class GameScene extends Phaser.Scene {
     }
 
     syncMultiplayerState() {
-        // Simulate network latency for connection monitor
-        const simulatedLatency = 30 + Math.random() * 40; // 30-70ms
+        // Simulate network latency for connection monitor using defined constants
+        const simulatedLatency = SIMULATED_MIN_LATENCY_MS + Math.random() * SIMULATED_LATENCY_VARIANCE_MS;
         this.connectionMonitor.recordPing(simulatedLatency);
         this.connectionMonitor.recordPacketSent();
         this.connectionMonitor.recordPacketReceived();
