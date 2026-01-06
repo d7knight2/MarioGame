@@ -2995,11 +2995,23 @@ export default class GameScene extends Phaser.Scene {
                 
                 // Add running animation visual effect
                 if (isMovingHorizontally && this.player.body.touching.down && !this.player.isRunning) {
+                    // Capture the base Y position the first time we start the running animation
+                    if (typeof this.player.baseY !== 'number') {
+                        this.player.baseY = this.player.y;
+                    }
+                    // Ensure the running animation always starts from the base Y position
+                    if (typeof this.player.baseY === 'number') {
+                        this.player.y = this.player.baseY;
+                    }
                     this.player.isRunning = true;
                     const direction = isMovingLeft ? -1 : 1;
                     this.player.animations.running(this.player, direction);
                 } else if (!isMovingHorizontally && this.player.isRunning) {
                     this.player.isRunning = false;
+                    // Reset Y to the stored base position to prevent cumulative drift
+                    if (typeof this.player.baseY === 'number') {
+                        this.player.y = this.player.baseY;
+                    }
                     // Stop running animation
                     if (this.player.runningTween) {
                         this.player.runningTween.remove();
@@ -3023,15 +3035,20 @@ export default class GameScene extends Phaser.Scene {
                 if ((this.cursors.up.isDown || jumpPressed) && this.player.body.touching.down) {
                     this.player.body.setVelocityY(-400);
                     
+                    // Stop running animation when jumping
+                    if (this.player.isRunning) {
+                        this.player.isRunning = false;
+                        if (this.player.runningTween) {
+                            this.player.runningTween.remove();
+                            this.player.runningTween = null;
+                        }
+                    }
+                    
                     // Add jump dust effect
                     ParticleEffects.jumpDust(this, this.player.x, this.player.y + 20);
                     
                     // Add jump animation
                     this.player.animations.jumping(this.player);
-                    // Play jump sound
-                    if (this.audioManager) {
-                        this.audioManager.playSound(this.audioManager.soundKeys.jump);
-                    }
                 }
                 
                 // Detect landing and add landing effect
@@ -3094,13 +3111,30 @@ export default class GameScene extends Phaser.Scene {
                 }
                 
                 // Add star trail effect when invincible (throttled)
-                if (this.isInvincible && this.time.now % STAR_TRAIL_THROTTLE_MS < STAR_TRAIL_THROTTLE_WINDOW) {
-                    ParticleEffects.starTrail(this, this.player.x, this.player.y);
+                if (this.isInvincible) {
+                    // Initialize lastStarTrailTime on first use
+                    if (typeof this.lastStarTrailTime !== 'number') {
+                        this.lastStarTrailTime = 0;
+                    }
+                    
+                    if (this.time.now - this.lastStarTrailTime >= STAR_TRAIL_THROTTLE_MS) {
+                        ParticleEffects.starTrail(this, this.player.x, this.player.y);
+                        this.lastStarTrailTime = this.time.now;
+                    }
                 }
 
                 // Jump - W key for player 1
                 if (this.wasdKeys.up.isDown && this.player.body.touching.down) {
                     this.player.body.setVelocityY(-400);
+                    
+                    // Stop running animation when jumping
+                    if (this.player.isRunning) {
+                        this.player.isRunning = false;
+                        if (this.player.runningTween) {
+                            this.player.runningTween.remove();
+                            this.player.runningTween = null;
+                        }
+                    }
                     
                     // Add jump dust effect
                     ParticleEffects.jumpDust(this, this.player.x, this.player.y + 20);
@@ -3148,11 +3182,23 @@ export default class GameScene extends Phaser.Scene {
                 
                 // Add running animation visual effect for player 2
                 if (isMovingHorizontally2 && this.player2.body.touching.down && !this.player2.isRunning) {
+                    // Capture the base Y position the first time we start the running animation
+                    if (typeof this.player2.baseY !== 'number') {
+                        this.player2.baseY = this.player2.y;
+                    }
+                    // Ensure the running animation always starts from the base Y position
+                    if (typeof this.player2.baseY === 'number') {
+                        this.player2.y = this.player2.baseY;
+                    }
                     this.player2.isRunning = true;
                     const direction = isMovingLeft2 ? -1 : 1;
                     this.player2.animations.running(this.player2, direction);
                 } else if (!isMovingHorizontally2 && this.player2.isRunning) {
                     this.player2.isRunning = false;
+                    // Reset Y to the stored base position to prevent cumulative drift
+                    if (typeof this.player2.baseY === 'number') {
+                        this.player2.y = this.player2.baseY;
+                    }
                     if (this.player2.runningTween) {
                         this.player2.runningTween.remove();
                         this.player2.runningTween = null;
@@ -3160,13 +3206,28 @@ export default class GameScene extends Phaser.Scene {
                 }
                 
                 // Add star trail effect when invincible (throttled)
-                if (this.isInvincible2 && this.time.now % STAR_TRAIL_THROTTLE_MS < STAR_TRAIL_THROTTLE_WINDOW) {
-                    ParticleEffects.starTrail(this, this.player2.x, this.player2.y);
+                if (this.isInvincible2) {
+                    if (typeof this.lastStarTrailTime2 !== 'number') {
+                        this.lastStarTrailTime2 = 0;
+                    }
+                    if (this.time.now - this.lastStarTrailTime2 >= STAR_TRAIL_THROTTLE_MS) {
+                        ParticleEffects.starTrail(this, this.player2.x, this.player2.y);
+                        this.lastStarTrailTime2 = this.time.now;
+                    }
                 }
 
                 // Jump - Up arrow or touch for player 2
                 if ((this.cursors.up.isDown || jumpPressed) && this.player2.body.touching.down) {
                     this.player2.body.setVelocityY(-400);
+                    
+                    // Stop running animation when jumping
+                    if (this.player2.isRunning) {
+                        this.player2.isRunning = false;
+                        if (this.player2.runningTween) {
+                            this.player2.runningTween.remove();
+                            this.player2.runningTween = null;
+                        }
+                    }
                     
                     // Add jump dust effect
                     ParticleEffects.jumpDust(this, this.player2.x, this.player2.y + 20);
