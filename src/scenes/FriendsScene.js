@@ -1,15 +1,21 @@
 import Phaser from 'phaser';
+import AudioManager from '../utils/AudioManager.js';
 
 export default class FriendsScene extends Phaser.Scene {
     constructor() {
         super({ key: 'FriendsScene' });
         this.username = '';
         this.friends = [];
+        this.audioManager = null;
     }
 
     create() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
+
+        // Initialize AudioManager
+        this.audioManager = new AudioManager(this);
+        this.audioManager.preloadSounds();
 
         // Get current user
         this.username = localStorage.getItem('currentUser') || 'Guest';
@@ -44,6 +50,9 @@ export default class FriendsScene extends Phaser.Scene {
             addFriendBtn.setFillStyle(0x00aa00);
         });
         addFriendBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             this.addFriend();
         });
 
@@ -68,6 +77,9 @@ export default class FriendsScene extends Phaser.Scene {
             backBtn.setFillStyle(0x666666);
         });
         backBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             this.scene.start('MenuScene');
         });
     }
