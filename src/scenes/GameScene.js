@@ -12,6 +12,8 @@ const REVIVAL_STAR_POINTS = 5; // Number of points on revival stars
 const REVIVAL_STAR_INNER_RADIUS = 8; // Inner radius of revival stars
 const REVIVAL_STAR_OUTER_RADIUS = 4; // Outer radius of revival stars
 const REVIVAL_STAR_COLOR = 0xffff00; // Color of revival stars (yellow)
+const STAR_TRAIL_THROTTLE_MS = 150; // Milliseconds between star trail particle spawns
+const STAR_TRAIL_THROTTLE_WINDOW = 50; // Window size for throttle check
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -2797,7 +2799,7 @@ export default class GameScene extends Phaser.Scene {
                 }
                 
                 // Add star trail effect when invincible (throttled)
-                if (this.isInvincible && this.time.now % 150 < 50) {
+                if (this.isInvincible && this.time.now % STAR_TRAIL_THROTTLE_MS < STAR_TRAIL_THROTTLE_WINDOW) {
                     ParticleEffects.starTrail(this, this.player.x, this.player.y);
                 }
 
@@ -2860,7 +2862,7 @@ export default class GameScene extends Phaser.Scene {
                 }
                 
                 // Add star trail effect when invincible (throttled)
-                if (this.isInvincible && this.time.now % 150 < 50) {
+                if (this.isInvincible && this.time.now % STAR_TRAIL_THROTTLE_MS < STAR_TRAIL_THROTTLE_WINDOW) {
                     ParticleEffects.starTrail(this, this.player.x, this.player.y);
                 }
 
@@ -2922,7 +2924,7 @@ export default class GameScene extends Phaser.Scene {
                 }
                 
                 // Add star trail effect when invincible (throttled)
-                if (this.isInvincible2 && this.time.now % 150 < 50) {
+                if (this.isInvincible2 && this.time.now % STAR_TRAIL_THROTTLE_MS < STAR_TRAIL_THROTTLE_WINDOW) {
                     ParticleEffects.starTrail(this, this.player2.x, this.player2.y);
                 }
 
