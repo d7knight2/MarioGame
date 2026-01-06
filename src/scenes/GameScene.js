@@ -1981,10 +1981,11 @@ export default class GameScene extends Phaser.Scene {
         }
         
         // Check if player is falling onto enemy from above
-        // Improved jump-kill detection with better threshold and velocity check
+        // Player must be above enemy's center and moving downward
+        // Use 15px threshold for reliable jump-kill detection
         const playerBottom = player.y + (player.body.height / 2);
         const enemyTop = enemy.y - (enemy.body.height / 2);
-        const JUMP_KILL_THRESHOLD = 10;  // Reduced from 15 for more precise detection
+        const JUMP_KILL_THRESHOLD = 15;
         const isPlayerAbove = playerBottom < enemy.y + JUMP_KILL_THRESHOLD;
         const isMovingDown = player.body.velocity.y > 0;
         
@@ -2087,10 +2088,11 @@ export default class GameScene extends Phaser.Scene {
         }
         
         // Check if player is falling onto enemy from above
-        // Improved jump-kill detection with better threshold and velocity check
+        // Player must be above enemy's center and moving downward
+        // Use 15px threshold for reliable jump-kill detection
         const playerBottom = player.y + (player.body.height / 2);
         const enemyTop = enemy.y - (enemy.body.height / 2);
-        const JUMP_KILL_THRESHOLD = 10;  // Reduced from 15 for more precise detection
+        const JUMP_KILL_THRESHOLD = 15;
         const isPlayerAbove = playerBottom < enemy.y + JUMP_KILL_THRESHOLD;
         const isMovingDown = player.body.velocity.y > 0;
         

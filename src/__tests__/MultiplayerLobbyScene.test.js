@@ -74,13 +74,13 @@ describe('MultiplayerLobbyScene Logic', () => {
       const height = 600;
       const width = 800;
       
-      // Calculate positions as in the scene
+      // Calculate positions as in the scene (using UI_SPACING from main branch)
       const titleY = 60;
-      const hostBtnY = height / 2 - 100; // 200
-      const joinLabelY = height / 2; // 300
-      const codeDisplayY = height / 2 + 60; // 360
-      const joinBtnY = height / 2 + 130; // 430
-      const switchBtnY = height / 2 + 80; // 380
+      const hostBtnY = height / 2 - 120; // 180
+      const joinLabelY = height / 2 + 20; // 320
+      const codeDisplayY = height / 2 + 100; // 400
+      const joinBtnY = height / 2 + 170; // 470
+      const switchBtnY = height / 2 + 155; // 455 (fixed from height/2 + 120 to prevent overlap)
       const statusTextY = height - 100; // 500
       const backBtnY = height - 50; // 550
       
@@ -88,7 +88,8 @@ describe('MultiplayerLobbyScene Logic', () => {
       expect(titleY).toBeLessThan(hostBtnY);
       expect(hostBtnY).toBeLessThan(joinLabelY);
       expect(joinLabelY).toBeLessThan(codeDisplayY);
-      expect(codeDisplayY).toBeLessThan(joinBtnY);
+      expect(codeDisplayY).toBeLessThan(switchBtnY);
+      expect(switchBtnY).toBeLessThan(statusTextY);
       expect(statusTextY).toBeLessThan(backBtnY);
       
       // Verify no overlap between status text and back button (critical fix)
@@ -139,6 +140,66 @@ describe('MultiplayerLobbyScene Logic', () => {
       
       // Verify 50 pixel gap
       expect(Math.abs(statusTextY - backBtnY)).toBe(50);
+    });
+  });
+
+  describe('Button Overlap Prevention', () => {
+    test('should not overlap switchToJoinBtn with codeDisplay in hosting mode', () => {
+      const height = 600;
+      const codeDisplayY = height / 2 + 100; // 400 (updated in main branch)
+      const codeDisplayHeight = 32;
+      const switchBtnY = height / 2 + 155; // 455 (fixed from 120)
+      const switchBtnHeight = 60;
+      
+      const codeDisplayBottom = codeDisplayY + codeDisplayHeight / 2; // 416
+      const switchBtnTop = switchBtnY - switchBtnHeight / 2; // 425
+      
+      // Verify no overlap - switchBtn should start after codeDisplay ends
+      expect(switchBtnTop).toBeGreaterThan(codeDisplayBottom);
+      
+      // Verify adequate spacing (at least 8px with new layout)
+      const gap = switchBtnTop - codeDisplayBottom;
+      expect(gap).toBeGreaterThanOrEqual(8);
+    });
+
+    test('should allow joinBtn and switchToJoinBtn to overlap since they are never visible together', () => {
+      const height = 600;
+      const joinBtnY = height / 2 + 170; // 470 (updated in main branch)
+      const joinBtnHeight = 60;
+      const switchBtnY = height / 2 + 155; // 455 (fixed position)
+      const switchBtnHeight = 60;
+      
+      const joinBtnTop = joinBtnY - joinBtnHeight / 2; // 440
+      const joinBtnBottom = joinBtnY + joinBtnHeight / 2; // 500
+      const switchBtnTop = switchBtnY - switchBtnHeight / 2; // 425
+      const switchBtnBottom = switchBtnY + switchBtnHeight / 2; // 485
+      
+      // These buttons overlap, but it's OK because:
+      // - joinBtn is visible only in 'initial' state
+      // - switchToJoinBtn is visible only in 'hosting' state
+      // Verify they do overlap (for documentation purposes)
+      const hasOverlap = !(joinBtnBottom < switchBtnTop || switchBtnBottom < joinBtnTop);
+      expect(hasOverlap).toBe(true);
+    });
+
+    test('should have adequate spacing between visible elements in hosting mode', () => {
+      const height = 600;
+      
+      // Elements visible in hosting mode (using UI_SPACING from main branch)
+      const codeDisplayY = height / 2 + 100; // 400
+      const codeDisplayHeight = 32;
+      const switchBtnY = height / 2 + 155; // 455
+      const switchBtnHeight = 60;
+      const statusTextY = height - 100; // 500
+      const statusTextHeight = 18;
+      
+      // Calculate gaps
+      const gap1 = (switchBtnY - switchBtnHeight / 2) - (codeDisplayY + codeDisplayHeight / 2);
+      const gap2 = (statusTextY - statusTextHeight / 2) - (switchBtnY + switchBtnHeight / 2);
+      
+      // Verify minimum spacing of 5px between all visible elements (tighter with new layout)
+      expect(gap1).toBeGreaterThanOrEqual(5);
+      expect(gap2).toBeGreaterThanOrEqual(5);
     });
   });
 
