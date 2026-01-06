@@ -1,14 +1,20 @@
 import Phaser from 'phaser';
+import AudioManager from '../utils/AudioManager.js';
 
 export default class CharacterSelectionScene extends Phaser.Scene {
     constructor() {
         super({ key: 'CharacterSelectionScene' });
         this.selectedCharacter = 'mario';
+        this.audioManager = null;
     }
 
     create() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
+
+        // Initialize AudioManager
+        this.audioManager = new AudioManager(this);
+        this.audioManager.preloadSounds();
 
         // Title
         const title = this.add.text(width / 2, 80, 'Select Your Character', {
@@ -68,6 +74,9 @@ export default class CharacterSelectionScene extends Phaser.Scene {
                 }
             });
             button.on('pointerdown', () => {
+                if (this.audioManager) {
+                    this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+                }
                 this.selectCharacter(button.charName);
             });
 
@@ -92,6 +101,9 @@ export default class CharacterSelectionScene extends Phaser.Scene {
             this.startBtn.setFillStyle(0x00aa00);
         });
         this.startBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             this.startGame();
         });
 

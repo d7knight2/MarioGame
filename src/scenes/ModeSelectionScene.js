@@ -1,13 +1,19 @@
 import Phaser from 'phaser';
+import AudioManager from '../utils/AudioManager.js';
 
 export default class ModeSelectionScene extends Phaser.Scene {
     constructor() {
         super({ key: 'ModeSelectionScene' });
+        this.audioManager = null;
     }
 
     create() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
+
+        // Initialize AudioManager
+        this.audioManager = new AudioManager(this);
+        this.audioManager.preloadSounds();
 
         // Title
         const title = this.add.text(width / 2, height / 4, 'MARIO GAME', {
@@ -63,6 +69,9 @@ export default class ModeSelectionScene extends Phaser.Scene {
             onePlayerBtn.setFillStyle(0x00aa00);
         });
         onePlayerBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             this.registry.set('gameMode', 'single');
             this.scene.start('CharacterSelectionScene');
         });
@@ -75,6 +84,9 @@ export default class ModeSelectionScene extends Phaser.Scene {
             twoPlayerBtn.setFillStyle(0x0066cc);
         });
         twoPlayerBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             this.registry.set('gameMode', 'multiplayer');
             this.scene.start('MultiplayerLobbyScene');
         });
