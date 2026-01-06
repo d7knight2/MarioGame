@@ -1,194 +1,138 @@
-name: Auto Resolve Merge Conflicts
+name: Auto Resolve PR Merge Conflicts
 
-# Run nightly at 2 AM UTC
+# Run hourly to check for PR conflicts and attempt automatic resolution
 on:
   schedule:
-    - cron: '0 2 * * *'
-  workflow_dispatch: # Allow manual triggering
+    # Run every hour at minute 0
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    # Allow manual triggering for testing
 
 permissions:
   contents: write
   pull-requests: write
-  issues: write
 
 jobs:
   resolve-conflicts:
-    name: Resolve Merge Conflicts
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Fetch all history for proper merge operations
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Configure Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-      
-      - name: Get all open pull requests
-        id: get-prs
-        uses: actions/github-script@v7
-        with:
-          script: |
-            // Note: This fetches up to 100 open PRs. If there are more than 100 open PRs,
-            // pagination would be needed to process them all.
-            const { data: pullRequests } = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              per_page: 100
-            });
-            
-            core.info(`Found ${pullRequests.length} open pull request(s)`);
-            
-            // Store PR numbers as output
-            const prNumbers = pullRequests.map(pr => pr.number);
-            core.setOutput('pr-numbers', JSON.stringify(prNumbers));
-            core.setOutput('pr-count', pullRequests.length);
-            
-            return pullRequests;
-      
-      - name: Process pull requests
-        if: steps.get-prs.outputs.pr-count > 0
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const prNumbers = JSON.parse('${{ steps.get-prs.outputs.pr-numbers }}');
-            
-            for (const prNumber of prNumbers) {
-              try {
-                core.info(`\n=== Processing PR #${prNumber} ===`);
-                
-                // Get PR details
-                const { data: pr } = await github.rest.pulls.get({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  pull_number: prNumber
-                });
-                
-                core.info(`PR #${prNumber}: "${pr.title}"`);
-                core.info(`Branch: ${pr.head.ref} -> ${pr.base.ref}`);
-                core.info(`Mergeable state: ${pr.mergeable_state}`);
-                core.info(`Mergeable: ${pr.mergeable}`);
-                
-                // Check if PR has merge conflicts
-                if (pr.mergeable === false) {
-                  core.warning(`PR #${prNumber} has merge conflicts. Attempting to resolve...`);
-                  
-                  // Check if PR is from a deleted fork
-                  if (!pr.head.repo) {
-                    core.warning(`PR #${prNumber} is from a deleted fork. Cannot auto-resolve.`);
-                    await github.rest.issues.createComment({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: prNumber,
-                      body: `🤖 **Automatic Merge Conflict Resolution**\n\n` +
-                            `⚠️ This PR is from a deleted fork and cannot be automatically updated.\n\n` +
-                            `**Action Required:** The PR author needs to manually resolve conflicts.\n` +
-                            `**Timestamp:** ${new Date().toISOString()}`
-                    });
-                    continue;
-                  }
-                  
-                  const baseRef = pr.base.ref;
-                  
-                  // Attempt to resolve conflicts by merging base into head
-                  try {
-                    core.info(`Attempting to merge ${baseRef} into PR #${prNumber}...`);
-                    
-                    // Use GitHub API to attempt merge
-                    try {
-                      await github.rest.pulls.updateBranch({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        pull_number: prNumber,
-                        expected_head_sha: pr.head.sha
-                      });
-                      
-                      core.info(`✓ Successfully updated PR #${prNumber} by merging ${baseRef} into PR branch`);
-                      
-                      // Add success comment
-                      await github.rest.issues.createComment({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issue_number: prNumber,
-                        body: `🤖 **Automatic Merge Conflict Resolution**\n\n` +
-                              `✅ Successfully resolved merge conflicts by merging \`${baseRef}\` into this PR branch.\n\n` +
-                              `**Action:** The base branch has been merged into your PR branch.\n` +
-                              `**Status:** Ready for review\n` +
-                              `**Timestamp:** ${new Date().toISOString()}\n\n` +
-                              `Please verify that the automatic resolution is correct and update if necessary.`
-                      });
-                      
-                    } catch (updateError) {
-                      core.warning(`Failed to auto-update PR #${prNumber}: ${updateError.message}`);
-                      
-                      // Comment on PR about the failure
-                      let errorMessage = updateError.message;
-                      let detailedMessage = '';
-                      
-                      if (updateError.status === 422) {
-                        detailedMessage = '\n\n**Reason:** The conflicts are too complex for automatic resolution.';
-                      } else if (updateError.status === 403) {
-                        detailedMessage = '\n\n**Reason:** Insufficient permissions to update this branch.';
-                      }
-                      
-                      await github.rest.issues.createComment({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issue_number: prNumber,
-                        body: `🤖 **Automatic Merge Conflict Resolution**\n\n` +
-                              `❌ Failed to automatically resolve merge conflicts.\n\n` +
-                              `**Error:** ${errorMessage}${detailedMessage}\n` +
-                              `**Action Required:** Please manually resolve the conflicts.\n` +
-                              `**Timestamp:** ${new Date().toISOString()}\n\n` +
-                              `To resolve manually:\n` +
-                              `1. Check out your branch locally\n` +
-                              `2. Run: \`git merge ${baseRef}\`\n` +
-                              `3. Resolve conflicts in the affected files\n` +
-                              `4. Commit and push the changes`
-                      });
-                    }
-                    
-                  } catch (error) {
-                    core.error(`Error processing PR #${prNumber}: ${error.message}`);
-                    
-                    // Add error comment
-                    await github.rest.issues.createComment({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: prNumber,
-                      body: `🤖 **Automatic Merge Conflict Resolution**\n\n` +
-                            `❌ Encountered an error while attempting to resolve conflicts.\n\n` +
-                            `**Error:** ${error.message}\n` +
-                            `**Action Required:** Please manually resolve the conflicts.\n` +
-                            `**Timestamp:** ${new Date().toISOString()}`
-                    });
-                  }
-                  
-                } else if (pr.mergeable === true) {
-                  core.info(`✓ PR #${prNumber} has no merge conflicts`);
-                } else if (pr.mergeable === null) {
-                  core.info(`⏳ PR #${prNumber} merge status is being calculated. Will be checked in next run.`);
-                }
-                
-              } catch (error) {
-                core.error(`Failed to process PR #${prNumber}: ${error.message}`);
-                core.error(error.stack);
-              }
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Detect and resolve PR conflicts
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "==================================="
+        echo "Starting PR Conflict Detection"
+        echo "==================================="
+
+        # Get all open pull requests (limited to 100 for performance)
+        # If you have more than 100 open PRs, consider increasing this limit
+        prs=$(gh pr list --state open --json number,headRefName,baseRefName,title,mergeable --limit 100)
+        pr_count=$(echo "$prs" | jq '. | length')
+
+        echo "Found $pr_count open pull request(s)"
+
+        if [ "$pr_count" -eq 0 ]; then
+          echo "No open pull requests found. Exiting."
+          exit 0
+        fi
+
+        # Process each pull request
+        echo "$prs" | jq -c '.[]' | while read -r pr; do
+          pr_number=$(echo "$pr" | jq -r '.number')
+          pr_title=$(echo "$pr" | jq -r '.title')
+          head_branch=$(echo "$pr" | jq -r '.headRefName')
+          base_branch=$(echo "$pr" | jq -r '.baseRefName')
+          mergeable=$(echo "$pr" | jq -r '.mergeable')
+
+          echo ""
+          echo "-----------------------------------"
+          echo "Processing PR #$pr_number: $pr_title"
+          echo "  Head: $head_branch"
+          echo "  Base: $base_branch"
+          echo "  Mergeable: $mergeable"
+          echo "-----------------------------------"
+
+          # Check if PR has conflicts (mergeable is CONFLICTING)
+          if [ "$mergeable" = "CONFLICTING" ]; then
+            echo "⚠️  Conflict detected in PR #$pr_number"
+            echo "Attempting to resolve conflicts..."
+
+            # Fetch latest changes
+            git fetch origin "$base_branch" 2>&1 || {
+              echo "❌ Failed to fetch base branch: $base_branch"
+              echo "Error: Unable to fetch origin/$base_branch"
+              continue
             }
+
+            git fetch origin "$head_branch" 2>&1 || {
+              echo "❌ Failed to fetch head branch: $head_branch"
+              echo "Error: Unable to fetch origin/$head_branch"
+              continue
+            }
+
+            # Checkout the PR branch
+            git checkout -B "$head_branch" "origin/$head_branch" 2>&1 || {
+              echo "❌ Failed to checkout branch: $head_branch"
+              echo "Error: Unable to checkout $head_branch"
+              continue
+            }
+
+            # Attempt to merge base branch
+            echo "Merging $base_branch into $head_branch..."
+            merge_msg="chore: auto-merge $base_branch to resolve conflicts in PR #$pr_number"
             
-            core.info(`\n=== Conflict Resolution Complete ===`);
-      
-      - name: Summary
-        if: always()
-        run: |
-          echo "### Auto Merge Conflict Resolution Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Run Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "**Open PRs Checked:** ${{ steps.get-prs.outputs.pr-count }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Check the job logs for detailed information about conflict resolution attempts." >> $GITHUB_STEP_SUMMARY
+            # Save the current commit hash before merging
+            original_commit=$(git rev-parse HEAD)
+            
+            if git merge "origin/$base_branch" -m "$merge_msg" 2>&1; then
+              echo "✅ Merge successful!"
+
+              # Push the changes
+              if git push origin "$head_branch" 2>&1; then
+                echo "✅ Successfully pushed conflict resolution for PR #$pr_number"
+
+                # Add a comment to the PR
+                comment_msg="🤖 **Automated Conflict Resolution**"$'\n\n'"The base branch (\`$base_branch\`) has been automatically merged into this PR branch to resolve merge conflicts."$'\n\n'"Please review the changes and ensure everything is working as expected."
+                gh pr comment "$pr_number" --body "$comment_msg" 2>&1 || echo "⚠️  Warning: Failed to add comment to PR #$pr_number"
+              else
+                echo "❌ Failed to push conflict resolution for PR #$pr_number"
+                echo "Error: Git push failed"
+
+                # Reset to the commit before the merge
+                git reset --hard "$original_commit" 2>&1
+              fi
+            else
+              echo "❌ Automatic merge failed for PR #$pr_number"
+              echo "Error: Merge conflicts require manual resolution"
+
+              # Abort the merge
+              git merge --abort 2>&1 || true
+
+              # Add a comment to the PR about the failure
+              comment_msg="🤖 **Automated Conflict Resolution Failed**"$'\n\n'"An automatic attempt to resolve merge conflicts was unsuccessful. The conflicts require manual intervention."$'\n\n'"Please resolve the conflicts manually by merging \`$base_branch\` into your branch."
+              gh pr comment "$pr_number" --body "$comment_msg" 2>&1 || echo "⚠️  Warning: Failed to add comment to PR #$pr_number"
+            fi
+
+            # Return to base branch
+            git checkout "$base_branch" 2>&1 || true
+          else
+            echo "✅ No conflicts detected in PR #$pr_number"
+          fi
+        done
+
+        echo ""
+        echo "==================================="
+        echo "PR Conflict Detection Complete"
+        echo "==================================="
