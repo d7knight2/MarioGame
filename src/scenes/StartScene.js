@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import AudioManager from '../utils/AudioManager.js';
 
 export default class StartScene extends Phaser.Scene {
     constructor() {
@@ -7,11 +8,16 @@ export default class StartScene extends Phaser.Scene {
         this.player1Name = 'Player 1';
         this.player2Name = 'Player 2';
         this.MAX_PLAYER_NAME_LENGTH = 15;
+        this.audioManager = null;
     }
 
     create() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
+        
+        // Initialize AudioManager
+        this.audioManager = new AudioManager(this);
+        this.audioManager.preloadSounds();
         
         // Hide fire button when returning to start screen
         this.game.events.emit('hasFirePower', false);
@@ -62,6 +68,9 @@ export default class StartScene extends Phaser.Scene {
 
         // Mode button handlers
         onePlayerBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             this.selectedMode = 1;
             onePlayerBtn.setFillStyle(0x00ff00);
             twoPlayerBtn.setFillStyle(0xcccccc);
@@ -70,6 +79,9 @@ export default class StartScene extends Phaser.Scene {
         });
 
         twoPlayerBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             this.selectedMode = 2;
             onePlayerBtn.setFillStyle(0xcccccc);
             twoPlayerBtn.setFillStyle(0x00ff00);
@@ -154,6 +166,9 @@ export default class StartScene extends Phaser.Scene {
 
         // Edit button handlers
         player1EditBtn.on('pointerdown', () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
             const name = prompt('Enter name for Player 1:', this.player1Name);
             if (name && name.trim()) {
                 this.player1Name = name.trim().substring(0, this.MAX_PLAYER_NAME_LENGTH);
@@ -163,6 +178,9 @@ export default class StartScene extends Phaser.Scene {
 
         player2EditBtn.on('pointerdown', () => {
             if (this.selectedMode === 2) {
+                if (this.audioManager) {
+                    this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+                }
                 const name = prompt('Enter name for Player 2:', this.player2Name);
                 if (name && name.trim()) {
                     this.player2Name = name.trim().substring(0, this.MAX_PLAYER_NAME_LENGTH);
