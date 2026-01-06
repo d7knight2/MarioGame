@@ -96,6 +96,7 @@ export default class SettingsScene extends Phaser.Scene {
             backBtn.setFillStyle(0x666666);
         });
         backBtn.on('pointerdown', () => {
+            this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
             this.audioManager.cleanup();
             this.scene.start('MenuScene');
         });

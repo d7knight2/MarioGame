@@ -104,6 +104,14 @@ export default class GameScene extends Phaser.Scene {
         const shouldShowFireButton = this.gameMode === 1 ? this.hasFirePower : this.hasFirePower2;
         this.game.events.emit('hasFirePower', shouldShowFireButton);
         
+        // Play background music (infrastructure in place for when audio files are added)
+        // For boss levels, use boss music; otherwise use gameplay music
+        // if (currentLevel === 2 || currentLevel === 3) {
+        //     this.audioManager.playMusic(this.audioManager.musicKeys.boss);
+        // } else {
+        //     this.audioManager.playMusic(this.audioManager.musicKeys.gameplay);
+        // }
+        
         // Extend world bounds for side-scrolling
         this.physics.world.setBounds(0, 0, 3200, height);
         this.cameras.main.setBounds(0, 0, 3200, height);
@@ -539,6 +547,11 @@ export default class GameScene extends Phaser.Scene {
         const gameMode = this.registry.get('gameMode') || 1;
         const player1Name = this.registry.get('player1Name') || 'Player 1';
         const player2Name = this.registry.get('player2Name') || 'Player 2';
+        
+        // Clean up audio
+        if (this.audioManager) {
+            this.audioManager.cleanup();
+        }
         
         // Clean up revival timers to prevent memory leaks
         if (this.revivalTimer) {
