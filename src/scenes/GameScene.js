@@ -667,15 +667,15 @@ export default class GameScene extends Phaser.Scene {
         this.player.body.setMaxVelocity(300, 800);  // Add max velocity to prevent glitches
         this.player.body.setDrag(200, 0);  // Add horizontal drag for better control
         
-        // Change color for Fire Mario
-        if (this.hasFirePower) {
-            body.setFillStyle(0xffffff);
-        }
-        
         // Store references
         this.player.body_part = body;
         this.player.eyes = [eye1, eye2];
         this.player.logoText = logo;
+        
+        // Change color for Fire Mario (after storing body_part reference)
+        if (this.hasFirePower) {
+            this.player.body_part.setFillStyle(0xffffff);
+        }
     }
 
     createPlayer2() {
@@ -744,15 +744,15 @@ export default class GameScene extends Phaser.Scene {
         this.player2.body.setMaxVelocity(300, 800);  // Add max velocity to prevent glitches
         this.player2.body.setDrag(200, 0);  // Add horizontal drag for better control
         
-        // Change color for Fire Luigi
-        if (this.hasFirePower2) {
-            body.setFillStyle(0xffffff);
-        }
-        
         // Store references
         this.player2.body_part = body;
         this.player2.eyes = [eye1, eye2];
         this.player2.logoText = logo;
+        
+        // Change color for Fire Luigi (after storing body_part reference)
+        if (this.hasFirePower2) {
+            this.player2.body_part.setFillStyle(0xffffff);
+        }
     }
 
     createCoins() {
@@ -2235,7 +2235,7 @@ export default class GameScene extends Phaser.Scene {
         // Apply powered-up scale (full health means Super form)
         player.setScale(1.3);
         player.body.setSize(32, 53);  // Match improved collision body size
-        player.body.setOffset(-16, -26);  // Match improved offset;
+        player.body.setOffset(-16, -26);  // Match improved offset
         
         // Reset body color based on character
         if (playerNumber === 1) {
