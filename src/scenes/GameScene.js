@@ -3,6 +3,7 @@ import SpriteFactory from '../utils/SpriteFactory.js';
 import ParticleEffects from '../utils/ParticleEffects.js';
 import AnimationManager from '../utils/AnimationManager.js';
 import BackgroundGenerator from '../utils/BackgroundGenerator.js';
+import AudioManager from '../utils/AudioManager.js';
 
 // Game constants
 const POWER_UP_SPAWN_DELAY_MS = 300; // Delay before power-ups start moving horizontally
@@ -62,11 +63,17 @@ export default class GameScene extends Phaser.Scene {
         this.revivalCountdownInterval = null;
         this.REVIVAL_DELAY_MS = 30000; // 30 seconds
         this.cameraFollowState = null; // Track camera state: 'player1', 'player2', 'both', or null
+        // Audio manager
+        this.audioManager = null;
     }
 
     create() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
+        
+        // Initialize AudioManager
+        this.audioManager = new AudioManager(this);
+        this.audioManager.preloadSounds();
         
         // Get game mode and player names from registry
         // gameMode can be either string ('single', 'multiplayer') or number (1, 2)
@@ -96,6 +103,14 @@ export default class GameScene extends Phaser.Scene {
         // Show fire button for touch control player: P1 in 1-player mode, P2 in 2-player mode
         const shouldShowFireButton = this.gameMode === 1 ? this.hasFirePower : this.hasFirePower2;
         this.game.events.emit('hasFirePower', shouldShowFireButton);
+        
+        // Play background music (infrastructure in place for when audio files are added)
+        // For boss levels, use boss music; otherwise use gameplay music
+        // if (currentLevel === 2 || currentLevel === 3) {
+        //     this.audioManager.playMusic(this.audioManager.musicKeys.boss);
+        // } else {
+        //     this.audioManager.playMusic(this.audioManager.musicKeys.gameplay);
+        // }
         
         // Extend world bounds for side-scrolling
         this.physics.world.setBounds(0, 0, 3200, height);
@@ -535,6 +550,11 @@ export default class GameScene extends Phaser.Scene {
         const gameMode = this.registry.get('gameMode') || 1;
         const player1Name = this.registry.get('player1Name') || 'Player 1';
         const player2Name = this.registry.get('player2Name') || 'Player 2';
+        
+        // Clean up audio
+        if (this.audioManager) {
+            this.audioManager.cleanup();
+        }
         
         // Clean up revival timers to prevent memory leaks
         if (this.revivalTimer) {
@@ -1463,6 +1483,11 @@ export default class GameScene extends Phaser.Scene {
         this.score += 50;
         this.scoreText.setText('Score: ' + this.score);
         
+        // Play power-up sound
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.powerUp);
+        }
+        
         if (type === 'mushroom' && !this.isPoweredUp) {
             // Become Super Mario
             this.isPoweredUp = true;
@@ -1524,6 +1549,11 @@ export default class GameScene extends Phaser.Scene {
         this.score += 50;
         this.scoreText.setText('Score: ' + this.score);
         
+        // Play power-up sound
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.powerUp);
+        }
+        
         if (type === 'mushroom' && !this.isPoweredUp2) {
             // Become Super Luigi
             this.isPoweredUp2 = true;
@@ -1580,6 +1610,11 @@ export default class GameScene extends Phaser.Scene {
         // Stop all tweens on the coin before collection
         this.tweens.killTweensOf(coin);
         
+        // Play coin collection sound
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.coin);
+        }
+        
         // Coin collection animation - scale up and fade out
         this.tweens.add({
             targets: coin,
@@ -1612,6 +1647,11 @@ export default class GameScene extends Phaser.Scene {
         
         this.levelComplete = true;
         this.physics.pause();
+        
+        // Play level complete sound
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.levelComplete);
+        }
         
         // Bonus for completing level
         this.score += 100;
@@ -1933,6 +1973,10 @@ export default class GameScene extends Phaser.Scene {
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
+            // Play enemy hit sound
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.enemyHit);
+            }
             return;
         }
         
@@ -1951,6 +1995,10 @@ export default class GameScene extends Phaser.Scene {
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
+            // Play enemy hit sound
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.enemyHit);
+            }
         } else {
             // Player hit from side - take damage or die
             if (this.isPoweredUp) {
@@ -1973,6 +2021,11 @@ export default class GameScene extends Phaser.Scene {
                 this.updatePowerUpText();
                 this.registry.set('isPoweredUp', this.isPoweredUp);
                 this.registry.set('hasFirePower', this.hasFirePower);
+                
+                // Play damage sound
+                if (this.audioManager) {
+                    this.audioManager.playSound(this.audioManager.soundKeys.damage);
+                }
                 
                 // Brief invincibility after taking damage
                 this.isInvincible = true;
@@ -2026,6 +2079,10 @@ export default class GameScene extends Phaser.Scene {
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
+            // Play enemy hit sound
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.enemyHit);
+            }
             return;
         }
         
@@ -2044,6 +2101,10 @@ export default class GameScene extends Phaser.Scene {
             this.score += 50;
             this.enemiesDefeated++; // Track enemies defeated
             this.scoreText.setText('Score: ' + this.score);
+            // Play enemy hit sound
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.enemyHit);
+            }
         } else {
             // Player hit from side - take damage or die
             if (this.isPoweredUp2) {
@@ -2064,6 +2125,11 @@ export default class GameScene extends Phaser.Scene {
                 this.updatePowerUpText();
                 this.registry.set('isPoweredUp2', this.isPoweredUp2);
                 this.registry.set('hasFirePower2', this.hasFirePower2);
+                
+                // Play damage sound
+                if (this.audioManager) {
+                    this.audioManager.playSound(this.audioManager.soundKeys.damage);
+                }
                 
                 // Brief invincibility after taking damage
                 this.isInvincible2 = true;
@@ -2412,6 +2478,11 @@ export default class GameScene extends Phaser.Scene {
     shootFireball() {
         if (!this.hasFirePower) return;
         
+        // Play fireball sound
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.fireball);
+        }
+        
         // Create fireball
         const direction = this.player.scaleX > 0 ? 1 : -1;
         const fireball = this.add.circle(
@@ -2466,6 +2537,11 @@ export default class GameScene extends Phaser.Scene {
     
     shootFireball2() {
         if (!this.hasFirePower2) return;
+        
+        // Play fireball sound
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.fireball);
+        }
         
         // Create fireball for player 2
         const direction = this.player2.scaleX > 0 ? 1 : -1;
@@ -2694,6 +2770,10 @@ export default class GameScene extends Phaser.Scene {
                 // Jump - Up arrow or touch
                 if ((this.cursors.up.isDown || jumpPressed) && this.player.body.touching.down) {
                     this.player.body.setVelocityY(-400);
+                    // Play jump sound
+                    if (this.audioManager) {
+                        this.audioManager.playSound(this.audioManager.soundKeys.jump);
+                    }
                 }
                 
                 // Fire - X key or touch
@@ -2721,6 +2801,10 @@ export default class GameScene extends Phaser.Scene {
                 // Jump - W key for player 1
                 if (this.wasdKeys.up.isDown && this.player.body.touching.down) {
                     this.player.body.setVelocityY(-400);
+                    // Play jump sound
+                    if (this.audioManager) {
+                        this.audioManager.playSound(this.audioManager.soundKeys.jump);
+                    }
                 }
                 
                 // Fire - Shift key for player 1
@@ -2747,6 +2831,10 @@ export default class GameScene extends Phaser.Scene {
                 // Jump - Up arrow or touch for player 2
                 if ((this.cursors.up.isDown || jumpPressed) && this.player2.body.touching.down) {
                     this.player2.body.setVelocityY(-400);
+                    // Play jump sound
+                    if (this.audioManager) {
+                        this.audioManager.playSound(this.audioManager.soundKeys.jump);
+                    }
                 }
                 
                 // Fire - X key or touch for player 2
