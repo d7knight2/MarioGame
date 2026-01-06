@@ -203,12 +203,13 @@ To ensure code quality and prevent breaking changes, repository maintainers shou
    - ✅ **Require a pull request before merging**
    - ✅ **Require status checks to pass before merging**
    - ✅ **Require branches to be up to date before merging**
-   - Under "Status checks that are required", select:
+   - Under "Status checks that are required", search for and select all required checks:
      - `test (18.x)` - Unit tests on Node 18
      - `test (20.x)` - Unit tests on Node 20
      - `Playwright Tests (chromium)` - E2E tests on Chrome
      - `Playwright Tests (firefox)` - E2E tests on Firefox
      - `Playwright Tests (webkit)` - E2E tests on Safari
+   - Note: Status check names appear after the first PR runs the workflows
 5. Click **Create** or **Save changes**
 
 With these settings, all pull requests must pass automated tests before they can be merged, ensuring code quality and stability.
