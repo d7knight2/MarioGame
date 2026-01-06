@@ -25,7 +25,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             joinLabelY: height / 2 + 20,
             codeDisplayY: height / 2 + 100,
             inputOffsetY: height / 2 + 70,
-            joinBtnY: height / 2 + 170
+            joinBtnY: height / 2 + 170,
             switchBtnY: height / 2 + 155,  // Fixed from height/2 + 120 to prevent overlap with codeDisplay
             statusTextY: height - 100,
             backBtnY: height - 50
