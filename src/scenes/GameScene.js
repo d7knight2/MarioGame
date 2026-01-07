@@ -42,9 +42,10 @@ export default class GameScene extends Phaser.Scene {
         this.powerUps = null;
         this.fireballs = null;
         this.fireballs2 = null;
-        this.boss = null;
-        this.bossHealth = 0;
-        this.bossHealthBar = null;
+        // Boss battle tracking properties
+        this.boss = null; // Boss enemy sprite (available in levels 2 and 3)
+        this.bossHealth = 0; // Current health points of the boss
+        this.bossHealthBar = null; // Graphics object for displaying boss health bar
         this.gameMode = 1; // 1 or 2 player mode
         this.player1Name = 'Player 1';
         this.player2Name = 'Player 2';
