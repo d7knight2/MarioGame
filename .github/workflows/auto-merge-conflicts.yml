@@ -64,6 +64,8 @@ jobs:
         exit $exit_code
 
     - name: Upload conflict resolution logs
+      # Only upload logs when conflicts were detected and processed (exit codes 0 or 3)
+      # Note: GitHub Actions outputs are strings, so we use string comparison
       if: steps.resolve_conflicts.outputs.script_exit_code == '0' || steps.resolve_conflicts.outputs.script_exit_code == '3'
       uses: actions/upload-artifact@v4
       with:
