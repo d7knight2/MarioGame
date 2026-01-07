@@ -8,7 +8,7 @@
 #
 # Exit Codes:
 #   0 - Success (conflicts resolved or no conflicts found)
-#   1 - No open PRs found (no meaningful action needed)
+#   1 - No open PRs or no conflicts detected (no meaningful action needed)
 #   2 - Configuration/environment error
 #   3 - Failed to resolve conflicts after retries
 #
@@ -393,7 +393,6 @@ run_tests() {
         log_error "Unit tests failed"
         echo "❌ Unit tests failed" >> "$pr_log"
         test_passed=false
-        return 1
     fi
     
     # Run build
@@ -404,9 +403,9 @@ run_tests() {
         log_error "Build failed"
         echo "❌ Build failed" >> "$pr_log"
         test_passed=false
-        return 1
     fi
     
+    # Return appropriate exit code
     if [[ "$test_passed" == "true" ]]; then
         return 0
     else
