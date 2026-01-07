@@ -6,9 +6,52 @@ This document describes the AI-powered merge conflict resolution workflow implem
 
 The `auto-merge-conflicts.yml` workflow automatically detects and resolves merge conflicts in open pull requests using intelligent conflict resolution strategies. The workflow runs hourly and can also be triggered manually.
 
+The workflow uses an external shell script (`scripts/resolve_merge_conflicts.sh`) to handle all conflict resolution logic, making it easier to maintain, test, and debug. The script provides proper exit codes to prevent unnecessary email notifications and ensure accurate status reporting.
+
+## Architecture
+
+The workflow consists of two main components:
+
+### 1. GitHub Actions Workflow (`.github/workflows/auto-merge-conflicts.yml`)
+
+A streamlined 95-line workflow that:
+- Sets up the environment (Node.js, Git, dependencies)
+- Executes the external conflict resolution script
+- Handles exit codes appropriately
+- Conditionally uploads logs only when conflicts are detected
+- Reports final status based on script results
+
+### 2. Conflict Resolution Script (`scripts/resolve_merge_conflicts.sh`)
+
+A comprehensive Bash script with:
+- **Environment validation**: Checks for required tools (git, gh, jq, npm) and credentials
+- **Structured logging**: Uses log_info, log_success, log_warning, log_error functions
+- **Exit code handling**:
+  - `0` - Success: Conflicts resolved or clean merges
+  - `1` - No action needed: No open PRs or no conflicts detected
+  - `2` - Configuration error: Missing tools or invalid environment
+  - `3` - Resolution failed: Unable to resolve conflicts after retries
+- **Modular functions**: Separated validation, initialization, PR detection, and resolution
+- **Robust error handling**: Validates and handles errors at each step
+- **Test execution**: Runs unit tests and builds before pushing changes
+
 ## Features
 
-### 1. **Conflict Detection and Context Gathering**
+### 1. **Smart Email Notifications**
+
+The workflow now avoids sending unnecessary email notifications:
+- Exit code `1` (no conflicts detected) completes successfully without triggering emails
+- Only sends notifications when conflicts are actually found and processed
+- Artifacts are only uploaded when there's meaningful data to review
+
+### 2. **Accurate Status Reporting**
+
+Fixed issues where workflow would report success even when builds failed:
+- Properly validates test and build results before pushing
+- Uses exit codes to communicate actual status
+- Workflow fails appropriately when conflicts can't be resolved
+
+### 3. **Conflict Detection and Context Gathering**
 
 The workflow:
 - Monitors all open pull requests for merge conflicts
@@ -75,10 +118,29 @@ Commits include:
 
 ### Configuration Variables
 
+The script accepts these environment variables:
+
 ```bash
-MAX_RETRIES=3              # Maximum resolution attempts per PR
-LOG_DIR="/tmp/conflict-logs"  # Directory for logs
+GITHUB_TOKEN or GH_TOKEN    # GitHub authentication token (required)
+MAX_RETRIES=3               # Maximum resolution attempts per PR (default: 3)
+LOG_DIR="/tmp/conflict-logs"  # Directory for logs (default: /tmp/conflict-logs)
+GITHUB_RUN_ID               # Workflow run ID (set automatically by GitHub Actions)
+GITHUB_REPOSITORY           # Repository name (set automatically)
+GITHUB_SERVER_URL           # GitHub server URL (set automatically)
 ```
+
+## Exit Codes
+
+The script uses specific exit codes to communicate status:
+
+| Exit Code | Meaning | Workflow Behavior |
+|-----------|---------|-------------------|
+| `0` | Success - all conflicts resolved | Workflow succeeds, logs uploaded |
+| `1` | No action needed - no PRs or no conflicts | Workflow succeeds, no logs uploaded, no email |
+| `2` | Configuration error - missing tools or credentials | Workflow fails |
+| `3` | Resolution failed - conflicts remain after retries | Workflow fails, logs uploaded |
+
+This design prevents unnecessary email notifications when the workflow runs but finds no conflicts to resolve.
 
 ## Usage
 
@@ -200,6 +262,25 @@ Example output:
 2. **Review Bot Comments**: Read the resolution details in PR comments
 3. **Verify Functionality**: Test your changes after automatic resolution
 4. **Report Issues**: If AI resolution breaks functionality, report it
+
+## Local Testing
+
+You can test the script locally before committing:
+
+```bash
+# Set required environment variables
+export GITHUB_TOKEN="your_token"
+export MAX_RETRIES=3
+export LOG_DIR="/tmp/test-logs"
+
+# Run the script
+./scripts/resolve_merge_conflicts.sh
+
+# Check the exit code
+echo "Exit code: $?"
+```
+
+The script validates the environment first, so you'll get clear error messages if something is misconfigured.
 
 ## Troubleshooting
 
