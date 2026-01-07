@@ -64,6 +64,8 @@ export default class GameScene extends Phaser.Scene {
         this.REVIVAL_DELAY_MS = 30000; // 30 seconds
         this.cameraFollowState = null; // Track camera state: 'player1', 'player2', 'both', or null
         // Variable jump mechanics
+        // Note: Player 1 variables use no suffix (default player), Player 2 variables use '2' suffix
+        // This convention matches other player properties (isPoweredUp/isPoweredUp2, hasFirePower/hasFirePower2)
         this.isJumping = false;
         this.isJumping2 = false;
         this.jumpHoldTime = 0;
