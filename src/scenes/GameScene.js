@@ -2129,6 +2129,8 @@ export default class GameScene extends Phaser.Scene {
             x: checkpoint.x,
             y: checkpoint.y + 40,  // Spawn slightly below checkpoint
             score: this.score,
+            lives: this.lives,
+            lives2: this.lives2,
             isPoweredUp: this.isPoweredUp,
             hasFirePower: this.hasFirePower,
             isPoweredUp2: this.isPoweredUp2,
@@ -2634,34 +2636,6 @@ export default class GameScene extends Phaser.Scene {
                 } else {
                     // Still have lives - respawn player
                     this.respawnPlayer(this.player, 1);
-                    // Single player mode or both players dead - check for checkpoint
-                    const currentLevel = this.registry.get('currentLevel') || 1;
-                    const checkpoint = GameScene.checkpointManager.getCheckpoint(currentLevel);
-                    
-                    if (checkpoint) {
-                        // Respawn from checkpoint
-                        this.respawnFromCheckpoint();
-                    } else {
-                        // No checkpoint - game over
-                        this.gameOver = true;
-                        this.physics.pause();
-                        
-                        // Death animation - Mario spins and falls
-                        this.tweens.add({
-                            targets: this.player,
-                            angle: 720,
-                            y: this.player.y - 100,
-                            alpha: 0,
-                            duration: 1000,
-                            ease: 'Cubic.easeIn',
-                            onComplete: () => {
-                                // Return to start screen after animation
-                                this.resetGameState();
-                                this.scene.start('StartScene');
-                                this.gameOver = false;
-                            }
-                        });
-                    }
                 }
             }
         }
@@ -2781,37 +2755,77 @@ export default class GameScene extends Phaser.Scene {
                         });
                     }
                 } else {
-                    // Both players dead - check for checkpoint
-                    const currentLevel = this.registry.get('currentLevel') || 1;
-                    const checkpoint = GameScene.checkpointManager.getCheckpoint(currentLevel);
+                    // Still have lives - respawn player 2
+                    this.respawnPlayer(this.player2, 2);
+                }
+            }
+        }
+    }
+    
+    respawnPlayer(player, playerNumber) {
+        // Show brief death animation
+        this.tweens.add({
+            targets: player,
+            alpha: 0,
+            duration: 200,
+            onComplete: () => {
+                // Check for checkpoint first
+                const currentLevel = this.registry.get('currentLevel') || 1;
+                const checkpoint = GameScene.checkpointManager.getCheckpoint(currentLevel);
+                
+                if (checkpoint) {
+                    // Respawn from checkpoint
+                    this.respawnFromCheckpoint();
+                } else {
+                    // No checkpoint - respawn at default location
+                    player.x = DEFAULT_SPAWN_X;
+                    player.y = DEFAULT_SPAWN_Y;
+                    player.angle = 0;
                     
-                    if (checkpoint) {
-                        // Respawn from checkpoint
-                        this.respawnFromCheckpoint();
+                    // Reset power-ups
+                    if (playerNumber === 1) {
+                        this.isPoweredUp = false;
+                        this.hasFirePower = false;
+                        this.isInvincible = false;
+                        player.setScale(1);
+                        player.body.setSize(28, 44);
+                        player.body.setOffset(-14, -22);
                     } else {
-                        // No checkpoint - game over
-                        this.gameOver = true;
-                        this.physics.pause();
-                        
-                        // Death animation for player 2
-                        this.tweens.add({
-                            targets: this.player2,
-                            angle: 720,
-                            y: this.player2.y - 100,
-                            alpha: 0,
-                            duration: 1000,
-                            ease: 'Cubic.easeIn',
-                            onComplete: () => {
-                                // Return to start screen after animation
-                                this.resetGameState();
-                                this.scene.start('StartScene');
-                                this.gameOver = false;
-                            }
+                        this.isPoweredUp2 = false;
+                        this.hasFirePower2 = false;
+                        this.isInvincible2 = false;
+                        player.setScale(1);
+                        player.body.setSize(28, 44);
+                        player.body.setOffset(-14, -22);
+                    }
+                    this.updatePowerUpText();
+                    
+                    // Flash player back in
+                    this.tweens.add({
+                        targets: player,
+                        alpha: 1,
+                        duration: 100,
+                        yoyo: true,
+                        repeat: 5
+                    });
+                    
+                    // Brief invincibility after respawn
+                    if (playerNumber === 1) {
+                        this.isInvincible = true;
+                        this.time.delayedCall(2000, () => {
+                            this.isInvincible = false;
+                            player.setAlpha(1);
+                        });
+                    } else {
+                        this.isInvincible2 = true;
+                        this.time.delayedCall(2000, () => {
+                            this.isInvincible2 = false;
+                            player.setAlpha(1);
                         });
                     }
                 }
             }
-        }
+        });
     }
     
     respawnFromCheckpoint() {
@@ -2849,6 +2863,8 @@ export default class GameScene extends Phaser.Scene {
             
             // Restore player state from checkpoint
             this.score = checkpoint.score;
+            this.lives = checkpoint.lives || 3;  // Default to 3 if not saved
+            this.lives2 = checkpoint.lives2 || 3;
             this.isPoweredUp = checkpoint.isPoweredUp;
             this.hasFirePower = checkpoint.hasFirePower;
             this.isPoweredUp2 = checkpoint.isPoweredUp2;
@@ -2880,6 +2896,7 @@ export default class GameScene extends Phaser.Scene {
             
             // Update UI
             this.scoreText.setText('Score: ' + this.score);
+            this.updateLivesText();
             this.updatePowerUpText();
             
             // Restore fire button visibility if needed
@@ -3936,4 +3953,5 @@ export default class GameScene extends Phaser.Scene {
             this.scene.restart();
         }
     }
+}
 }
