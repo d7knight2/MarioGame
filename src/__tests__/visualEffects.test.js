@@ -7,6 +7,8 @@ import ParticleEffects from '../utils/ParticleEffects.js';
 import AnimationManager from '../utils/AnimationManager.js';
 import BackgroundGenerator from '../utils/BackgroundGenerator.js';
 import SpriteFactory from '../utils/SpriteFactory.js';
+import WaterEffects from '../utils/WaterEffects.js';
+import PerformanceOptimizer from '../utils/PerformanceOptimizer.js';
 
 describe('Visual Effects Utilities', () => {
   describe('ParticleEffects module', () => {
@@ -68,6 +70,21 @@ describe('Visual Effects Utilities', () => {
     test('should have scorePopup method', () => {
       expect(ParticleEffects.scorePopup).toBeDefined();
       expect(typeof ParticleEffects.scorePopup).toBe('function');
+    });
+
+    test('should have createContinuousSparkle method', () => {
+      expect(ParticleEffects.createContinuousSparkle).toBeDefined();
+      expect(typeof ParticleEffects.createContinuousSparkle).toBe('function');
+    });
+
+    test('should have gemSparkle method', () => {
+      expect(ParticleEffects.gemSparkle).toBeDefined();
+      expect(typeof ParticleEffects.gemSparkle).toBe('function');
+    });
+
+    test('should have createShimmer method', () => {
+      expect(ParticleEffects.createShimmer).toBeDefined();
+      expect(typeof ParticleEffects.createShimmer).toBe('function');
     });
   });
 
@@ -158,6 +175,26 @@ describe('Visual Effects Utilities', () => {
       expect(BackgroundGenerator.addPipes).toBeDefined();
       expect(typeof BackgroundGenerator.addPipes).toBe('function');
     });
+
+    test('should have createFlower method', () => {
+      expect(BackgroundGenerator.createFlower).toBeDefined();
+      expect(typeof BackgroundGenerator.createFlower).toBe('function');
+    });
+
+    test('should have createGrass method', () => {
+      expect(BackgroundGenerator.createGrass).toBeDefined();
+      expect(typeof BackgroundGenerator.createGrass).toBe('function');
+    });
+
+    test('should have addEnvironmentalDecorations method', () => {
+      expect(BackgroundGenerator.addEnvironmentalDecorations).toBeDefined();
+      expect(typeof BackgroundGenerator.addEnvironmentalDecorations).toBe('function');
+    });
+
+    test('should have createAdaptiveBackground method', () => {
+      expect(BackgroundGenerator.createAdaptiveBackground).toBeDefined();
+      expect(typeof BackgroundGenerator.createAdaptiveBackground).toBe('function');
+    });
   });
 
   describe('SpriteFactory module', () => {
@@ -197,34 +234,130 @@ describe('Visual Effects Utilities', () => {
     });
   });
 
+  describe('WaterEffects module', () => {
+    test('should export WaterEffects class', () => {
+      expect(WaterEffects).toBeDefined();
+      expect(typeof WaterEffects).toBe('function');
+    });
+
+    test('should have createWaterSurface method', () => {
+      expect(WaterEffects.createWaterSurface).toBeDefined();
+      expect(typeof WaterEffects.createWaterSurface).toBe('function');
+    });
+
+    test('should have createRipple method', () => {
+      expect(WaterEffects.createRipple).toBeDefined();
+      expect(typeof WaterEffects.createRipple).toBe('function');
+    });
+
+    test('should have createSplash method', () => {
+      expect(WaterEffects.createSplash).toBeDefined();
+      expect(typeof WaterEffects.createSplash).toBe('function');
+    });
+
+    test('should have destroyWaterSurface method', () => {
+      expect(WaterEffects.destroyWaterSurface).toBeDefined();
+      expect(typeof WaterEffects.destroyWaterSurface).toBe('function');
+    });
+
+    test('should have createBubbles method', () => {
+      expect(WaterEffects.createBubbles).toBeDefined();
+      expect(typeof WaterEffects.createBubbles).toBe('function');
+    });
+
+    test('should have createWaterfall method', () => {
+      expect(WaterEffects.createWaterfall).toBeDefined();
+      expect(typeof WaterEffects.createWaterfall).toBe('function');
+    });
+  });
+
+  describe('PerformanceOptimizer module', () => {
+    test('should export PerformanceOptimizer class', () => {
+      expect(PerformanceOptimizer).toBeDefined();
+      expect(typeof PerformanceOptimizer).toBe('function');
+    });
+
+    test('should have createObjectPool method', () => {
+      expect(PerformanceOptimizer.createObjectPool).toBeDefined();
+      expect(typeof PerformanceOptimizer.createObjectPool).toBe('function');
+    });
+
+    test('should have createParticlePool method', () => {
+      expect(PerformanceOptimizer.createParticlePool).toBeDefined();
+      expect(typeof PerformanceOptimizer.createParticlePool).toBe('function');
+    });
+
+    test('should have isInViewport method', () => {
+      expect(PerformanceOptimizer.isInViewport).toBeDefined();
+      expect(typeof PerformanceOptimizer.isInViewport).toBe('function');
+    });
+
+    test('should have createViewportCuller method', () => {
+      expect(PerformanceOptimizer.createViewportCuller).toBeDefined();
+      expect(typeof PerformanceOptimizer.createViewportCuller).toBe('function');
+    });
+
+    test('should have detectDeviceCapabilities method', () => {
+      expect(PerformanceOptimizer.detectDeviceCapabilities).toBeDefined();
+      expect(typeof PerformanceOptimizer.detectDeviceCapabilities).toBe('function');
+    });
+
+    test('should have createAdaptiveEffectManager method', () => {
+      expect(PerformanceOptimizer.createAdaptiveEffectManager).toBeDefined();
+      expect(typeof PerformanceOptimizer.createAdaptiveEffectManager).toBe('function');
+    });
+
+    test('should have throttle method', () => {
+      expect(PerformanceOptimizer.throttle).toBeDefined();
+      expect(typeof PerformanceOptimizer.throttle).toBe('function');
+    });
+
+    test('should have debounce method', () => {
+      expect(PerformanceOptimizer.debounce).toBeDefined();
+      expect(typeof PerformanceOptimizer.debounce).toBe('function');
+    });
+  });
+
   describe('Module Integration', () => {
     test('all modules should be importable without errors', () => {
       expect(ParticleEffects).toBeDefined();
       expect(AnimationManager).toBeDefined();
       expect(BackgroundGenerator).toBeDefined();
       expect(SpriteFactory).toBeDefined();
+      expect(WaterEffects).toBeDefined();
+      expect(PerformanceOptimizer).toBeDefined();
     });
 
     test('modules should have correct number of static methods', () => {
-      // ParticleEffects should have at least 11 methods
+      // ParticleEffects should have at least 14 methods (added 3 new methods)
       const particleEffectsMethods = Object.getOwnPropertyNames(ParticleEffects)
         .filter(name => typeof ParticleEffects[name] === 'function' && name !== 'length' && name !== 'name' && name !== 'prototype');
-      expect(particleEffectsMethods.length).toBeGreaterThanOrEqual(11);
+      expect(particleEffectsMethods.length).toBeGreaterThanOrEqual(14);
 
       // AnimationManager should have at least 6 methods
       const animationManagerMethods = Object.getOwnPropertyNames(AnimationManager)
         .filter(name => typeof AnimationManager[name] === 'function' && name !== 'length' && name !== 'name' && name !== 'prototype');
       expect(animationManagerMethods.length).toBeGreaterThanOrEqual(6);
 
-      // BackgroundGenerator should have at least 9 methods
+      // BackgroundGenerator should have at least 13 methods (added 4 new methods)
       const backgroundGeneratorMethods = Object.getOwnPropertyNames(BackgroundGenerator)
         .filter(name => typeof BackgroundGenerator[name] === 'function' && name !== 'length' && name !== 'name' && name !== 'prototype');
-      expect(backgroundGeneratorMethods.length).toBeGreaterThanOrEqual(9);
+      expect(backgroundGeneratorMethods.length).toBeGreaterThanOrEqual(13);
 
       // SpriteFactory should have at least 6 methods
       const spriteFactoryMethods = Object.getOwnPropertyNames(SpriteFactory)
         .filter(name => typeof SpriteFactory[name] === 'function' && name !== 'length' && name !== 'name' && name !== 'prototype');
       expect(spriteFactoryMethods.length).toBeGreaterThanOrEqual(6);
+
+      // WaterEffects should have at least 7 methods
+      const waterEffectsMethods = Object.getOwnPropertyNames(WaterEffects)
+        .filter(name => typeof WaterEffects[name] === 'function' && name !== 'length' && name !== 'name' && name !== 'prototype');
+      expect(waterEffectsMethods.length).toBeGreaterThanOrEqual(7);
+
+      // PerformanceOptimizer should have at least 8 methods
+      const performanceOptimizerMethods = Object.getOwnPropertyNames(PerformanceOptimizer)
+        .filter(name => typeof PerformanceOptimizer[name] === 'function' && name !== 'length' && name !== 'name' && name !== 'prototype');
+      expect(performanceOptimizerMethods.length).toBeGreaterThanOrEqual(8);
     });
   });
 });

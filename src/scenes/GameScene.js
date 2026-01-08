@@ -3,6 +3,8 @@ import SpriteFactory from '../utils/SpriteFactory.js';
 import ParticleEffects from '../utils/ParticleEffects.js';
 import AnimationManager from '../utils/AnimationManager.js';
 import BackgroundGenerator from '../utils/BackgroundGenerator.js';
+import WaterEffects from '../utils/WaterEffects.js';
+import PerformanceOptimizer from '../utils/PerformanceOptimizer.js';
 import CheckpointManager from '../utils/CheckpointManager.js';
 import ChatSystem from '../utils/ChatSystem.js';
 import ConnectionMonitor from '../utils/ConnectionMonitor.js';
@@ -87,6 +89,11 @@ export default class GameScene extends Phaser.Scene {
         this.lives = 3;
         this.lives2 = 3;
         this.livesText = null;
+        // Visual effects
+        this.waterSurfaces = [];
+        this.backgroundLayers = null;
+        this.coinSparkleTimers = [];
+        this.performanceManager = null;
         // Checkpoint system
         this.checkpoints = null;
         this.lastCheckpoint = null;
@@ -142,6 +149,10 @@ export default class GameScene extends Phaser.Scene {
         const shouldShowFireButton = this.gameMode === 1 ? this.hasFirePower : this.hasFirePower2;
         this.game.events.emit('hasFirePower', shouldShowFireButton);
         
+        // Extend world bounds for side-scrolling and vertical gameplay
+        const worldHeight = height + 400; // Add vertical space for platforms above
+        this.physics.world.setBounds(0, 0, 3200, worldHeight);
+        this.cameras.main.setBounds(0, 0, 3200, worldHeight);
         // Play background music (infrastructure in place for when audio files are added)
         // For boss levels, use boss music; otherwise use gameplay music
         // if (currentLevel === 2 || currentLevel === 3) {
@@ -157,11 +168,27 @@ export default class GameScene extends Phaser.Scene {
         // Improve physics settings for smoother collisions
         this.physics.world.TILE_BIAS = 32;  // Increase tile bias to prevent tunneling
 
+        // Initialize performance manager for adaptive quality
+        this.performanceManager = PerformanceOptimizer.createAdaptiveEffectManager(this, {
+            autoMonitor: true
+        });
+
         // Create sky background gradient
         this.add.rectangle(1600, height / 2, 3200, height, 0x5c94fc);
         
         // Create parallax background layers
         BackgroundGenerator.createParallaxBackground(this, 3200, height);
+        // Create sky background gradient (extended for vertical gameplay)
+        this.add.rectangle(1600, worldHeight / 2, 3200, worldHeight, 0x5c94fc);
+
+        // Create adaptive background with parallax and decorations
+        if (this.performanceManager.shouldEnableEffect('low')) {
+            this.backgroundLayers = BackgroundGenerator.createAdaptiveBackground(this, 3200, height, {
+                quality: this.performanceManager.capabilities.qualityLevel,
+                enableParallax: this.performanceManager.settings.enableParallax,
+                enableDecorations: this.performanceManager.capabilities.qualityLevel !== 'low'
+            });
+        }
 
         // Create platforms group
         this.platforms = this.physics.add.staticGroup();
@@ -172,10 +199,13 @@ export default class GameScene extends Phaser.Scene {
         // Create level-specific layouts
         if (currentLevel === 1) {
             this.createLevel1Platforms();
+            this.createLevel1WaterAreas();
         } else if (currentLevel === 2) {
             this.createLevel2Platforms();
+            this.createLevel2WaterAreas();
         } else {
             this.createLevel3Platforms();
+            this.createLevel3WaterAreas();
         }
 
         // Create player 1
@@ -228,17 +258,17 @@ export default class GameScene extends Phaser.Scene {
         };
         
         const UI_POSITION_OFFSETS = {
-            singlePlayer: { powerUpY: 56, revivalY: 50 },
-            multiPlayer: { powerUpY: 96, revivalY: 60 }
+            singlePlayer: { powerUpY: 48, revivalY: 50 },
+            multiPlayer: { powerUpY: 88, revivalY: 60 }
         };
         
         const uiMode = this.gameMode === 2 ? 'multiPlayer' : 'singlePlayer';
         
         const UI_LAYOUT = {
             scoreX: 16,
-            scoreY: 16,
+            scoreY: 8,  // Moved to very top of screen
             levelX: width - 16,
-            levelY: 16,
+            levelY: 8,  // Moved to very top of screen
             powerUpX: 16,
             powerUpY: UI_POSITION_OFFSETS[uiMode].powerUpY,
             revivalY: UI_POSITION_OFFSETS[uiMode].revivalY
@@ -410,6 +440,28 @@ export default class GameScene extends Phaser.Scene {
         this.registry.set('jump', false);
         this.registry.set('fire', false);
         
+        // Setup cleanup on scene shutdown
+        this.events.once('shutdown', this.cleanupVisualEffects, this);
+    }
+    
+    cleanupVisualEffects() {
+        // Clean up water surfaces
+        if (this.waterSurfaces) {
+            this.waterSurfaces.forEach(water => {
+                WaterEffects.destroyWaterSurface(water);
+            });
+            this.waterSurfaces = [];
+        }
+        
+        // Clean up sparkle timers
+        if (this.coinSparkleTimers) {
+            this.coinSparkleTimers.forEach(timer => {
+                if (timer && timer.remove) {
+                    timer.remove();
+                }
+            });
+            this.coinSparkleTimers = [];
+        }
         // Initialize multiplayer utilities if in 2-player mode
         if (this.gameMode === 2) {
             // Check if this is online multiplayer based on game code
@@ -477,6 +529,12 @@ export default class GameScene extends Phaser.Scene {
     
     createLevel1Platforms() {
         const height = this.cameras.main.height;
+        
+        // Vertical platforms above starting point (spaced ~100px apart vertically)
+        // Player 1 spawns at (100, 450), so these create a vertical climbing challenge
+        this.createPlatform(100, 350, 120, 32, 0x228B22);  // 100px above spawn
+        this.createPlatform(250, 250, 120, 32, 0x228B22);  // 200px above spawn
+        this.createPlatform(100, 150, 120, 32, 0x228B22);  // 300px above spawn
         
         // Floating platforms - lowered and better distributed
         // First section
@@ -592,6 +650,69 @@ export default class GameScene extends Phaser.Scene {
         const platformSprite = this.add.image(x + width/2, y + height/2, 'platform_' + x + '_' + y);
         this.physics.add.existing(platformSprite, true);
         this.platforms.add(platformSprite);
+    }
+    
+    createLevel1WaterAreas() {
+        const height = this.cameras.main.height;
+        // Add small decorative water areas if performance allows
+        if (this.performanceManager.shouldEnableEffect('medium')) {
+            // Water pool 1 - between platforms
+            const water1 = WaterEffects.createWaterSurface(this, 750, height - 80, 120, 50, {
+                scrollFactor: 1,
+                depth: -1,
+                waveSpeed: 2500,
+                waveHeight: 3
+            });
+            this.waterSurfaces.push(water1);
+            
+            // Water pool 2 - mid level
+            const water2 = WaterEffects.createWaterSurface(this, 1650, height - 80, 130, 50, {
+                scrollFactor: 1,
+                depth: -1,
+                waveSpeed: 2800,
+                waveHeight: 3
+            });
+            this.waterSurfaces.push(water2);
+        }
+    }
+    
+    createLevel2WaterAreas() {
+        const height = this.cameras.main.height;
+        // Add water areas for level 2
+        if (this.performanceManager.shouldEnableEffect('medium')) {
+            // Larger water area before boss
+            const water1 = WaterEffects.createWaterSurface(this, 2450, height - 90, 180, 60, {
+                scrollFactor: 1,
+                depth: -1,
+                waveSpeed: 2200,
+                waveHeight: 4
+            });
+            this.waterSurfaces.push(water1);
+        }
+    }
+    
+    createLevel3WaterAreas() {
+        const height = this.cameras.main.height;
+        // Add challenging water areas for level 3
+        if (this.performanceManager.shouldEnableEffect('medium')) {
+            // Water hazard 1
+            const water1 = WaterEffects.createWaterSurface(this, 1000, height - 85, 150, 55, {
+                scrollFactor: 1,
+                depth: -1,
+                waveSpeed: 2000,
+                waveHeight: 4
+            });
+            this.waterSurfaces.push(water1);
+            
+            // Water hazard 2
+            const water2 = WaterEffects.createWaterSurface(this, 2200, height - 90, 120, 60, {
+                scrollFactor: 1,
+                depth: -1,
+                waveSpeed: 2400,
+                waveHeight: 4
+            });
+            this.waterSurfaces.push(water2);
+        }
     }
     
     createPowerUpBlocks() {
@@ -1052,14 +1173,28 @@ export default class GameScene extends Phaser.Scene {
                 repeat: -1,
                 ease: 'Sine.easeInOut'
             });
-            this.tweens.add({
-                targets: coin,
-                y: pos.y - 5,
-                duration: 600,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            });
+            
+            // Add continuous sparkle effect if performance allows
+            if (this.performanceManager.shouldEnableEffect('medium')) {
+                const sparkleTimer = ParticleEffects.createContinuousSparkle(this, pos.x, pos.y, {
+                    color: 0xffffcc,
+                    size: 2,
+                    frequency: 800 + Math.random() * 400,
+                    radius: 12
+                });
+                this.coinSparkleTimers.push(sparkleTimer);
+                
+                // Clean up sparkle timer when the coin is collected
+                coin.on('destroy', () => {
+                    if (sparkleTimer && sparkleTimer.remove) {
+                        sparkleTimer.remove();
+                    }
+                    const index = this.coinSparkleTimers.indexOf(sparkleTimer);
+                    if (index !== -1) {
+                        this.coinSparkleTimers.splice(index, 1);
+                    }
+                });
+            }
         });
     }
 
@@ -1904,14 +2039,12 @@ export default class GameScene extends Phaser.Scene {
         // Stop all tweens on the coin before collection
         this.tweens.killTweensOf(coin);
         
-        // Add particle effect for coin collection
-        ParticleEffects.coinCollect(this, coin.x, coin.y);
-        
-        // Add score popup
-        ParticleEffects.scorePopup(this, coin.x, coin.y, 10);
-        // Play coin collection sound
-        if (this.audioManager) {
-            this.audioManager.playSound(this.audioManager.soundKeys.coin);
+        // Enhanced coin collection with gem sparkle effect
+        if (this.performanceManager.shouldEnableEffect('low')) {
+            ParticleEffects.gemSparkle(this, coin.x, coin.y, {
+                count: this.performanceManager.getParticleCount(12),
+                colors: [0xffffff, 0xffff00, 0xffffcc, 0xffaa00]
+            });
         }
         
         // Coin collection animation - scale up and fade out
@@ -1962,6 +2095,9 @@ export default class GameScene extends Phaser.Scene {
                 ease: 'Cubic.easeOut',
                 onComplete: () => oneUpText.destroy()
             });
+        // Score popup with performance scaling
+        if (this.performanceManager.shouldEnableEffect('medium')) {
+            ParticleEffects.scorePopup(this, coin.x, coin.y, 10);
         }
         
         // Play a simple sound effect (visual feedback)

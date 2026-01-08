@@ -2,6 +2,12 @@
  * BackgroundGenerator - Creates parallax background layers and environmental decorations
  */
 
+// Quality thresholds for adaptive background rendering
+const QUALITY_THRESHOLDS = {
+    LOW_QUALITY_PIXEL_COUNT: 500000,
+    MEDIUM_QUALITY_PIXEL_COUNT: 1000000
+};
+
 export default class BackgroundGenerator {
     /**
      * Create a multi-layer parallax background
@@ -291,5 +297,221 @@ export default class BackgroundGenerator {
         });
         
         return pipes;
+    }
+    
+    /**
+     * Create animated flowers for decoration
+     * @param {Phaser.Scene} scene - The scene
+     * @param {number} x - X position
+     * @param {number} y - Y position (ground level)
+     * @param {object} options - Configuration options
+     * @returns {Phaser.GameObjects.Container} Flower container
+     */
+    static createFlower(scene, x, y, options = {}) {
+        const config = {
+            petalColor: options.petalColor || 0xff69b4,
+            centerColor: options.centerColor || 0xffff00,
+            swayAmount: options.swayAmount || 3,
+            swaySpeed: options.swaySpeed || 2000,
+            ...options
+        };
+        
+        const container = scene.add.container(x, y);
+        
+        // Create stem
+        const stem = scene.add.graphics();
+        stem.lineStyle(3, 0x228B22, 1);
+        stem.beginPath();
+        stem.moveTo(0, 0);
+        stem.lineTo(0, -25);
+        stem.strokePath();
+        container.add(stem);
+        
+        // Create leaves
+        const leaf1 = scene.add.ellipse(-5, -12, 8, 5, 0x32CD32);
+        const leaf2 = scene.add.ellipse(5, -18, 8, 5, 0x32CD32);
+        container.add(leaf1);
+        container.add(leaf2);
+        
+        // Create flower head
+        const flowerHead = scene.add.container(0, -25);
+        
+        // Center
+        const center = scene.add.circle(0, 0, 4, config.centerColor);
+        flowerHead.add(center);
+        
+        // Petals
+        for (let i = 0; i < 6; i++) {
+            const angle = (i * Math.PI * 2) / 6;
+            const petalX = Math.cos(angle) * 7;
+            const petalY = Math.sin(angle) * 7;
+            const petal = scene.add.ellipse(petalX, petalY, 8, 6, config.petalColor);
+            petal.setRotation(angle);
+            flowerHead.add(petal);
+        }
+        
+        container.add(flowerHead);
+        
+        // Animate gentle swaying
+        scene.tweens.add({
+            targets: container,
+            angle: -config.swayAmount,
+            duration: config.swaySpeed,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        
+        return container;
+    }
+    
+    /**
+     * Create animated grass blades
+     * @param {Phaser.Scene} scene - The scene
+     * @param {number} x - X position
+     * @param {number} y - Y position (ground level)
+     * @param {number} count - Number of grass blades
+     * @returns {Phaser.GameObjects.Container} Grass container
+     */
+    static createGrass(scene, x, y, count = 5) {
+        const container = scene.add.container(x, y);
+        
+        for (let i = 0; i < count; i++) {
+            const offsetX = (i - count / 2) * 3;
+            const height = 12 + Math.random() * 8;
+            
+            const blade = scene.add.graphics();
+            blade.lineStyle(2, 0x228B22, 1);
+            blade.beginPath();
+            blade.moveTo(offsetX, 0);
+            blade.quadraticCurveTo(offsetX + 2, -height / 2, offsetX + 1, -height);
+            blade.strokePath();
+            
+            container.add(blade);
+            
+            // Animate individual blade swaying
+            const delay = i * 100;
+            scene.tweens.add({
+                targets: blade,
+                angle: -5 + (i % 2) * 10,
+                duration: 1500 + Math.random() * 500,
+                delay: delay,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+        }
+        
+        return container;
+    }
+    
+    /**
+     * Add animated environmental decorations across the level
+     * @param {Phaser.Scene} scene - The scene
+     * @param {number} worldWidth - World width
+     * @param {number} worldHeight - World height
+     * @param {object} options - Configuration options
+     * @returns {Array} Array of decoration objects
+     */
+    static addEnvironmentalDecorations(scene, worldWidth, worldHeight, options = {}) {
+        const config = {
+            flowerDensity: options.flowerDensity || 0.002, // Per pixel
+            grassDensity: options.grassDensity || 0.003,
+            scrollFactor: options.scrollFactor || 0.95,
+            ...options
+        };
+        
+        const decorations = [];
+        const groundY = worldHeight - 32;
+        
+        // Add flowers at intervals
+        const flowerCount = Math.floor(worldWidth * config.flowerDensity);
+        for (let i = 0; i < flowerCount; i++) {
+            const x = 100 + (i * worldWidth / flowerCount) + (Math.random() - 0.5) * 50;
+            const colors = [
+                { petalColor: 0xff69b4, centerColor: 0xffff00 },
+                { petalColor: 0xff0000, centerColor: 0xffffff },
+                { petalColor: 0x9370db, centerColor: 0xffff00 },
+                { petalColor: 0xffa500, centerColor: 0xffffff }
+            ];
+            const colorScheme = colors[Math.floor(Math.random() * colors.length)];
+            
+            const flower = this.createFlower(scene, x, groundY, colorScheme);
+            flower.setScrollFactor(config.scrollFactor);
+            flower.setDepth(-1);
+            decorations.push(flower);
+        }
+        
+        // Add grass patches
+        const grassCount = Math.floor(worldWidth * config.grassDensity);
+        for (let i = 0; i < grassCount; i++) {
+            const x = 50 + (i * worldWidth / grassCount) + (Math.random() - 0.5) * 30;
+            const bladeCount = 3 + Math.floor(Math.random() * 5);
+            
+            const grass = this.createGrass(scene, x, groundY, bladeCount);
+            grass.setScrollFactor(config.scrollFactor);
+            grass.setDepth(-1);
+            decorations.push(grass);
+        }
+        
+        return decorations;
+    }
+    
+    /**
+     * Create resolution-adaptive background that scales based on screen size
+     * @param {Phaser.Scene} scene - The scene
+     * @param {number} worldWidth - World width
+     * @param {number} worldHeight - World height
+     * @param {object} options - Configuration options
+     * @returns {object} Background layers with adaptive scaling
+     */
+    static createAdaptiveBackground(scene, worldWidth, worldHeight, options = {}) {
+        const config = {
+            enableParallax: options.enableParallax !== false,
+            enableDecorations: options.enableDecorations !== false,
+            quality: options.quality || 'auto', // 'low', 'medium', 'high', 'auto'
+            ...options
+        };
+        
+        // Determine quality based on screen size if auto
+        let quality = config.quality;
+        if (quality === 'auto') {
+            const screenWidth = scene.cameras.main.width;
+            const screenHeight = scene.cameras.main.height;
+            const pixelCount = screenWidth * screenHeight;
+            
+            if (pixelCount < QUALITY_THRESHOLDS.LOW_QUALITY_PIXEL_COUNT) quality = 'low';
+            else if (pixelCount < QUALITY_THRESHOLDS.MEDIUM_QUALITY_PIXEL_COUNT) quality = 'medium';
+            else quality = 'high';
+        }
+        
+        // Adjust decoration density based on quality
+        const densityMultipliers = {
+            low: 0.3,
+            medium: 0.7,
+            high: 1.0
+        };
+        const densityMultiplier = densityMultipliers[quality] || 1.0;
+        
+        const layers = {
+            parallax: [],
+            decorations: [],
+            quality: quality
+        };
+        
+        // Create parallax layers if enabled
+        if (config.enableParallax) {
+            layers.parallax = this.createParallaxBackground(scene, worldWidth, worldHeight);
+        }
+        
+        // Add environmental decorations if enabled
+        if (config.enableDecorations) {
+            layers.decorations = this.addEnvironmentalDecorations(scene, worldWidth, worldHeight, {
+                flowerDensity: 0.002 * densityMultiplier,
+                grassDensity: 0.003 * densityMultiplier
+            });
+        }
+        
+        return layers;
     }
 }
