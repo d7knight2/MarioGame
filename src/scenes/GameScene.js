@@ -19,6 +19,8 @@ const REVIVAL_STAR_POINTS = 5; // Number of points on revival stars
 const REVIVAL_STAR_INNER_RADIUS = 8; // Inner radius of revival stars
 const REVIVAL_STAR_OUTER_RADIUS = 4; // Outer radius of revival stars
 const REVIVAL_STAR_COLOR = 0xffff00; // Color of revival stars (yellow)
+const STAR_TRAIL_THROTTLE_MS = 150; // Milliseconds between star trail particle spawns
+const STAR_TRAIL_THROTTLE_WINDOW = 50; // Window size for throttle check
 
 // Multiplayer sync constants
 const SIMULATED_MIN_LATENCY_MS = 30; // Minimum simulated network latency
@@ -901,6 +903,12 @@ export default class GameScene extends Phaser.Scene {
         this.player.eyes = [eye1, eye2];
         this.player.logoText = logo;
         
+        // Initialize animation state tracking
+        this.player.wasOnGround = true;
+        this.player.isRunning = false;
+        
+        // Cache animation handlers for performance
+        this.player.animations = AnimationManager.createCharacterAnimations(this, selectedCharacter);
         // Change color for Fire Mario (after storing body_part reference)
         if (this.hasFirePower) {
             this.player.body_part.setFillStyle(0xffffff);
@@ -978,6 +986,12 @@ export default class GameScene extends Phaser.Scene {
         this.player2.eyes = [eye1, eye2];
         this.player2.logoText = logo;
         
+        // Initialize animation state tracking
+        this.player2.wasOnGround = true;
+        this.player2.isRunning = false;
+        
+        // Cache animation handlers for performance
+        this.player2.animations = AnimationManager.createCharacterAnimations(this, 'luigi');
         // Change color for Fire Luigi (after storing body_part reference)
         if (this.hasFirePower2) {
             this.player2.body_part.setFillStyle(0xffffff);
@@ -1598,14 +1612,14 @@ export default class GameScene extends Phaser.Scene {
         this.bossHealth--;
         this.updateBossHealthBar();
         
-        // Flash boss
-        this.tweens.add({
-            targets: this.boss,
-            alpha: 0.5,
-            duration: 100,
-            yoyo: true,
-            repeat: 2
-        });
+        // Add screen shake for boss hit
+        ParticleEffects.screenShake(this, 8, 300);
+        
+        // Add boss hit animation (lazy-create and cache for reuse)
+        if (!this.bossAnimations) {
+            this.bossAnimations = AnimationManager.createBossAnimations(this);
+        }
+        this.bossAnimations.hurt(this.boss);
         
         if (this.bossHealth <= 0) {
             // Boss defeated!
@@ -1614,6 +1628,12 @@ export default class GameScene extends Phaser.Scene {
             this.score += 500;
             this.enemiesDefeated++; // Count boss as enemy defeated
             this.scoreText.setText('Score: ' + this.score);
+            
+            // Add screen flash for boss defeat
+            ParticleEffects.screenFlash(this, 0xffffff, 300);
+            
+            // Add score popup
+            ParticleEffects.scorePopup(this, this.boss.x, this.boss.y, 500);
             
             const currentLevel = this.registry.get('currentLevel') || 1;
             
@@ -1667,6 +1687,12 @@ export default class GameScene extends Phaser.Scene {
         // Additional check: player must be below the block (higher y value)
         if (player.y < block.y) return;
         
+        // Add block hit visual effect
+        ParticleEffects.blockHit(this, block.x, block.y);
+        
+        // Add screen shake for impact
+        ParticleEffects.screenShake(this, 3, 150);
+        
         block.used = true;
         block.setFillStyle(0xcccccc);
         if (block.questionMark) {
@@ -1690,6 +1716,12 @@ export default class GameScene extends Phaser.Scene {
         // Same logic for player 2
         if (player.body.velocity.y >= 0 || block.used) return;
         if (player.y < block.y) return;
+        
+        // Add block hit visual effect
+        ParticleEffects.blockHit(this, block.x, block.y);
+        
+        // Add screen shake for impact
+        ParticleEffects.screenShake(this, 3, 150);
         
         block.used = true;
         block.setFillStyle(0xcccccc);
@@ -1779,6 +1811,15 @@ export default class GameScene extends Phaser.Scene {
     collectPowerUp(player, powerUp) {
         const type = powerUp.powerUpType;
         
+        // Add particle effect for power-up collection
+        ParticleEffects.powerUpCollect(this, powerUp.x, powerUp.y, type);
+        
+        // Add score popup
+        ParticleEffects.scorePopup(this, powerUp.x, powerUp.y, 50);
+        
+        // Add screen flash effect
+        ParticleEffects.screenFlash(this, 0xffffff, 150);
+        
         powerUp.destroy();
         this.score += 50;
         this.scoreText.setText('Score: ' + this.score);
@@ -1792,16 +1833,23 @@ export default class GameScene extends Phaser.Scene {
             // Become Super Mario
             this.isPoweredUp = true;
             this.player.setScale(1.3);
-            this.player.body.setSize(32, 53);  // Match improved collision body size
-            this.player.body.setOffset(-16, -26);  // Match improved offset
+            this.player.body.setSize(36, 57);
+            this.player.body.setOffset(-18, -28);
+            
+            // Power-up transformation animation
+            this.player.animations.powerUp(this.player);
+            
             this.updatePowerUpText();
         } else if (type === 'flower') {
             // Become Fire Mario - if not powered up, also grow
             if (!this.isPoweredUp) {
                 this.isPoweredUp = true;
                 this.player.setScale(1.3);
-                this.player.body.setSize(32, 53);  // Match improved collision body size
-                this.player.body.setOffset(-16, -26);  // Match improved offset
+                this.player.body.setSize(36, 57);
+                this.player.body.setOffset(-18, -28);
+                
+                // Power-up transformation animation
+                this.player.animations.powerUp(this.player);
             }
             this.hasFirePower = true;
             if (this.player.body_part) {
@@ -1845,6 +1893,15 @@ export default class GameScene extends Phaser.Scene {
     collectPowerUp2(player, powerUp) {
         const type = powerUp.powerUpType;
         
+        // Add particle effect for power-up collection
+        ParticleEffects.powerUpCollect(this, powerUp.x, powerUp.y, type);
+        
+        // Add score popup
+        ParticleEffects.scorePopup(this, powerUp.x, powerUp.y, 50);
+        
+        // Add screen flash effect
+        ParticleEffects.screenFlash(this, 0xffffff, 150);
+        
         powerUp.destroy();
         this.score += 50;
         this.scoreText.setText('Score: ' + this.score);
@@ -1858,16 +1915,23 @@ export default class GameScene extends Phaser.Scene {
             // Become Super Luigi
             this.isPoweredUp2 = true;
             this.player2.setScale(1.3);
-            this.player2.body.setSize(32, 53);  // Match improved collision body size
-            this.player2.body.setOffset(-16, -26);  // Match improved offset
+            this.player2.body.setSize(36, 57);
+            this.player2.body.setOffset(-18, -28);
+            
+            // Power-up transformation animation
+            this.player2.animations.powerUp(this.player2);
+            
             this.updatePowerUpText();
         } else if (type === 'flower') {
             // Become Fire Luigi - if not powered up, also grow
             if (!this.isPoweredUp2) {
                 this.isPoweredUp2 = true;
                 this.player2.setScale(1.3);
-                this.player2.body.setSize(32, 53);  // Match improved collision body size
-                this.player2.body.setOffset(-16, -26);  // Match improved offset
+                this.player2.body.setSize(36, 57);
+                this.player2.body.setOffset(-18, -28);
+                
+                // Power-up transformation animation
+                this.player2.animations.powerUp(this.player2);
             }
             this.hasFirePower2 = true;
             if (this.player2.body_part) {
@@ -1916,6 +1980,11 @@ export default class GameScene extends Phaser.Scene {
                 count: this.performanceManager.getParticleCount(12),
                 colors: [0xffffff, 0xffff00, 0xffffcc, 0xffaa00]
             });
+        // Add particle effect for coin collection
+        ParticleEffects.coinCollect(this, coin.x, coin.y);
+        
+        // Add score popup
+        ParticleEffects.scorePopup(this, coin.x, coin.y, 10);
         // Play coin collection sound
         if (this.audioManager) {
             this.audioManager.playSound(this.audioManager.soundKeys.coin);
@@ -2414,6 +2483,13 @@ export default class GameScene extends Phaser.Scene {
                     this.player.body.setSize(24, 40);  // Match improved collision body size
                     this.player.body.setOffset(-12, -20);  // Match improved offset
                 }
+                
+                // Add damage visual effect
+                this.player.animations.damage(this.player);
+                
+                // Add screen shake
+                ParticleEffects.screenShake(this, 5, 200);
+                
                 this.updatePowerUpText();
                 this.registry.set('isPoweredUp', this.isPoweredUp);
                 this.registry.set('hasFirePower', this.hasFirePower);
@@ -2528,6 +2604,13 @@ export default class GameScene extends Phaser.Scene {
                     this.player2.body.setSize(24, 40);  // Match improved collision body size
                     this.player2.body.setOffset(-12, -20);  // Match improved offset
                 }
+                
+                // Add damage visual effect for player 2
+                this.player2.animations.damage(this.player2);
+                
+                // Add screen shake
+                ParticleEffects.screenShake(this, 5, 200);
+                
                 this.updatePowerUpText();
                 this.registry.set('isPoweredUp2', this.isPoweredUp2);
                 this.registry.set('hasFirePower2', this.hasFirePower2);
@@ -2944,6 +3027,12 @@ export default class GameScene extends Phaser.Scene {
         // Disable physics body to prevent further collisions
         enemy.body.enable = false;
         
+        // Add enemy defeat particle effect
+        ParticleEffects.enemyDefeat(this, enemy.x, enemy.y);
+        
+        // Add score popup
+        ParticleEffects.scorePopup(this, enemy.x, enemy.y, 50);
+        
         // Enemy death animation - 720° spin and fade-out
         this.tweens.add({
             targets: enemy,
@@ -2959,6 +3048,9 @@ export default class GameScene extends Phaser.Scene {
     }
     
     fireballHitEnemy(fireball, enemy) {
+        // Add fireball impact effect
+        ParticleEffects.fireballImpact(this, fireball.x, fireball.y);
+        
         // Stop animations
         const tweenTargets = [fireball];
         if (fireball.innerCircle && fireball.innerCircle.active) {
@@ -2981,6 +3073,9 @@ export default class GameScene extends Phaser.Scene {
     }
     
     hitPlatformWithFireball(fireball, platform) {
+        // Add fireball impact effect
+        ParticleEffects.fireballImpact(this, fireball.x, fireball.y);
+        
         // Stop animations
         const tweenTargets = [fireball];
         if (fireball.innerCircle && fireball.innerCircle.active) {
@@ -3325,24 +3420,85 @@ export default class GameScene extends Phaser.Scene {
                 const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
                 const scaleY = this.isPoweredUp ? 1.3 : 1;
                 
-                if (this.cursors.left.isDown || moveLeft) {
+                const isMovingLeft = this.cursors.left.isDown || moveLeft;
+                const isMovingRight = this.cursors.right.isDown || moveRight;
+                const isMovingHorizontally = isMovingLeft || isMovingRight;
+                
+                if (isMovingLeft) {
                     this.player.body.setVelocityX(-200);
                     this.player.setScale(-Math.abs(scaleX), scaleY);
-                } else if (this.cursors.right.isDown || moveRight) {
+                } else if (isMovingRight) {
                     this.player.body.setVelocityX(200);
                     this.player.setScale(Math.abs(scaleX), scaleY);
                 } else {
                     this.player.body.setVelocityX(0);
                 }
+                
+                // Add running animation visual effect
+                if (isMovingHorizontally && this.player.body.touching.down && !this.player.isRunning) {
+                    // Capture the base Y position the first time we start the running animation
+                    if (typeof this.player.baseY !== 'number') {
+                        this.player.baseY = this.player.y;
+                    }
+                    // Ensure the running animation always starts from the base Y position
+                    if (typeof this.player.baseY === 'number') {
+                        this.player.y = this.player.baseY;
+                    }
+                    this.player.isRunning = true;
+                    const direction = isMovingLeft ? -1 : 1;
+                    this.player.animations.running(this.player, direction);
+                } else if (!isMovingHorizontally && this.player.isRunning) {
+                    this.player.isRunning = false;
+                    // Reset Y to the stored base position to prevent cumulative drift
+                    if (typeof this.player.baseY === 'number') {
+                        this.player.y = this.player.baseY;
+                    }
+                    // Stop running animation
+                    if (this.player.runningTween) {
+                        this.player.runningTween.remove();
+                        this.player.runningTween = null;
+                    }
+                }
+                
+                // Add star trail effect when invincible (throttled)
+                const now = this.time.now;
+                if (this.isInvincible) {
+                    if (typeof this.lastStarTrailTime !== 'number') {
+                        this.lastStarTrailTime = 0;
+                    }
+                    if (now - this.lastStarTrailTime >= STAR_TRAIL_THROTTLE_MS) {
+                        ParticleEffects.starTrail(this, this.player.x, this.player.y);
+                        this.lastStarTrailTime = now;
+                    }
+                }
 
                 // Jump - Up arrow or touch
                 if ((this.cursors.up.isDown || jumpPressed) && this.player.body.touching.down) {
                     this.player.body.setVelocityY(-400);
-                    // Play jump sound
-                    if (this.audioManager) {
-                        this.audioManager.playSound(this.audioManager.soundKeys.jump);
+                    
+                    // Stop running animation when jumping
+                    if (this.player.isRunning) {
+                        this.player.isRunning = false;
+                        if (this.player.runningTween) {
+                            this.player.runningTween.remove();
+                            this.player.runningTween = null;
+                        }
                     }
+                    
+                    // Add jump dust effect
+                    ParticleEffects.jumpDust(this, this.player.x, this.player.y + 20);
+                    
+                    // Add jump animation
+                    this.player.animations.jumping(this.player);
                 }
+                
+                // Detect landing and add landing effect
+                if (this.player.body.touching.down && !this.player.wasOnGround) {
+                    ParticleEffects.landingDust(this, this.player.x, this.player.y + 20);
+                    
+                    this.player.animations.landing(this.player);
+                }
+                this.player.wasOnGround = this.player.body.touching.down;
                 
                 // Fire - X key or touch
                 if (Phaser.Input.Keyboard.JustDown(this.fireKey) || (firePressed && !this.lastFirePressed)) {
@@ -3356,24 +3512,89 @@ export default class GameScene extends Phaser.Scene {
                 const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
                 const scaleY = this.isPoweredUp ? 1.3 : 1;
                 
-                if (this.wasdKeys.left.isDown) {
+                const isMovingLeft = this.wasdKeys.left.isDown;
+                const isMovingRight = this.wasdKeys.right.isDown;
+                const isMovingHorizontally = isMovingLeft || isMovingRight;
+                
+                if (isMovingLeft) {
                     this.player.body.setVelocityX(-200);
                     this.player.setScale(-Math.abs(scaleX), scaleY);
-                } else if (this.wasdKeys.right.isDown) {
+                } else if (isMovingRight) {
                     this.player.body.setVelocityX(200);
                     this.player.setScale(Math.abs(scaleX), scaleY);
                 } else {
                     this.player.body.setVelocityX(0);
                 }
+                
+                // Add running animation visual effect for player 1
+                if (isMovingHorizontally && this.player.body.touching.down && !this.player.isRunning) {
+                    // Capture the base Y position the first time we start the running animation
+                    if (typeof this.player.baseY !== 'number') {
+                        this.player.baseY = this.player.y;
+                    }
+                    // Ensure the running animation always starts from the base Y position
+                    if (typeof this.player.baseY === 'number') {
+                        this.player.y = this.player.baseY;
+                    }
+                    this.player.isRunning = true;
+                    const direction = isMovingLeft ? -1 : 1;
+                    this.player.animations.running(this.player, direction);
+                } else if (!isMovingHorizontally && this.player.isRunning) {
+                    this.player.isRunning = false;
+                    // Reset Y to the stored base position to prevent cumulative drift
+                    if (typeof this.player.baseY === 'number') {
+                        this.player.y = this.player.baseY;
+                    }
+                    if (this.player.runningTween) {
+                        this.player.runningTween.remove();
+                        this.player.runningTween = null;
+                    }
+                }
+                
+                // Add star trail effect when invincible (throttled)
+                if (this.isInvincible) {
+                    // Initialize lastStarTrailTime on first use
+                    if (typeof this.lastStarTrailTime !== 'number') {
+                        this.lastStarTrailTime = 0;
+                    }
+                    
+                    if (this.time.now - this.lastStarTrailTime >= STAR_TRAIL_THROTTLE_MS) {
+                        ParticleEffects.starTrail(this, this.player.x, this.player.y);
+                        this.lastStarTrailTime = this.time.now;
+                    }
+                }
 
                 // Jump - W key for player 1
                 if (this.wasdKeys.up.isDown && this.player.body.touching.down) {
                     this.player.body.setVelocityY(-400);
+                    
+                    // Stop running animation when jumping
+                    if (this.player.isRunning) {
+                        this.player.isRunning = false;
+                        if (this.player.runningTween) {
+                            this.player.runningTween.remove();
+                            this.player.runningTween = null;
+                        }
+                    }
+                    
+                    // Add jump dust effect
+                    ParticleEffects.jumpDust(this, this.player.x, this.player.y + 20);
+                    
+                    // Add jump animation
+                    this.player.animations.jumping(this.player);
                     // Play jump sound
                     if (this.audioManager) {
                         this.audioManager.playSound(this.audioManager.soundKeys.jump);
                     }
                 }
+                
+                // Detect landing and add landing effect
+                if (this.player.body.touching.down && !this.player.wasOnGround) {
+                    ParticleEffects.landingDust(this, this.player.x, this.player.y + 20);
+                    
+                    this.player.animations.landing(this.player);
+                }
+                this.player.wasOnGround = this.player.body.touching.down;
                 
                 // Fire - Shift key for player 1
                 if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
@@ -3386,24 +3607,87 @@ export default class GameScene extends Phaser.Scene {
                 const scaleX2 = this.isPoweredUp2 ? (this.player2.scaleX < 0 ? -1.3 : 1.3) : 1;
                 const scaleY2 = this.isPoweredUp2 ? 1.3 : 1;
                 
-                if (this.cursors.left.isDown || moveLeft) {
+                const isMovingLeft2 = this.cursors.left.isDown || moveLeft;
+                const isMovingRight2 = this.cursors.right.isDown || moveRight;
+                const isMovingHorizontally2 = isMovingLeft2 || isMovingRight2;
+                
+                if (isMovingLeft2) {
                     this.player2.body.setVelocityX(-200);
                     this.player2.setScale(-Math.abs(scaleX2), scaleY2);
-                } else if (this.cursors.right.isDown || moveRight) {
+                } else if (isMovingRight2) {
                     this.player2.body.setVelocityX(200);
                     this.player2.setScale(Math.abs(scaleX2), scaleY2);
                 } else {
                     this.player2.body.setVelocityX(0);
                 }
+                
+                // Add running animation visual effect for player 2
+                if (isMovingHorizontally2 && this.player2.body.touching.down && !this.player2.isRunning) {
+                    // Capture the base Y position the first time we start the running animation
+                    if (typeof this.player2.baseY !== 'number') {
+                        this.player2.baseY = this.player2.y;
+                    }
+                    // Ensure the running animation always starts from the base Y position
+                    if (typeof this.player2.baseY === 'number') {
+                        this.player2.y = this.player2.baseY;
+                    }
+                    this.player2.isRunning = true;
+                    const direction = isMovingLeft2 ? -1 : 1;
+                    this.player2.animations.running(this.player2, direction);
+                } else if (!isMovingHorizontally2 && this.player2.isRunning) {
+                    this.player2.isRunning = false;
+                    // Reset Y to the stored base position to prevent cumulative drift
+                    if (typeof this.player2.baseY === 'number') {
+                        this.player2.y = this.player2.baseY;
+                    }
+                    if (this.player2.runningTween) {
+                        this.player2.runningTween.remove();
+                        this.player2.runningTween = null;
+                    }
+                }
+                
+                // Add star trail effect when invincible (throttled)
+                if (this.isInvincible2) {
+                    if (typeof this.lastStarTrailTime2 !== 'number') {
+                        this.lastStarTrailTime2 = 0;
+                    }
+                    if (this.time.now - this.lastStarTrailTime2 >= STAR_TRAIL_THROTTLE_MS) {
+                        ParticleEffects.starTrail(this, this.player2.x, this.player2.y);
+                        this.lastStarTrailTime2 = this.time.now;
+                    }
+                }
 
                 // Jump - Up arrow or touch for player 2
                 if ((this.cursors.up.isDown || jumpPressed) && this.player2.body.touching.down) {
                     this.player2.body.setVelocityY(-400);
+                    
+                    // Stop running animation when jumping
+                    if (this.player2.isRunning) {
+                        this.player2.isRunning = false;
+                        if (this.player2.runningTween) {
+                            this.player2.runningTween.remove();
+                            this.player2.runningTween = null;
+                        }
+                    }
+                    
+                    // Add jump dust effect
+                    ParticleEffects.jumpDust(this, this.player2.x, this.player2.y + 20);
+                    
+                    // Add jump animation
+                    this.player2.animations.jumping(this.player2);
+                }
+                
+                // Detect landing and add landing effect
+                if (this.player2.body.touching.down && !this.player2.wasOnGround) {
+                    ParticleEffects.landingDust(this, this.player2.x, this.player2.y + 20);
+                    
+                    this.player2.animations.landing(this.player2);
                     // Play jump sound
                     if (this.audioManager) {
                         this.audioManager.playSound(this.audioManager.soundKeys.jump);
                     }
                 }
+                this.player2.wasOnGround = this.player2.body.touching.down;
                 
                 // Fire - X key or touch for player 2
                 if (Phaser.Input.Keyboard.JustDown(this.fireKey2) || (firePressed && !this.lastFirePressed)) {
