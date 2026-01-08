@@ -77,6 +77,18 @@ export default class GameScene extends Phaser.Scene {
         this.revivalCountdownInterval = null;
         this.REVIVAL_DELAY_MS = 30000; // 30 seconds
         this.cameraFollowState = null; // Track camera state: 'player1', 'player2', 'both', or null
+        // Variable jump mechanics
+        // Note: Player 1 variables use no suffix (default player), Player 2 variables use '2' suffix
+        // This convention matches other player properties (isPoweredUp/isPoweredUp2, hasFirePower/hasFirePower2)
+        this.isJumping = false;
+        this.isJumping2 = false;
+        this.jumpHoldTime = 0;
+        this.jumpHoldTime2 = 0;
+        this.MAX_JUMP_HOLD_TIME = 300; // milliseconds
+        // Lives and coins system
+        this.lives = 3;
+        this.lives2 = 3;
+        this.livesText = null;
         // Visual effects
         this.waterSurfaces = [];
         this.backgroundLayers = null;
@@ -163,6 +175,9 @@ export default class GameScene extends Phaser.Scene {
 
         // Create sky background gradient
         this.add.rectangle(1600, height / 2, 3200, height, 0x5c94fc);
+        
+        // Create parallax background layers
+        BackgroundGenerator.createParallaxBackground(this, 3200, height);
         // Create sky background gradient (extended for vertical gameplay)
         this.add.rectangle(1600, worldHeight / 2, 3200, worldHeight, 0x5c94fc);
 
@@ -284,6 +299,34 @@ export default class GameScene extends Phaser.Scene {
         this.levelText.setScrollFactor(0);
         this.levelText.setDepth(UI_DEPTH.hud);
         
+        // Lives text - fixed to camera
+        const livesY = 16;
+        const livesX = width / 2;
+        if (this.gameMode === 1) {
+            this.livesText = this.add.text(livesX, livesY, '♥ × ' + this.lives, {
+                fontSize: '28px',
+                fontFamily: 'Arial',
+                color: '#ff0000',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4
+            });
+            this.livesText.setOrigin(0.5, 0);
+        } else {
+            // 2-player mode: show both lives
+            this.livesText = this.add.text(livesX, livesY, `P1: ♥×${this.lives} | P2: ♥×${this.lives2}`, {
+                fontSize: '24px',
+                fontFamily: 'Arial',
+                color: '#ff0000',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4
+            });
+            this.livesText.setOrigin(0.5, 0);
+        }
+        this.livesText.setScrollFactor(0);
+        this.livesText.setDepth(UI_DEPTH.hud);
+        
         // Power-up status text with adjusted position for multiplayer
         this.powerUpText = this.add.text(UI_LAYOUT.powerUpX, UI_LAYOUT.powerUpY, '', {
             fontSize: this.gameMode === 2 ? '20px' : '24px',  // Smaller font in 2-player
@@ -312,6 +355,8 @@ export default class GameScene extends Phaser.Scene {
         if (this.gameMode === 2) {
             this.physics.add.collider(this.player2, this.platforms);
             this.physics.add.collider(this.fireballs2, this.platforms, this.hitPlatformWithFireball, null, this);
+            // Player-to-player collision (bounce off heads)
+            this.physics.add.collider(this.player, this.player2, this.handlePlayerCollision, null, this);
         }
         
         // Power-up block collision
@@ -763,6 +808,14 @@ export default class GameScene extends Phaser.Scene {
         }
         
         this.powerUpText.setText(text);
+    }
+    
+    updateLivesText() {
+        if (this.gameMode === 1) {
+            this.livesText.setText('♥ × ' + this.lives);
+        } else {
+            this.livesText.setText(`P1: ♥×${this.lives} | P2: ♥×${this.lives2}`);
+        }
     }
     
     resetGameState() {
@@ -2011,6 +2064,37 @@ export default class GameScene extends Phaser.Scene {
         this.coinsCollected++; // Track coins collected
         this.scoreText.setText('Score: ' + this.score);
         
+        // Check for extra life (100 coins = 1 life)
+        // In 2-player mode, coins are shared - give life to player who collected the 100th coin
+        if (this.coinsCollected % 100 === 0) {
+            if (this.gameMode === 1 || player === this.player) {
+                this.lives++;
+            } else {
+                this.lives2++;
+            }
+            this.updateLivesText();
+            
+            // Show 1-UP message at world coordinates (will scroll with camera)
+            const oneUpText = this.add.text(player.x, player.y - 50, '1-UP!', {
+                fontSize: '32px',
+                fontFamily: 'Arial',
+                color: '#00ff00',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4
+            });
+            oneUpText.setOrigin(0.5);
+            // Text should move with the world, not fixed to camera
+            oneUpText.setScrollFactor(1);
+            
+            this.tweens.add({
+                targets: oneUpText,
+                y: oneUpText.y - 50,
+                alpha: 0,
+                duration: 1500,
+                ease: 'Cubic.easeOut',
+                onComplete: () => oneUpText.destroy()
+            });
         // Score popup with performance scaling
         if (this.performanceManager.shouldEnableEffect('medium')) {
             ParticleEffects.scorePopup(this, coin.x, coin.y, 10);
@@ -2045,6 +2129,8 @@ export default class GameScene extends Phaser.Scene {
             x: checkpoint.x,
             y: checkpoint.y + 40,  // Spawn slightly below checkpoint
             score: this.score,
+            lives: this.lives,
+            lives2: this.lives2,
             isPoweredUp: this.isPoweredUp,
             hasFirePower: this.hasFirePower,
             isPoweredUp2: this.isPoweredUp2,
@@ -2517,20 +2603,17 @@ export default class GameScene extends Phaser.Scene {
                     this.player.setAlpha(1);
                 });
             } else {
-                // Player 1 dies
-                if (this.gameMode === 2 && this.player2 && !this.player2Dead) {
-                    // Multiplayer mode and player 2 is alive - mark player 1 as dead and start revival timer
-                    this.handlePlayerDeath(this.player, 1);
-                } else {
-                    // Single player mode or both players dead - check for checkpoint
-                    const currentLevel = this.registry.get('currentLevel') || 1;
-                    const checkpoint = GameScene.checkpointManager.getCheckpoint(currentLevel);
-                    
-                    if (checkpoint) {
-                        // Respawn from checkpoint
-                        this.respawnFromCheckpoint();
+                // Player 1 loses a life
+                this.lives--;
+                this.updateLivesText();
+                
+                if (this.lives <= 0) {
+                    // No more lives - check multiplayer or game over
+                    if (this.gameMode === 2 && this.player2 && !this.player2Dead) {
+                        // Multiplayer mode and player 2 is alive - mark player 1 as dead and start revival timer
+                        this.handlePlayerDeath(this.player, 1);
                     } else {
-                        // No checkpoint - game over
+                        // Single player mode or both players dead - game over
                         this.gameOver = true;
                         this.physics.pause();
                         
@@ -2550,6 +2633,9 @@ export default class GameScene extends Phaser.Scene {
                             }
                         });
                     }
+                } else {
+                    // Still have lives - respawn player
+                    this.respawnPlayer(this.player, 1);
                 }
             }
         }
@@ -2638,20 +2724,17 @@ export default class GameScene extends Phaser.Scene {
                     this.player2.setAlpha(1);
                 });
             } else {
-                // Player 2 dies
-                if (!this.player1Dead) {
-                    // Player 1 is alive - mark player 2 as dead and start revival timer
-                    this.handlePlayerDeath(this.player2, 2);
-                } else {
-                    // Both players dead - check for checkpoint
-                    const currentLevel = this.registry.get('currentLevel') || 1;
-                    const checkpoint = GameScene.checkpointManager.getCheckpoint(currentLevel);
-                    
-                    if (checkpoint) {
-                        // Respawn from checkpoint
-                        this.respawnFromCheckpoint();
+                // Player 2 loses a life
+                this.lives2--;
+                this.updateLivesText();
+                
+                if (this.lives2 <= 0) {
+                    // No more lives - check if player 1 is alive
+                    if (!this.player1Dead) {
+                        // Player 1 is alive - mark player 2 as dead and start revival timer
+                        this.handlePlayerDeath(this.player2, 2);
                     } else {
-                        // No checkpoint - game over
+                        // Both players dead - game over
                         this.gameOver = true;
                         this.physics.pause();
                         
@@ -2671,9 +2754,78 @@ export default class GameScene extends Phaser.Scene {
                             }
                         });
                     }
+                } else {
+                    // Still have lives - respawn player 2
+                    this.respawnPlayer(this.player2, 2);
                 }
             }
         }
+    }
+    
+    respawnPlayer(player, playerNumber) {
+        // Show brief death animation
+        this.tweens.add({
+            targets: player,
+            alpha: 0,
+            duration: 200,
+            onComplete: () => {
+                // Check for checkpoint first
+                const currentLevel = this.registry.get('currentLevel') || 1;
+                const checkpoint = GameScene.checkpointManager.getCheckpoint(currentLevel);
+                
+                if (checkpoint) {
+                    // Respawn from checkpoint
+                    this.respawnFromCheckpoint();
+                } else {
+                    // No checkpoint - respawn at default location
+                    player.x = DEFAULT_SPAWN_X;
+                    player.y = DEFAULT_SPAWN_Y;
+                    player.angle = 0;
+                    
+                    // Reset power-ups
+                    if (playerNumber === 1) {
+                        this.isPoweredUp = false;
+                        this.hasFirePower = false;
+                        this.isInvincible = false;
+                        player.setScale(1);
+                        player.body.setSize(28, 44);
+                        player.body.setOffset(-14, -22);
+                    } else {
+                        this.isPoweredUp2 = false;
+                        this.hasFirePower2 = false;
+                        this.isInvincible2 = false;
+                        player.setScale(1);
+                        player.body.setSize(28, 44);
+                        player.body.setOffset(-14, -22);
+                    }
+                    this.updatePowerUpText();
+                    
+                    // Flash player back in
+                    this.tweens.add({
+                        targets: player,
+                        alpha: 1,
+                        duration: 100,
+                        yoyo: true,
+                        repeat: 5
+                    });
+                    
+                    // Brief invincibility after respawn
+                    if (playerNumber === 1) {
+                        this.isInvincible = true;
+                        this.time.delayedCall(2000, () => {
+                            this.isInvincible = false;
+                            player.setAlpha(1);
+                        });
+                    } else {
+                        this.isInvincible2 = true;
+                        this.time.delayedCall(2000, () => {
+                            this.isInvincible2 = false;
+                            player.setAlpha(1);
+                        });
+                    }
+                }
+            }
+        });
     }
     
     respawnFromCheckpoint() {
@@ -2711,6 +2863,8 @@ export default class GameScene extends Phaser.Scene {
             
             // Restore player state from checkpoint
             this.score = checkpoint.score;
+            this.lives = checkpoint.lives || 3;  // Default to 3 if not saved
+            this.lives2 = checkpoint.lives2 || 3;
             this.isPoweredUp = checkpoint.isPoweredUp;
             this.hasFirePower = checkpoint.hasFirePower;
             this.isPoweredUp2 = checkpoint.isPoweredUp2;
@@ -2742,6 +2896,7 @@ export default class GameScene extends Phaser.Scene {
             
             // Update UI
             this.scoreText.setText('Score: ' + this.score);
+            this.updateLivesText();
             this.updatePowerUpText();
             
             // Restore fire button visibility if needed
@@ -3476,9 +3631,41 @@ export default class GameScene extends Phaser.Scene {
                     }
                 }
 
-                // Jump - Up arrow or touch
+                // Jump - Up arrow or touch (variable jump height with momentum)
                 if ((this.cursors.up.isDown || jumpPressed) && this.player.body.touching.down) {
+                    // Base jump velocity
                     this.player.body.setVelocityY(-400);
+                    // Add horizontal momentum boost (running jump goes further)
+                    const currentVelX = this.player.body.velocity.x;
+                    if (Math.abs(currentVelX) > 0) {
+                        // Add 20% horizontal boost when jumping while moving
+                        this.player.body.setVelocityX(currentVelX * 1.2);
+                    }
+                    this.isJumping = true;
+                    this.jumpHoldTime = 0;
+                } else if (!this.cursors.up.isDown && !jumpPressed && this.isJumping) {
+                    // Button released early - cut jump short
+                    if (this.player.body.velocity.y < 0) {
+                        this.player.body.setVelocityY(this.player.body.velocity.y * 0.5);
+                    }
+                    this.isJumping = false;
+                }
+                
+                // Track jump hold time
+                if (this.isJumping && (this.cursors.up.isDown || jumpPressed)) {
+                    this.jumpHoldTime += this.game.loop.delta;
+                    if (this.jumpHoldTime >= this.MAX_JUMP_HOLD_TIME) {
+                        this.isJumping = false;
+                    }
+                }
+                
+                // Reset jump state when landing
+                if (this.player.body.touching.down) {
+                    this.isJumping = false;
+                    this.jumpHoldTime = 0;
+                    // Play jump sound
+                    if (this.audioManager) {
+                        this.audioManager.playSound(this.audioManager.soundKeys.jump);
                     
                     // Stop running animation when jumping
                     if (this.player.isRunning) {
@@ -3568,9 +3755,38 @@ export default class GameScene extends Phaser.Scene {
                     }
                 }
 
-                // Jump - W key for player 1
+                // Jump - W key for player 1 (variable jump height with momentum)
                 if (this.wasdKeys.up.isDown && this.player.body.touching.down) {
+                    // Base jump velocity
                     this.player.body.setVelocityY(-400);
+                    // Add horizontal momentum boost (running jump goes further)
+                    const currentVelX = this.player.body.velocity.x;
+                    if (Math.abs(currentVelX) > 0) {
+                        // Add 20% horizontal boost when jumping while moving
+                        this.player.body.setVelocityX(currentVelX * 1.2);
+                    }
+                    this.isJumping = true;
+                    this.jumpHoldTime = 0;
+                } else if (!this.wasdKeys.up.isDown && this.isJumping) {
+                    // Button released early - cut jump short
+                    if (this.player.body.velocity.y < 0) {
+                        this.player.body.setVelocityY(this.player.body.velocity.y * 0.5);
+                    }
+                    this.isJumping = false;
+                }
+                
+                // Track jump hold time
+                if (this.isJumping && this.wasdKeys.up.isDown) {
+                    this.jumpHoldTime += this.game.loop.delta;
+                    if (this.jumpHoldTime >= this.MAX_JUMP_HOLD_TIME) {
+                        this.isJumping = false;
+                    }
+                }
+                
+                // Reset jump state when landing
+                if (this.player.body.touching.down) {
+                    this.isJumping = false;
+                    this.jumpHoldTime = 0;
                     
                     // Stop running animation when jumping
                     if (this.player.isRunning) {
@@ -3661,9 +3877,38 @@ export default class GameScene extends Phaser.Scene {
                     }
                 }
 
-                // Jump - Up arrow or touch for player 2
+                // Jump - Up arrow or touch for player 2 (variable jump height with momentum)
                 if ((this.cursors.up.isDown || jumpPressed) && this.player2.body.touching.down) {
+                    // Base jump velocity
                     this.player2.body.setVelocityY(-400);
+                    // Add horizontal momentum boost (running jump goes further)
+                    const currentVelX = this.player2.body.velocity.x;
+                    if (Math.abs(currentVelX) > 0) {
+                        // Add 20% horizontal boost when jumping while moving
+                        this.player2.body.setVelocityX(currentVelX * 1.2);
+                    }
+                    this.isJumping2 = true;
+                    this.jumpHoldTime2 = 0;
+                } else if (!this.cursors.up.isDown && !jumpPressed && this.isJumping2) {
+                    // Button released early - cut jump short
+                    if (this.player2.body.velocity.y < 0) {
+                        this.player2.body.setVelocityY(this.player2.body.velocity.y * 0.5);
+                    }
+                    this.isJumping2 = false;
+                }
+                
+                // Track jump hold time
+                if (this.isJumping2 && (this.cursors.up.isDown || jumpPressed)) {
+                    this.jumpHoldTime2 += this.game.loop.delta;
+                    if (this.jumpHoldTime2 >= this.MAX_JUMP_HOLD_TIME) {
+                        this.isJumping2 = false;
+                    }
+                }
+                
+                // Reset jump state when landing
+                if (this.player2.body.touching.down) {
+                    this.isJumping2 = false;
+                    this.jumpHoldTime2 = 0;
                     
                     // Stop running animation when jumping
                     if (this.player2.isRunning) {
@@ -3708,4 +3953,5 @@ export default class GameScene extends Phaser.Scene {
             this.scene.restart();
         }
     }
+}
 }
