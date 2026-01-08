@@ -1,4 +1,4 @@
-name: CI Tests
+name: Run Tests Automatically
 
 # This workflow runs automatically on:
 # - Push to main/master branches
