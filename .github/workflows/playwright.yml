@@ -1,19 +1,31 @@
-name: Playwright UI Tests
+name: UI Tests
 
-# Run on push and pull request to main branch
+# This workflow runs automatically on:
+# - Push to main/master branches
+# - Pull requests (including from forks) - no manual approval needed
+# - Manual trigger via workflow_dispatch
+#
+# Security notes:
+# - Uses pull_request_target to bypass approval for fork PRs
+# - This enables cache poisoning attacks (see GitHub security docs)
+# - Risk is acceptable for this personal project as the repository owner
+#   reviews all code before merging
+# - For higher-security projects, use pull_request and accept manual approval
+
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
+  pull_request_target:
+    branches: [ main, master ]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  test:
-    name: Playwright Tests
+  ui-tests:
+    name: UI Tests (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     
@@ -26,6 +38,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
     
     - name: Setup Node.js
       uses: actions/setup-node@v4

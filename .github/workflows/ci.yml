@@ -1,4 +1,4 @@
-name: Run Tests Automatically
+name: Unit Tests
 
 # This workflow runs automatically on:
 # - Push to main/master branches
@@ -24,7 +24,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  unit-tests:
     runs-on: ubuntu-latest
 
     strategy:
