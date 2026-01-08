@@ -33,8 +33,21 @@ export default class WaterEffects {
         water.fillStyle(config.color, config.alpha);
         water.fillRect(x, y, width, height);
         
-        // Add lighter surface layer
-        water.fillStyle(config.color + 0x202020, config.alpha * 0.5);
+        // Add lighter surface layer using Phaser's color utilities
+        const baseColor = Phaser.Display.Color.ValueToColor(config.color);
+        const whiteColor = Phaser.Display.Color.ValueToColor(0xffffff);
+        const lighterComponents = Phaser.Display.Color.Interpolate.ColorWithColor(
+            baseColor,
+            whiteColor,
+            100,
+            20
+        );
+        const lighterSurfaceColor = Phaser.Display.Color.GetColor(
+            lighterComponents.r,
+            lighterComponents.g,
+            lighterComponents.b
+        );
+        water.fillStyle(lighterSurfaceColor, config.alpha * 0.5);
         water.fillRect(x, y, width, Math.min(10, height * 0.1));
         
         // Store water properties
@@ -105,8 +118,21 @@ export default class WaterEffects {
         waterData.graphics.closePath();
         waterData.graphics.fillPath();
         
-        // Add surface highlight
-        waterData.graphics.fillStyle(config.color + 0x303030, config.alpha * 0.4);
+        // Add surface highlight using Phaser's color utilities
+        const baseColor = Phaser.Display.Color.ValueToColor(config.color);
+        const whiteColor = Phaser.Display.Color.ValueToColor(0xffffff);
+        const highlightComponents = Phaser.Display.Color.Interpolate.ColorWithColor(
+            baseColor,
+            whiteColor,
+            100,
+            25
+        );
+        const highlightColor = Phaser.Display.Color.GetColor(
+            highlightComponents.r,
+            highlightComponents.g,
+            highlightComponents.b
+        );
+        waterData.graphics.fillStyle(highlightColor, config.alpha * 0.4);
         waterData.graphics.beginPath();
         waterData.graphics.moveTo(x, surfacePoints[0].y);
         
@@ -181,8 +207,21 @@ export default class WaterEffects {
             graphics.lineStyle(2, 0xffffff, ripple.alpha * 0.6);
             graphics.strokeCircle(ripple.x, ripple.y, ripple.radius);
             
-            // Draw inner ripple for depth
-            graphics.lineStyle(1, config.color + 0x404040, ripple.alpha * 0.4);
+            // Draw inner ripple for depth using Phaser's color utilities
+            const baseColor = Phaser.Display.Color.ValueToColor(config.color);
+            const whiteColor = Phaser.Display.Color.ValueToColor(0xffffff);
+            const innerComponents = Phaser.Display.Color.Interpolate.ColorWithColor(
+                baseColor,
+                whiteColor,
+                100,
+                30
+            );
+            const innerRippleColor = Phaser.Display.Color.GetColor(
+                innerComponents.r,
+                innerComponents.g,
+                innerComponents.b
+            );
+            graphics.lineStyle(1, innerRippleColor, ripple.alpha * 0.4);
             graphics.strokeCircle(ripple.x, ripple.y, ripple.radius * 0.7);
             
             return true;

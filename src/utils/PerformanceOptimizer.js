@@ -3,6 +3,27 @@
  * Provides object pooling, viewport culling, and adaptive quality scaling
  */
 
+// Device capability thresholds for quality scoring
+const CAPABILITY_THRESHOLDS = {
+    PIXEL_COUNT_HIGH: 2000000,
+    PIXEL_COUNT_MEDIUM: 1000000,
+    PIXEL_COUNT_LOW: 500000,
+    CPU_CORES_HIGH: 8,
+    CPU_CORES_MEDIUM: 4,
+    CPU_CORES_LOW: 2,
+    SCORE_ADJUSTMENTS: {
+        SCREEN_LARGE: 20,
+        SCREEN_MEDIUM: 10,
+        SCREEN_SMALL: -20,
+        CPU_HIGH: 15,
+        CPU_MEDIUM: 10,
+        CPU_LOW: -15,
+        MOBILE_PENALTY: -10
+    },
+    QUALITY_SCORE_HIGH: 75,
+    QUALITY_SCORE_MEDIUM: 50
+};
+
 export default class PerformanceOptimizer {
     /**
      * Create an object pool for reusable game objects
@@ -201,9 +222,6 @@ export default class PerformanceOptimizer {
      * @returns {object} Quality settings
      */
     static detectDeviceCapabilities(scene) {
-        const game = scene.game;
-        const config = game.config;
-        
         // Get screen resolution
         const screenWidth = window.innerWidth;
         const screenHeight = window.innerHeight;
@@ -219,26 +237,40 @@ export default class PerformanceOptimizer {
         let qualityScore = 50;
         
         // Adjust for screen size
-        if (pixelCount > 2000000) qualityScore += 20;
-        else if (pixelCount > 1000000) qualityScore += 10;
-        else if (pixelCount < 500000) qualityScore -= 20;
+        if (pixelCount > CAPABILITY_THRESHOLDS.PIXEL_COUNT_HIGH) {
+            qualityScore += CAPABILITY_THRESHOLDS.SCORE_ADJUSTMENTS.SCREEN_LARGE;
+        } else if (pixelCount > CAPABILITY_THRESHOLDS.PIXEL_COUNT_MEDIUM) {
+            qualityScore += CAPABILITY_THRESHOLDS.SCORE_ADJUSTMENTS.SCREEN_MEDIUM;
+        } else if (pixelCount < CAPABILITY_THRESHOLDS.PIXEL_COUNT_LOW) {
+            qualityScore += CAPABILITY_THRESHOLDS.SCORE_ADJUSTMENTS.SCREEN_SMALL;
+        }
         
         // Adjust for CPU
-        if (cpuCores >= 8) qualityScore += 15;
-        else if (cpuCores >= 4) qualityScore += 10;
-        else if (cpuCores <= 2) qualityScore -= 15;
+        if (cpuCores >= CAPABILITY_THRESHOLDS.CPU_CORES_HIGH) {
+            qualityScore += CAPABILITY_THRESHOLDS.SCORE_ADJUSTMENTS.CPU_HIGH;
+        } else if (cpuCores >= CAPABILITY_THRESHOLDS.CPU_CORES_MEDIUM) {
+            qualityScore += CAPABILITY_THRESHOLDS.SCORE_ADJUSTMENTS.CPU_MEDIUM;
+        } else if (cpuCores <= CAPABILITY_THRESHOLDS.CPU_CORES_LOW) {
+            qualityScore += CAPABILITY_THRESHOLDS.SCORE_ADJUSTMENTS.CPU_LOW;
+        }
         
         // Adjust for mobile
-        if (isMobile) qualityScore -= 10;
+        if (isMobile) {
+            qualityScore += CAPABILITY_THRESHOLDS.SCORE_ADJUSTMENTS.MOBILE_PENALTY;
+        }
         
         // Clamp score
         qualityScore = Math.max(0, Math.min(100, qualityScore));
         
         // Determine quality level
         let qualityLevel;
-        if (qualityScore >= 75) qualityLevel = 'high';
-        else if (qualityScore >= 50) qualityLevel = 'medium';
-        else qualityLevel = 'low';
+        if (qualityScore >= CAPABILITY_THRESHOLDS.QUALITY_SCORE_HIGH) {
+            qualityLevel = 'high';
+        } else if (qualityScore >= CAPABILITY_THRESHOLDS.QUALITY_SCORE_MEDIUM) {
+            qualityLevel = 'medium';
+        } else {
+            qualityLevel = 'low';
+        }
         
         return {
             qualityScore,
@@ -312,10 +344,14 @@ export default class PerformanceOptimizer {
                         const avgFps = this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length;
                         
                         if (avgFps < 30 && this.capabilities.qualityLevel !== 'low') {
-                            console.log('Performance drop detected, reducing quality');
+                            if (options && options.debug) {
+                                console.log('Performance drop detected, reducing quality');
+                            }
                             this._reduceQuality();
                         } else if (avgFps > 55 && this.capabilities.qualityLevel !== 'high') {
-                            console.log('Performance stable, considering quality increase');
+                            if (options && options.debug) {
+                                console.log('Performance stable, considering quality increase');
+                            }
                             // Optionally increase quality if performance is good
                         }
                     }

@@ -2,6 +2,12 @@
  * BackgroundGenerator - Creates parallax background layers and environmental decorations
  */
 
+// Quality thresholds for adaptive background rendering
+const QUALITY_THRESHOLDS = {
+    LOW_QUALITY_PIXEL_COUNT: 500000,
+    MEDIUM_QUALITY_PIXEL_COUNT: 1000000
+};
+
 export default class BackgroundGenerator {
     /**
      * Create a multi-layer parallax background
@@ -474,8 +480,8 @@ export default class BackgroundGenerator {
             const screenHeight = scene.cameras.main.height;
             const pixelCount = screenWidth * screenHeight;
             
-            if (pixelCount < 500000) quality = 'low';
-            else if (pixelCount < 1000000) quality = 'medium';
+            if (pixelCount < QUALITY_THRESHOLDS.LOW_QUALITY_PIXEL_COUNT) quality = 'low';
+            else if (pixelCount < QUALITY_THRESHOLDS.MEDIUM_QUALITY_PIXEL_COUNT) quality = 'medium';
             else quality = 'high';
         }
         
