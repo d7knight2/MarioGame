@@ -1,15 +1,24 @@
 import Phaser from 'phaser';
+import AudioManager from '../utils/AudioManager.js';
 
 export default class MenuScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MenuScene' });
         this.username = '';
         this.friends = [];
+        this.audioManager = null;
     }
 
     create() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
+
+        // Initialize AudioManager
+        this.audioManager = new AudioManager(this);
+        this.audioManager.preloadSounds();
+        
+        // Play menu background music (infrastructure in place for when audio files are added)
+        // this.audioManager.playMusic(this.audioManager.musicKeys.menu);
 
         // Get current user
         this.username = localStorage.getItem('currentUser') || 'Guest';
@@ -57,6 +66,7 @@ export default class MenuScene extends Phaser.Scene {
             playBtn.setFillStyle(0x00aa00);
         });
         playBtn.on('pointerdown', () => {
+            this.playButtonSound();
             this.scene.start('ModeSelectionScene');
         });
 
@@ -78,6 +88,7 @@ export default class MenuScene extends Phaser.Scene {
             friendsBtn.setFillStyle(0x0066cc);
         });
         friendsBtn.on('pointerdown', () => {
+            this.playButtonSound();
             this.scene.start('FriendsScene');
         });
 
@@ -99,6 +110,7 @@ export default class MenuScene extends Phaser.Scene {
             inviteBtn.setFillStyle(0xff6600);
         });
         inviteBtn.on('pointerdown', () => {
+            this.playButtonSound();
             this.showInviteModal();
         });
 
@@ -153,8 +165,30 @@ export default class MenuScene extends Phaser.Scene {
             logoutBtn.setFillStyle(0x666666);
         });
         logoutBtn.on('pointerdown', () => {
+            this.playButtonSound();
             localStorage.removeItem('currentUser');
             this.scene.start('LoginScene');
+        });
+
+        // Settings button
+        const settingsBtn = this.add.rectangle(width - 100, height - 40, 150, 40, 0x444444);
+        const settingsText = this.add.text(width - 100, height - 40, '⚙️ Settings', {
+            fontSize: '18px',
+            fontFamily: 'Arial, sans-serif',
+            color: '#ffffff'
+        });
+        settingsText.setOrigin(0.5);
+        settingsBtn.setInteractive({ useHandCursor: true });
+
+        settingsBtn.on('pointerover', () => {
+            settingsBtn.setFillStyle(0x666666);
+        });
+        settingsBtn.on('pointerout', () => {
+            settingsBtn.setFillStyle(0x444444);
+        });
+        settingsBtn.on('pointerdown', () => {
+            this.playButtonSound();
+            this.scene.start('SettingsScene');
         });
     }
 
@@ -385,5 +419,14 @@ export default class MenuScene extends Phaser.Scene {
     closeModal(overlay, elements) {
         overlay.destroy();
         elements.forEach(el => el.destroy());
+    }
+    
+    /**
+     * Play UI button click sound
+     */
+    playButtonSound() {
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+        }
     }
 }

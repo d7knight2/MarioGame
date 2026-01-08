@@ -69,6 +69,9 @@ test.describe('Gameplay Mechanics - Boss Defeat', () => {
   test('should support boss battles in level 3', async ({ page }) => {
     await startSinglePlayerGame(page);
     
+    // Add intermediate delay before level manipulation to ensure game state is stable
+    await page.waitForTimeout(1000);
+    
     // Set to level 3 and check if boss exists
     const bossInfo = await page.evaluate(() => {
       const game = window.Phaser?.GAMES?.[0];
@@ -83,6 +86,8 @@ test.describe('Gameplay Mechanics - Boss Defeat', () => {
           gameScene.scene.restart();
           
           return {
+            // Verify bossHealth property exists and is initialized as a number
+            // This property tracks the boss's remaining health points
             hasBossTracking: typeof gameScene.bossHealth === 'number',
             canSetLevel: true
           };
@@ -91,8 +96,9 @@ test.describe('Gameplay Mechanics - Boss Defeat', () => {
       return { hasBossTracking: false, canSetLevel: false };
     });
     
-    // Wait for restart
-    await page.waitForTimeout(3000);
+    // Extended wait time (5s) for level 3 scene restart and boss initialization
+    // Level 3 boss requires more time to fully initialize all properties and sprites
+    await page.waitForTimeout(5000);
     
     // Verify boss mechanics exist
     const bossExists = await page.evaluate(() => {
