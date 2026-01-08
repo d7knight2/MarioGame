@@ -3,6 +3,10 @@ import SpriteFactory from '../utils/SpriteFactory.js';
 import ParticleEffects from '../utils/ParticleEffects.js';
 import AnimationManager from '../utils/AnimationManager.js';
 import BackgroundGenerator from '../utils/BackgroundGenerator.js';
+import CheckpointManager from '../utils/CheckpointManager.js';
+import ChatSystem from '../utils/ChatSystem.js';
+import ConnectionMonitor from '../utils/ConnectionMonitor.js';
+import MultiplayerSync from '../utils/MultiplayerSync.js';
 import AudioManager from '../utils/AudioManager.js';
 
 // Game constants
@@ -13,6 +17,13 @@ const REVIVAL_STAR_POINTS = 5; // Number of points on revival stars
 const REVIVAL_STAR_INNER_RADIUS = 8; // Inner radius of revival stars
 const REVIVAL_STAR_OUTER_RADIUS = 4; // Outer radius of revival stars
 const REVIVAL_STAR_COLOR = 0xffff00; // Color of revival stars (yellow)
+const STAR_TRAIL_THROTTLE_MS = 150; // Milliseconds between star trail particle spawns
+const STAR_TRAIL_THROTTLE_WINDOW = 50; // Window size for throttle check
+
+// Multiplayer sync constants
+const SIMULATED_MIN_LATENCY_MS = 30; // Minimum simulated network latency
+const SIMULATED_LATENCY_VARIANCE_MS = 40; // Variance in simulated latency
+const CONNECTION_QUALITY_UPDATE_INTERVAL_MS = 5000; // Update connection quality every 5 seconds
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -34,9 +45,10 @@ export default class GameScene extends Phaser.Scene {
         this.powerUps = null;
         this.fireballs = null;
         this.fireballs2 = null;
-        this.boss = null;
-        this.bossHealth = 0;
-        this.bossHealthBar = null;
+        // Boss battle tracking properties
+        this.boss = null; // Boss enemy sprite (available in levels 2 and 3)
+        this.bossHealth = 0; // Current health points of the boss
+        this.bossHealthBar = null; // Graphics object for displaying boss health bar
         this.gameMode = 1; // 1 or 2 player mode
         this.player1Name = 'Player 1';
         this.player2Name = 'Player 2';
@@ -75,6 +87,20 @@ export default class GameScene extends Phaser.Scene {
         this.lives = 3;
         this.lives2 = 3;
         this.livesText = null;
+        // Checkpoint system
+        this.checkpoints = null;
+        this.lastCheckpoint = null;
+        
+        // Initialize checkpoint manager as a static property so it persists across scene restarts
+        if (!GameScene.checkpointManager) {
+            GameScene.checkpointManager = new CheckpointManager();
+        }
+        
+        // Multiplayer networking utilities
+        this.chatSystem = null;
+        this.connectionMonitor = null;
+        this.multiplayerSync = null;
+        this.isMultiplayerOnline = false; // Flag to indicate if this is online multiplayer
         // Audio manager
         this.audioManager = null;
     }
@@ -184,6 +210,9 @@ export default class GameScene extends Phaser.Scene {
 
         // Create enemies
         this.createEnemies();
+        
+        // Create checkpoints
+        this.createCheckpoints();
         
         // Create finish flag or boss
         if (currentLevel === 2 || currentLevel === 3) {
@@ -330,6 +359,12 @@ export default class GameScene extends Phaser.Scene {
             this.physics.add.overlap(this.fireballs2, this.enemies, this.fireballHitEnemy, null, this);
         }
         
+        // Overlap with checkpoints
+        this.physics.add.overlap(this.player, this.checkpoints, this.reachCheckpoint, null, this);
+        if (this.gameMode === 2) {
+            this.physics.add.overlap(this.player2, this.checkpoints, this.reachCheckpoint, null, this);
+        }
+        
         // Overlap with finish flag (if not boss level)
         if (currentLevel !== 2) {
             this.physics.add.overlap(this.player, this.finishFlag, this.reachFlag, null, this);
@@ -374,6 +409,70 @@ export default class GameScene extends Phaser.Scene {
         this.registry.set('moveRight', false);
         this.registry.set('jump', false);
         this.registry.set('fire', false);
+        
+        // Initialize multiplayer utilities if in 2-player mode
+        if (this.gameMode === 2) {
+            // Check if this is online multiplayer based on game code
+            const gameCode = this.registry.get('gameCode');
+            const multiplayerRole = this.registry.get('multiplayerRole');
+            this.isMultiplayerOnline = !!(gameCode && multiplayerRole);
+            
+            if (this.isMultiplayerOnline) {
+                // Initialize chat system
+                this.chatSystem = new ChatSystem(this);
+                this.chatSystem.createUI();
+                this.chatSystem.addSystemMessage('Multiplayer session started');
+                
+                // Initialize connection monitor
+                this.connectionMonitor = new ConnectionMonitor();
+                this.connectionMonitor.start();
+                this.connectionMonitor.handleConnected(); // Simulate connection for now
+                
+                // Initialize multiplayer sync
+                this.multiplayerSync = new MultiplayerSync();
+                
+                // Create connection quality indicator
+                this.createConnectionQualityIndicator();
+            }
+        }
+    }
+    
+    createConnectionQualityIndicator() {
+        // Connection quality indicator (top right corner)
+        const width = this.cameras.main.width;
+        
+        this.connectionQualityBg = this.add.rectangle(width - 80, 80, 140, 40, 0x000000, 0.7);
+        this.connectionQualityBg.setScrollFactor(0);
+        this.connectionQualityBg.setDepth(1000);
+        
+        this.connectionQualityText = this.add.text(width - 80, 80, '', {
+            fontSize: '14px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        });
+        this.connectionQualityText.setOrigin(0.5);
+        this.connectionQualityText.setScrollFactor(0);
+        this.connectionQualityText.setDepth(1001);
+        
+        // Update indicator periodically (every 5 seconds to reduce performance impact)
+        this.time.addEvent({
+            delay: CONNECTION_QUALITY_UPDATE_INTERVAL_MS,
+            callback: this.updateConnectionQualityIndicator,
+            callbackScope: this,
+            loop: true
+        });
+    }
+    
+    updateConnectionQualityIndicator() {
+        if (!this.connectionMonitor || !this.connectionQualityText) return;
+        
+        const quality = this.connectionMonitor.getConnectionQuality();
+        const icon = this.connectionMonitor.getQualityIcon();
+        const color = this.connectionMonitor.getQualityColor();
+        
+        this.connectionQualityText.setText(`${icon} ${quality.latency}ms`);
+        this.connectionQualityText.setColor('#' + color.toString(16).padStart(6, '0'));
     }
     
     createLevel1Platforms() {
@@ -629,6 +728,9 @@ export default class GameScene extends Phaser.Scene {
         this.player1Dead = false;
         this.player2Dead = false;
         
+        // Clear all checkpoints when resetting game
+        GameScene.checkpointManager.clearAllCheckpoints();
+        
         this.registry.set('currentLevel', 1);
         this.registry.set('score', 0);
         this.registry.set('isPoweredUp', false);
@@ -745,6 +847,12 @@ export default class GameScene extends Phaser.Scene {
         this.player.eyes = [eye1, eye2];
         this.player.logoText = logo;
         
+        // Initialize animation state tracking
+        this.player.wasOnGround = true;
+        this.player.isRunning = false;
+        
+        // Cache animation handlers for performance
+        this.player.animations = AnimationManager.createCharacterAnimations(this, selectedCharacter);
         // Change color for Fire Mario (after storing body_part reference)
         if (this.hasFirePower) {
             this.player.body_part.setFillStyle(0xffffff);
@@ -822,6 +930,12 @@ export default class GameScene extends Phaser.Scene {
         this.player2.eyes = [eye1, eye2];
         this.player2.logoText = logo;
         
+        // Initialize animation state tracking
+        this.player2.wasOnGround = true;
+        this.player2.isRunning = false;
+        
+        // Cache animation handlers for performance
+        this.player2.animations = AnimationManager.createCharacterAnimations(this, 'luigi');
         // Change color for Fire Luigi (after storing body_part reference)
         if (this.hasFirePower2) {
             this.player2.body_part.setFillStyle(0xffffff);
@@ -1028,6 +1142,83 @@ export default class GameScene extends Phaser.Scene {
             enemy.body.setCollideWorldBounds(true);
             enemy.body.setVelocityX(pos.speed);
             this.enemies.add(enemy);
+        });
+    }
+    
+    createCheckpoints() {
+        // Create checkpoints group
+        this.checkpoints = this.physics.add.group();
+        
+        const currentLevel = this.registry.get('currentLevel') || 1;
+        const height = this.cameras.main.height;
+        let checkpointPositions;
+        
+        // Define checkpoint positions for each level
+        // Checkpoints are placed at strategic points (roughly 1/3 and 2/3 through each level)
+        if (currentLevel === 1) {
+            checkpointPositions = [
+                { x: 1100, y: height - 100 },  // First checkpoint around 1/3 of level
+                { x: 2100, y: height - 100 }   // Second checkpoint around 2/3 of level
+            ];
+        } else if (currentLevel === 2) {
+            checkpointPositions = [
+                { x: 1000, y: height - 100 },  // First checkpoint
+                { x: 2000, y: height - 100 }   // Second checkpoint
+            ];
+        } else {
+            // Level 3
+            checkpointPositions = [
+                { x: 1050, y: height - 100 },  // First checkpoint
+                { x: 2050, y: height - 100 }   // Second checkpoint
+            ];
+        }
+        
+        checkpointPositions.forEach((pos, index) => {
+            // Create checkpoint flag pole
+            const poleHeight = 80;
+            const pole = this.add.rectangle(pos.x, pos.y - poleHeight/2, 6, poleHeight, 0x00ff00);
+            
+            // Create checkpoint flag
+            const flag = this.add.polygon(pos.x + 3, pos.y - poleHeight + 15, [
+                0, 0,
+                40, 10,
+                0, 20
+            ], 0x00ff00);
+            
+            // Add checkmark symbol on flag
+            const checkmark = this.add.text(pos.x + 15, pos.y - poleHeight + 5, '✓', {
+                fontSize: '16px',
+                color: '#ffffff',
+                fontStyle: 'bold'
+            });
+            
+            // Top of pole
+            const poleTop = this.add.circle(pos.x, pos.y - poleHeight, 4, 0xffff00);
+            
+            // Create checkpoint container
+            const checkpoint = this.add.container(pos.x, pos.y - poleHeight/2);
+            checkpoint.add([pole, flag, checkmark, poleTop]);
+            
+            // Add physics to checkpoint
+            this.physics.add.existing(checkpoint);
+            checkpoint.body.setAllowGravity(false);
+            checkpoint.body.setSize(50, poleHeight);
+            checkpoint.body.setOffset(-25, -poleHeight/2);
+            
+            // Store checkpoint index for identification
+            checkpoint.checkpointIndex = index;
+            checkpoint.activated = false;
+            
+            this.checkpoints.add(checkpoint);
+            
+            // Animate flag waving
+            this.tweens.add({
+                targets: flag,
+                scaleX: 0.85,
+                duration: 400,
+                yoyo: true,
+                repeat: -1
+            });
         });
     }
     
@@ -1351,14 +1542,14 @@ export default class GameScene extends Phaser.Scene {
         this.bossHealth--;
         this.updateBossHealthBar();
         
-        // Flash boss
-        this.tweens.add({
-            targets: this.boss,
-            alpha: 0.5,
-            duration: 100,
-            yoyo: true,
-            repeat: 2
-        });
+        // Add screen shake for boss hit
+        ParticleEffects.screenShake(this, 8, 300);
+        
+        // Add boss hit animation (lazy-create and cache for reuse)
+        if (!this.bossAnimations) {
+            this.bossAnimations = AnimationManager.createBossAnimations(this);
+        }
+        this.bossAnimations.hurt(this.boss);
         
         if (this.bossHealth <= 0) {
             // Boss defeated!
@@ -1367,6 +1558,12 @@ export default class GameScene extends Phaser.Scene {
             this.score += 500;
             this.enemiesDefeated++; // Count boss as enemy defeated
             this.scoreText.setText('Score: ' + this.score);
+            
+            // Add screen flash for boss defeat
+            ParticleEffects.screenFlash(this, 0xffffff, 300);
+            
+            // Add score popup
+            ParticleEffects.scorePopup(this, this.boss.x, this.boss.y, 500);
             
             const currentLevel = this.registry.get('currentLevel') || 1;
             
@@ -1420,6 +1617,12 @@ export default class GameScene extends Phaser.Scene {
         // Additional check: player must be below the block (higher y value)
         if (player.y < block.y) return;
         
+        // Add block hit visual effect
+        ParticleEffects.blockHit(this, block.x, block.y);
+        
+        // Add screen shake for impact
+        ParticleEffects.screenShake(this, 3, 150);
+        
         block.used = true;
         block.setFillStyle(0xcccccc);
         if (block.questionMark) {
@@ -1443,6 +1646,12 @@ export default class GameScene extends Phaser.Scene {
         // Same logic for player 2
         if (player.body.velocity.y >= 0 || block.used) return;
         if (player.y < block.y) return;
+        
+        // Add block hit visual effect
+        ParticleEffects.blockHit(this, block.x, block.y);
+        
+        // Add screen shake for impact
+        ParticleEffects.screenShake(this, 3, 150);
         
         block.used = true;
         block.setFillStyle(0xcccccc);
@@ -1532,6 +1741,15 @@ export default class GameScene extends Phaser.Scene {
     collectPowerUp(player, powerUp) {
         const type = powerUp.powerUpType;
         
+        // Add particle effect for power-up collection
+        ParticleEffects.powerUpCollect(this, powerUp.x, powerUp.y, type);
+        
+        // Add score popup
+        ParticleEffects.scorePopup(this, powerUp.x, powerUp.y, 50);
+        
+        // Add screen flash effect
+        ParticleEffects.screenFlash(this, 0xffffff, 150);
+        
         powerUp.destroy();
         this.score += 50;
         this.scoreText.setText('Score: ' + this.score);
@@ -1545,16 +1763,23 @@ export default class GameScene extends Phaser.Scene {
             // Become Super Mario
             this.isPoweredUp = true;
             this.player.setScale(1.3);
-            this.player.body.setSize(32, 53);  // Match improved collision body size
-            this.player.body.setOffset(-16, -26);  // Match improved offset
+            this.player.body.setSize(36, 57);
+            this.player.body.setOffset(-18, -28);
+            
+            // Power-up transformation animation
+            this.player.animations.powerUp(this.player);
+            
             this.updatePowerUpText();
         } else if (type === 'flower') {
             // Become Fire Mario - if not powered up, also grow
             if (!this.isPoweredUp) {
                 this.isPoweredUp = true;
                 this.player.setScale(1.3);
-                this.player.body.setSize(32, 53);  // Match improved collision body size
-                this.player.body.setOffset(-16, -26);  // Match improved offset
+                this.player.body.setSize(36, 57);
+                this.player.body.setOffset(-18, -28);
+                
+                // Power-up transformation animation
+                this.player.animations.powerUp(this.player);
             }
             this.hasFirePower = true;
             if (this.player.body_part) {
@@ -1598,6 +1823,15 @@ export default class GameScene extends Phaser.Scene {
     collectPowerUp2(player, powerUp) {
         const type = powerUp.powerUpType;
         
+        // Add particle effect for power-up collection
+        ParticleEffects.powerUpCollect(this, powerUp.x, powerUp.y, type);
+        
+        // Add score popup
+        ParticleEffects.scorePopup(this, powerUp.x, powerUp.y, 50);
+        
+        // Add screen flash effect
+        ParticleEffects.screenFlash(this, 0xffffff, 150);
+        
         powerUp.destroy();
         this.score += 50;
         this.scoreText.setText('Score: ' + this.score);
@@ -1611,16 +1845,23 @@ export default class GameScene extends Phaser.Scene {
             // Become Super Luigi
             this.isPoweredUp2 = true;
             this.player2.setScale(1.3);
-            this.player2.body.setSize(32, 53);  // Match improved collision body size
-            this.player2.body.setOffset(-16, -26);  // Match improved offset
+            this.player2.body.setSize(36, 57);
+            this.player2.body.setOffset(-18, -28);
+            
+            // Power-up transformation animation
+            this.player2.animations.powerUp(this.player2);
+            
             this.updatePowerUpText();
         } else if (type === 'flower') {
             // Become Fire Luigi - if not powered up, also grow
             if (!this.isPoweredUp2) {
                 this.isPoweredUp2 = true;
                 this.player2.setScale(1.3);
-                this.player2.body.setSize(32, 53);  // Match improved collision body size
-                this.player2.body.setOffset(-16, -26);  // Match improved offset
+                this.player2.body.setSize(36, 57);
+                this.player2.body.setOffset(-18, -28);
+                
+                // Power-up transformation animation
+                this.player2.animations.powerUp(this.player2);
             }
             this.hasFirePower2 = true;
             if (this.player2.body_part) {
@@ -1663,6 +1904,11 @@ export default class GameScene extends Phaser.Scene {
         // Stop all tweens on the coin before collection
         this.tweens.killTweensOf(coin);
         
+        // Add particle effect for coin collection
+        ParticleEffects.coinCollect(this, coin.x, coin.y);
+        
+        // Add score popup
+        ParticleEffects.scorePopup(this, coin.x, coin.y, 10);
         // Play coin collection sound
         if (this.audioManager) {
             this.audioManager.playSound(this.audioManager.soundKeys.coin);
@@ -1726,6 +1972,87 @@ export default class GameScene extends Phaser.Scene {
             duration: 100,
             yoyo: true
         });
+    }
+    
+    reachCheckpoint(player, checkpoint) {
+        // Only activate each checkpoint once
+        if (checkpoint.activated) return;
+        
+        checkpoint.activated = true;
+        this.lastCheckpoint = checkpoint;
+        
+        // Change checkpoint color to indicate activation
+        const pole = checkpoint.list[0];
+        const flag = checkpoint.list[1];
+        pole.setFillStyle(0xffaa00);  // Orange color when activated
+        flag.setFillStyle(0xffaa00);
+        
+        // Save checkpoint state
+        const currentLevel = this.registry.get('currentLevel') || 1;
+        const checkpointState = {
+            x: checkpoint.x,
+            y: checkpoint.y + 40,  // Spawn slightly below checkpoint
+            score: this.score,
+            isPoweredUp: this.isPoweredUp,
+            hasFirePower: this.hasFirePower,
+            isPoweredUp2: this.isPoweredUp2,
+            hasFirePower2: this.hasFirePower2,
+            coinsCollected: this.coinsCollected,
+            enemiesDefeated: this.enemiesDefeated
+        };
+        
+        GameScene.checkpointManager.saveCheckpoint(currentLevel, checkpointState);
+        
+        // Visual feedback - create sparkle particles
+        for (let i = 0; i < 12; i++) {
+            const angle = (i * Math.PI * 2) / 12;
+            const speed = 80 + Math.random() * 40;
+            
+            const particle = this.add.circle(checkpoint.x, checkpoint.y - 40, 4, 0x00ff00);
+            this.physics.add.existing(particle);
+            particle.body.setVelocity(
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed - 30
+            );
+            particle.body.setGravity(0, 200);
+            
+            this.tweens.add({
+                targets: particle,
+                alpha: 0,
+                scale: 0,
+                duration: 600,
+                onComplete: () => particle.destroy()
+            });
+        }
+        
+        // Show checkpoint saved message
+        const checkpointText = this.add.text(
+            checkpoint.x,
+            checkpoint.y - 80,
+            'CHECKPOINT!',
+            {
+                fontSize: '24px',
+                fontFamily: 'Arial',
+                color: '#00ff00',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        );
+        checkpointText.setOrigin(0.5);
+        
+        // Fade out checkpoint message
+        this.tweens.add({
+            targets: checkpointText,
+            alpha: 0,
+            y: checkpoint.y - 120,
+            duration: 1500,
+            ease: 'Cubic.easeOut',
+            onComplete: () => checkpointText.destroy()
+        });
+        
+        // Brief camera shake for feedback
+        this.cameras.main.shake(100, 0.002);
     }
     
     reachFlag(player, flag) {
@@ -1817,6 +2144,9 @@ export default class GameScene extends Phaser.Scene {
         this.registry.set('score', this.score);
         this.registry.set('coinsCollected', this.coinsCollected);
         this.registry.set('enemiesDefeated', this.enemiesDefeated);
+        
+        // Clear checkpoint for completed level
+        GameScene.checkpointManager.clearCheckpoint(currentLevel);
         
         this.input.once('pointerdown', () => {
             if (nextLevel <= 3) {
@@ -2105,6 +2435,13 @@ export default class GameScene extends Phaser.Scene {
                     this.player.body.setSize(24, 40);  // Match improved collision body size
                     this.player.body.setOffset(-12, -20);  // Match improved offset
                 }
+                
+                // Add damage visual effect
+                this.player.animations.damage(this.player);
+                
+                // Add screen shake
+                ParticleEffects.screenShake(this, 5, 200);
+                
                 this.updatePowerUpText();
                 this.registry.set('isPoweredUp', this.isPoweredUp);
                 this.registry.set('hasFirePower', this.hasFirePower);
@@ -2161,6 +2498,34 @@ export default class GameScene extends Phaser.Scene {
                 } else {
                     // Still have lives - respawn player
                     this.respawnPlayer(this.player, 1);
+                    // Single player mode or both players dead - check for checkpoint
+                    const currentLevel = this.registry.get('currentLevel') || 1;
+                    const checkpoint = GameScene.checkpointManager.getCheckpoint(currentLevel);
+                    
+                    if (checkpoint) {
+                        // Respawn from checkpoint
+                        this.respawnFromCheckpoint();
+                    } else {
+                        // No checkpoint - game over
+                        this.gameOver = true;
+                        this.physics.pause();
+                        
+                        // Death animation - Mario spins and falls
+                        this.tweens.add({
+                            targets: this.player,
+                            angle: 720,
+                            y: this.player.y - 100,
+                            alpha: 0,
+                            duration: 1000,
+                            ease: 'Cubic.easeIn',
+                            onComplete: () => {
+                                // Return to start screen after animation
+                                this.resetGameState();
+                                this.scene.start('StartScene');
+                                this.gameOver = false;
+                            }
+                        });
+                    }
                 }
             }
         }
@@ -2219,6 +2584,13 @@ export default class GameScene extends Phaser.Scene {
                     this.player2.body.setSize(24, 40);  // Match improved collision body size
                     this.player2.body.setOffset(-12, -20);  // Match improved offset
                 }
+                
+                // Add damage visual effect for player 2
+                this.player2.animations.damage(this.player2);
+                
+                // Add screen shake
+                ParticleEffects.screenShake(this, 5, 200);
+                
                 this.updatePowerUpText();
                 this.registry.set('isPoweredUp2', this.isPoweredUp2);
                 this.registry.set('hasFirePower2', this.hasFirePower2);
@@ -2273,82 +2645,141 @@ export default class GameScene extends Phaser.Scene {
                         });
                     }
                 } else {
-                    // Still have lives - respawn player
-                    this.respawnPlayer(this.player2, 2);
+                    // Both players dead - check for checkpoint
+                    const currentLevel = this.registry.get('currentLevel') || 1;
+                    const checkpoint = GameScene.checkpointManager.getCheckpoint(currentLevel);
+                    
+                    if (checkpoint) {
+                        // Respawn from checkpoint
+                        this.respawnFromCheckpoint();
+                    } else {
+                        // No checkpoint - game over
+                        this.gameOver = true;
+                        this.physics.pause();
+                        
+                        // Death animation for player 2
+                        this.tweens.add({
+                            targets: this.player2,
+                            angle: 720,
+                            y: this.player2.y - 100,
+                            alpha: 0,
+                            duration: 1000,
+                            ease: 'Cubic.easeIn',
+                            onComplete: () => {
+                                // Return to start screen after animation
+                                this.resetGameState();
+                                this.scene.start('StartScene');
+                                this.gameOver = false;
+                            }
+                        });
+                    }
                 }
             }
         }
     }
     
-    handlePlayerCollision(player1, player2) {
-        // Check if one player is above the other (bounce mechanic)
-        const player1Bottom = player1.y + (player1.body.height / 2);
-        const player2Bottom = player2.y + (player2.body.height / 2);
+    respawnFromCheckpoint() {
+        const currentLevel = this.registry.get('currentLevel') || 1;
+        const checkpoint = GameScene.checkpointManager.getCheckpoint(currentLevel);
         
-        // If player1 is above player2 and moving down, bounce player1
-        if (player1Bottom < player2.y && player1.body.velocity.y > 0) {
-            player1.body.setVelocityY(-250);
+        if (!checkpoint) {
+            console.warn('No checkpoint found for respawn');
+            return;
         }
-        // If player2 is above player1 and moving down, bounce player2
-        else if (player2Bottom < player1.y && player2.body.velocity.y > 0) {
-            player2.body.setVelocityY(-250);
-        }
-        // Otherwise just let them push each other (default collision behavior)
-    }
-    
-    respawnPlayer(player, playerNumber) {
-        // Show brief death animation
-        this.tweens.add({
-            targets: player,
-            alpha: 0,
-            duration: 200,
-            onComplete: () => {
-                // Reset position to start
-                player.x = DEFAULT_SPAWN_X;
-                player.y = DEFAULT_SPAWN_Y;
-                player.angle = 0;
-                
-                // Reset power-ups
-                if (playerNumber === 1) {
-                    this.isPoweredUp = false;
-                    this.hasFirePower = false;
-                    this.isInvincible = false;
-                    player.setScale(1);
-                    player.body.setSize(28, 44);
-                    player.body.setOffset(-14, -22);
-                } else {
-                    this.isPoweredUp2 = false;
-                    this.hasFirePower2 = false;
-                    this.isInvincible2 = false;
-                    player.setScale(1);
-                    player.body.setSize(28, 44);
-                    player.body.setOffset(-14, -22);
-                }
-                this.updatePowerUpText();
-                
-                // Flash player back in
+        
+        // Pause briefly
+        this.physics.pause();
+        
+        // Show respawn message
+        const respawnText = this.add.text(
+            this.cameras.main.centerX,
+            this.cameras.main.centerY,
+            'Respawning from Checkpoint...',
+            {
+                fontSize: '32px',
+                fontFamily: 'Arial',
+                color: '#ffaa00',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 6
+            }
+        );
+        respawnText.setOrigin(0.5);
+        respawnText.setScrollFactor(0);
+        
+        // Wait briefly then respawn
+        this.time.delayedCall(1500, () => {
+            respawnText.destroy();
+            
+            // Restore player state from checkpoint
+            this.score = checkpoint.score;
+            this.isPoweredUp = checkpoint.isPoweredUp;
+            this.hasFirePower = checkpoint.hasFirePower;
+            this.isPoweredUp2 = checkpoint.isPoweredUp2;
+            this.hasFirePower2 = checkpoint.hasFirePower2;
+            this.coinsCollected = checkpoint.coinsCollected;
+            this.enemiesDefeated = checkpoint.enemiesDefeated;
+            
+            // Update registry
+            this.registry.set('score', this.score);
+            this.registry.set('isPoweredUp', this.isPoweredUp);
+            this.registry.set('hasFirePower', this.hasFirePower);
+            this.registry.set('isPoweredUp2', this.isPoweredUp2);
+            this.registry.set('hasFirePower2', this.hasFirePower2);
+            this.registry.set('coinsCollected', this.coinsCollected);
+            this.registry.set('enemiesDefeated', this.enemiesDefeated);
+            
+            // Reposition players
+            this.player.setPosition(checkpoint.x, checkpoint.y);
+            this.player.setAlpha(1);
+            this.player.setAngle(0);
+            this.player.body.setVelocity(0, 0);
+            
+            if (this.gameMode === 2 && this.player2) {
+                this.player2.setPosition(checkpoint.x + 50, checkpoint.y);
+                this.player2.setAlpha(1);
+                this.player2.setAngle(0);
+                this.player2.body.setVelocity(0, 0);
+            }
+            
+            // Update UI
+            this.scoreText.setText('Score: ' + this.score);
+            this.updatePowerUpText();
+            
+            // Restore fire button visibility if needed
+            const shouldShowFireButton = this.gameMode === 1 ? this.hasFirePower : this.hasFirePower2;
+            this.game.events.emit('hasFirePower', shouldShowFireButton);
+            
+            // Resume physics
+            this.physics.resume();
+            
+            // Brief invincibility after respawn
+            this.isInvincible = true;
+            this.tweens.add({
+                targets: this.player,
+                alpha: 0.5,
+                duration: 100,
+                yoyo: true,
+                repeat: 15
+            });
+            this.time.delayedCall(3000, () => {
+                this.isInvincible = false;
+                this.player.setAlpha(1);
+            });
+            
+            if (this.gameMode === 2 && this.player2) {
+                this.isInvincible2 = true;
                 this.tweens.add({
-                    targets: player,
-                    alpha: 1,
+                    targets: this.player2,
+                    alpha: 0.5,
                     duration: 100,
                     yoyo: true,
-                    repeat: 5
+                    repeat: 15
                 });
-                
-                // Brief invincibility after respawn
-                if (playerNumber === 1) {
-                    this.isInvincible = true;
-                    this.time.delayedCall(2000, () => {
-                        this.isInvincible = false;
-                        player.setAlpha(1);
-                    });
-                } else {
-                    this.isInvincible2 = true;
-                    this.time.delayedCall(2000, () => {
-                        this.isInvincible2 = false;
-                        player.setAlpha(1);
-                    });
-                }
+                this.time.delayedCall(3000, () => {
+                    this.isInvincible2 = false;
+                    this.player2.setAlpha(1);
+                });
             }
         });
     }
@@ -2602,6 +3033,12 @@ export default class GameScene extends Phaser.Scene {
         // Disable physics body to prevent further collisions
         enemy.body.enable = false;
         
+        // Add enemy defeat particle effect
+        ParticleEffects.enemyDefeat(this, enemy.x, enemy.y);
+        
+        // Add score popup
+        ParticleEffects.scorePopup(this, enemy.x, enemy.y, 50);
+        
         // Enemy death animation - 720° spin and fade-out
         this.tweens.add({
             targets: enemy,
@@ -2617,6 +3054,9 @@ export default class GameScene extends Phaser.Scene {
     }
     
     fireballHitEnemy(fireball, enemy) {
+        // Add fireball impact effect
+        ParticleEffects.fireballImpact(this, fireball.x, fireball.y);
+        
         // Stop animations
         const tweenTargets = [fireball];
         if (fireball.innerCircle && fireball.innerCircle.active) {
@@ -2639,6 +3079,9 @@ export default class GameScene extends Phaser.Scene {
     }
     
     hitPlatformWithFireball(fireball, platform) {
+        // Add fireball impact effect
+        ParticleEffects.fireballImpact(this, fireball.x, fireball.y);
+        
         // Stop animations
         const tweenTargets = [fireball];
         if (fireball.innerCircle && fireball.innerCircle.active) {
@@ -2774,8 +3217,55 @@ export default class GameScene extends Phaser.Scene {
         });
     }
 
+    syncMultiplayerState() {
+        // Simulate network latency for connection monitor using defined constants
+        const simulatedLatency = SIMULATED_MIN_LATENCY_MS + Math.random() * SIMULATED_LATENCY_VARIANCE_MS;
+        this.connectionMonitor.recordPing(simulatedLatency);
+        this.connectionMonitor.recordPacketSent();
+        this.connectionMonitor.recordPacketReceived();
+        
+        // Sync player 1 state (local player in host mode, remote in guest mode)
+        const multiplayerRole = this.registry.get('multiplayerRole');
+        
+        if (multiplayerRole === 'host' && this.player) {
+            // Host controls player 1 - serialize and send state
+            const state = this.multiplayerSync.serializeState(this.player);
+            this.multiplayerSync.addStateSnapshot('player1', state);
+            
+            // In a real implementation, send state over network here
+            // socket.emit('playerState', { player: 'player1', state });
+        } else if (multiplayerRole === 'guest' && this.player2) {
+            // Guest controls player 2 - serialize and send state
+            const state = this.multiplayerSync.serializeState(this.player2);
+            this.multiplayerSync.addStateSnapshot('player2', state);
+            
+            // In a real implementation, send state over network here
+            // socket.emit('playerState', { player: 'player2', state });
+        }
+        
+        // Apply interpolated state to remote player
+        if (multiplayerRole === 'host' && this.player2) {
+            // Host receives player 2 state from guest
+            const interpolatedState = this.multiplayerSync.getInterpolatedState('player2');
+            if (interpolatedState) {
+                this.multiplayerSync.applyState(this.player2, interpolatedState, true);
+            }
+        } else if (multiplayerRole === 'guest' && this.player) {
+            // Guest receives player 1 state from host
+            const interpolatedState = this.multiplayerSync.getInterpolatedState('player1');
+            if (interpolatedState) {
+                this.multiplayerSync.applyState(this.player, interpolatedState, true);
+            }
+        }
+    }
+
     update() {
         if (this.gameOver || this.levelComplete) return;
+
+        // Sync multiplayer state if online
+        if (this.isMultiplayerOnline && this.multiplayerSync) {
+            this.syncMultiplayerState();
+        }
 
         // Update camera in 2-player mode to keep both players on screen
         if (this.gameMode === 2 && this.player && this.player2) {
@@ -2936,14 +3426,56 @@ export default class GameScene extends Phaser.Scene {
                 const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
                 const scaleY = this.isPoweredUp ? 1.3 : 1;
                 
-                if (this.cursors.left.isDown || moveLeft) {
+                const isMovingLeft = this.cursors.left.isDown || moveLeft;
+                const isMovingRight = this.cursors.right.isDown || moveRight;
+                const isMovingHorizontally = isMovingLeft || isMovingRight;
+                
+                if (isMovingLeft) {
                     this.player.body.setVelocityX(-200);
                     this.player.setScale(-Math.abs(scaleX), scaleY);
-                } else if (this.cursors.right.isDown || moveRight) {
+                } else if (isMovingRight) {
                     this.player.body.setVelocityX(200);
                     this.player.setScale(Math.abs(scaleX), scaleY);
                 } else {
                     this.player.body.setVelocityX(0);
+                }
+                
+                // Add running animation visual effect
+                if (isMovingHorizontally && this.player.body.touching.down && !this.player.isRunning) {
+                    // Capture the base Y position the first time we start the running animation
+                    if (typeof this.player.baseY !== 'number') {
+                        this.player.baseY = this.player.y;
+                    }
+                    // Ensure the running animation always starts from the base Y position
+                    if (typeof this.player.baseY === 'number') {
+                        this.player.y = this.player.baseY;
+                    }
+                    this.player.isRunning = true;
+                    const direction = isMovingLeft ? -1 : 1;
+                    this.player.animations.running(this.player, direction);
+                } else if (!isMovingHorizontally && this.player.isRunning) {
+                    this.player.isRunning = false;
+                    // Reset Y to the stored base position to prevent cumulative drift
+                    if (typeof this.player.baseY === 'number') {
+                        this.player.y = this.player.baseY;
+                    }
+                    // Stop running animation
+                    if (this.player.runningTween) {
+                        this.player.runningTween.remove();
+                        this.player.runningTween = null;
+                    }
+                }
+                
+                // Add star trail effect when invincible (throttled)
+                const now = this.time.now;
+                if (this.isInvincible) {
+                    if (typeof this.lastStarTrailTime !== 'number') {
+                        this.lastStarTrailTime = 0;
+                    }
+                    if (now - this.lastStarTrailTime >= STAR_TRAIL_THROTTLE_MS) {
+                        ParticleEffects.starTrail(this, this.player.x, this.player.y);
+                        this.lastStarTrailTime = now;
+                    }
                 }
 
                 // Jump - Up arrow or touch (variable jump height with momentum)
@@ -2981,8 +3513,30 @@ export default class GameScene extends Phaser.Scene {
                     // Play jump sound
                     if (this.audioManager) {
                         this.audioManager.playSound(this.audioManager.soundKeys.jump);
+                    
+                    // Stop running animation when jumping
+                    if (this.player.isRunning) {
+                        this.player.isRunning = false;
+                        if (this.player.runningTween) {
+                            this.player.runningTween.remove();
+                            this.player.runningTween = null;
+                        }
                     }
+                    
+                    // Add jump dust effect
+                    ParticleEffects.jumpDust(this, this.player.x, this.player.y + 20);
+                    
+                    // Add jump animation
+                    this.player.animations.jumping(this.player);
                 }
+                
+                // Detect landing and add landing effect
+                if (this.player.body.touching.down && !this.player.wasOnGround) {
+                    ParticleEffects.landingDust(this, this.player.x, this.player.y + 20);
+                    
+                    this.player.animations.landing(this.player);
+                }
+                this.player.wasOnGround = this.player.body.touching.down;
                 
                 // Fire - X key or touch
                 if (Phaser.Input.Keyboard.JustDown(this.fireKey) || (firePressed && !this.lastFirePressed)) {
@@ -2996,14 +3550,56 @@ export default class GameScene extends Phaser.Scene {
                 const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
                 const scaleY = this.isPoweredUp ? 1.3 : 1;
                 
-                if (this.wasdKeys.left.isDown) {
+                const isMovingLeft = this.wasdKeys.left.isDown;
+                const isMovingRight = this.wasdKeys.right.isDown;
+                const isMovingHorizontally = isMovingLeft || isMovingRight;
+                
+                if (isMovingLeft) {
                     this.player.body.setVelocityX(-200);
                     this.player.setScale(-Math.abs(scaleX), scaleY);
-                } else if (this.wasdKeys.right.isDown) {
+                } else if (isMovingRight) {
                     this.player.body.setVelocityX(200);
                     this.player.setScale(Math.abs(scaleX), scaleY);
                 } else {
                     this.player.body.setVelocityX(0);
+                }
+                
+                // Add running animation visual effect for player 1
+                if (isMovingHorizontally && this.player.body.touching.down && !this.player.isRunning) {
+                    // Capture the base Y position the first time we start the running animation
+                    if (typeof this.player.baseY !== 'number') {
+                        this.player.baseY = this.player.y;
+                    }
+                    // Ensure the running animation always starts from the base Y position
+                    if (typeof this.player.baseY === 'number') {
+                        this.player.y = this.player.baseY;
+                    }
+                    this.player.isRunning = true;
+                    const direction = isMovingLeft ? -1 : 1;
+                    this.player.animations.running(this.player, direction);
+                } else if (!isMovingHorizontally && this.player.isRunning) {
+                    this.player.isRunning = false;
+                    // Reset Y to the stored base position to prevent cumulative drift
+                    if (typeof this.player.baseY === 'number') {
+                        this.player.y = this.player.baseY;
+                    }
+                    if (this.player.runningTween) {
+                        this.player.runningTween.remove();
+                        this.player.runningTween = null;
+                    }
+                }
+                
+                // Add star trail effect when invincible (throttled)
+                if (this.isInvincible) {
+                    // Initialize lastStarTrailTime on first use
+                    if (typeof this.lastStarTrailTime !== 'number') {
+                        this.lastStarTrailTime = 0;
+                    }
+                    
+                    if (this.time.now - this.lastStarTrailTime >= STAR_TRAIL_THROTTLE_MS) {
+                        ParticleEffects.starTrail(this, this.player.x, this.player.y);
+                        this.lastStarTrailTime = this.time.now;
+                    }
                 }
 
                 // Jump - W key for player 1 (variable jump height with momentum)
@@ -3038,11 +3634,34 @@ export default class GameScene extends Phaser.Scene {
                 if (this.player.body.touching.down) {
                     this.isJumping = false;
                     this.jumpHoldTime = 0;
+                    
+                    // Stop running animation when jumping
+                    if (this.player.isRunning) {
+                        this.player.isRunning = false;
+                        if (this.player.runningTween) {
+                            this.player.runningTween.remove();
+                            this.player.runningTween = null;
+                        }
+                    }
+                    
+                    // Add jump dust effect
+                    ParticleEffects.jumpDust(this, this.player.x, this.player.y + 20);
+                    
+                    // Add jump animation
+                    this.player.animations.jumping(this.player);
                     // Play jump sound
                     if (this.audioManager) {
                         this.audioManager.playSound(this.audioManager.soundKeys.jump);
                     }
                 }
+                
+                // Detect landing and add landing effect
+                if (this.player.body.touching.down && !this.player.wasOnGround) {
+                    ParticleEffects.landingDust(this, this.player.x, this.player.y + 20);
+                    
+                    this.player.animations.landing(this.player);
+                }
+                this.player.wasOnGround = this.player.body.touching.down;
                 
                 // Fire - Shift key for player 1
                 if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
@@ -3055,14 +3674,54 @@ export default class GameScene extends Phaser.Scene {
                 const scaleX2 = this.isPoweredUp2 ? (this.player2.scaleX < 0 ? -1.3 : 1.3) : 1;
                 const scaleY2 = this.isPoweredUp2 ? 1.3 : 1;
                 
-                if (this.cursors.left.isDown || moveLeft) {
+                const isMovingLeft2 = this.cursors.left.isDown || moveLeft;
+                const isMovingRight2 = this.cursors.right.isDown || moveRight;
+                const isMovingHorizontally2 = isMovingLeft2 || isMovingRight2;
+                
+                if (isMovingLeft2) {
                     this.player2.body.setVelocityX(-200);
                     this.player2.setScale(-Math.abs(scaleX2), scaleY2);
-                } else if (this.cursors.right.isDown || moveRight) {
+                } else if (isMovingRight2) {
                     this.player2.body.setVelocityX(200);
                     this.player2.setScale(Math.abs(scaleX2), scaleY2);
                 } else {
                     this.player2.body.setVelocityX(0);
+                }
+                
+                // Add running animation visual effect for player 2
+                if (isMovingHorizontally2 && this.player2.body.touching.down && !this.player2.isRunning) {
+                    // Capture the base Y position the first time we start the running animation
+                    if (typeof this.player2.baseY !== 'number') {
+                        this.player2.baseY = this.player2.y;
+                    }
+                    // Ensure the running animation always starts from the base Y position
+                    if (typeof this.player2.baseY === 'number') {
+                        this.player2.y = this.player2.baseY;
+                    }
+                    this.player2.isRunning = true;
+                    const direction = isMovingLeft2 ? -1 : 1;
+                    this.player2.animations.running(this.player2, direction);
+                } else if (!isMovingHorizontally2 && this.player2.isRunning) {
+                    this.player2.isRunning = false;
+                    // Reset Y to the stored base position to prevent cumulative drift
+                    if (typeof this.player2.baseY === 'number') {
+                        this.player2.y = this.player2.baseY;
+                    }
+                    if (this.player2.runningTween) {
+                        this.player2.runningTween.remove();
+                        this.player2.runningTween = null;
+                    }
+                }
+                
+                // Add star trail effect when invincible (throttled)
+                if (this.isInvincible2) {
+                    if (typeof this.lastStarTrailTime2 !== 'number') {
+                        this.lastStarTrailTime2 = 0;
+                    }
+                    if (this.time.now - this.lastStarTrailTime2 >= STAR_TRAIL_THROTTLE_MS) {
+                        ParticleEffects.starTrail(this, this.player2.x, this.player2.y);
+                        this.lastStarTrailTime2 = this.time.now;
+                    }
                 }
 
                 // Jump - Up arrow or touch for player 2 (variable jump height with momentum)
@@ -3097,11 +3756,34 @@ export default class GameScene extends Phaser.Scene {
                 if (this.player2.body.touching.down) {
                     this.isJumping2 = false;
                     this.jumpHoldTime2 = 0;
+                    
+                    // Stop running animation when jumping
+                    if (this.player2.isRunning) {
+                        this.player2.isRunning = false;
+                        if (this.player2.runningTween) {
+                            this.player2.runningTween.remove();
+                            this.player2.runningTween = null;
+                        }
+                    }
+                    
+                    // Add jump dust effect
+                    ParticleEffects.jumpDust(this, this.player2.x, this.player2.y + 20);
+                    
+                    // Add jump animation
+                    this.player2.animations.jumping(this.player2);
+                }
+                
+                // Detect landing and add landing effect
+                if (this.player2.body.touching.down && !this.player2.wasOnGround) {
+                    ParticleEffects.landingDust(this, this.player2.x, this.player2.y + 20);
+                    
+                    this.player2.animations.landing(this.player2);
                     // Play jump sound
                     if (this.audioManager) {
                         this.audioManager.playSound(this.audioManager.soundKeys.jump);
                     }
                 }
+                this.player2.wasOnGround = this.player2.body.touching.down;
                 
                 // Fire - X key or touch for player 2
                 if (Phaser.Input.Keyboard.JustDown(this.fireKey2) || (firePressed && !this.lastFirePressed)) {
