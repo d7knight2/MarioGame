@@ -111,6 +111,12 @@ However, it's recommended to require all checks to ensure maximum compatibility.
 - This allows checks to run without manual approval
 - **Security Note**: This configuration is suitable for this personal project but should be carefully considered for public/enterprise repositories
 
+**Security Considerations for `pull_request_target`**:
+- `pull_request_target` runs in the context of the base repository with access to secrets
+- This enables potential cache poisoning attacks where malicious PRs could modify cached dependencies
+- **Mitigation for this project**: The repository owner reviews all code before merging, making the risk acceptable
+- **For higher-security projects**: Use `pull_request` instead and accept manual approval for fork PRs, or use a combination of `pull_request` with `workflow_run` to trigger workflows after initial security checks
+
 ## Workflow Details
 
 ### Unit Tests Workflow (`ci.yml`)
