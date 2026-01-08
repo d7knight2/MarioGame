@@ -130,6 +130,10 @@ export default class GameScene extends Phaser.Scene {
         const shouldShowFireButton = this.gameMode === 1 ? this.hasFirePower : this.hasFirePower2;
         this.game.events.emit('hasFirePower', shouldShowFireButton);
         
+        // Extend world bounds for side-scrolling and vertical gameplay
+        const worldHeight = height + 400; // Add vertical space for platforms above
+        this.physics.world.setBounds(0, 0, 3200, worldHeight);
+        this.cameras.main.setBounds(0, 0, 3200, worldHeight);
         // Play background music (infrastructure in place for when audio files are added)
         // For boss levels, use boss music; otherwise use gameplay music
         // if (currentLevel === 2 || currentLevel === 3) {
@@ -145,8 +149,8 @@ export default class GameScene extends Phaser.Scene {
         // Improve physics settings for smoother collisions
         this.physics.world.TILE_BIAS = 32;  // Increase tile bias to prevent tunneling
 
-        // Create sky background gradient
-        this.add.rectangle(1600, height / 2, 3200, height, 0x5c94fc);
+        // Create sky background gradient (extended for vertical gameplay)
+        this.add.rectangle(1600, worldHeight / 2, 3200, worldHeight, 0x5c94fc);
 
         // Create platforms group
         this.platforms = this.physics.add.staticGroup();
@@ -213,17 +217,17 @@ export default class GameScene extends Phaser.Scene {
         };
         
         const UI_POSITION_OFFSETS = {
-            singlePlayer: { powerUpY: 56, revivalY: 50 },
-            multiPlayer: { powerUpY: 96, revivalY: 60 }
+            singlePlayer: { powerUpY: 48, revivalY: 50 },
+            multiPlayer: { powerUpY: 88, revivalY: 60 }
         };
         
         const uiMode = this.gameMode === 2 ? 'multiPlayer' : 'singlePlayer';
         
         const UI_LAYOUT = {
             scoreX: 16,
-            scoreY: 16,
+            scoreY: 8,  // Moved to very top of screen
             levelX: width - 16,
-            levelY: 16,
+            levelY: 8,  // Moved to very top of screen
             powerUpX: 16,
             powerUpY: UI_POSITION_OFFSETS[uiMode].powerUpY,
             revivalY: UI_POSITION_OFFSETS[uiMode].revivalY
@@ -432,6 +436,12 @@ export default class GameScene extends Phaser.Scene {
     
     createLevel1Platforms() {
         const height = this.cameras.main.height;
+        
+        // Vertical platforms above starting point (spaced ~100px apart vertically)
+        // Player 1 spawns at (100, 450), so these create a vertical climbing challenge
+        this.createPlatform(100, 350, 120, 32, 0x228B22);  // 100px above spawn
+        this.createPlatform(250, 250, 120, 32, 0x228B22);  // 200px above spawn
+        this.createPlatform(100, 150, 120, 32, 0x228B22);  // 300px above spawn
         
         // Floating platforms - lowered and better distributed
         // First section
