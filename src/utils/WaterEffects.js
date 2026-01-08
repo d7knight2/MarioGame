@@ -338,7 +338,9 @@ export default class WaterEffects {
      * @param {number} startY - Top of waterfall
      * @param {number} endY - Bottom of waterfall
      * @param {number} width - Width of waterfall
-     * @returns {object} Waterfall effect object
+     * @returns {object} Waterfall effect object with container and dropletEvent.
+     *          Call dropletEvent.remove() to stop the waterfall animation and prevent memory leaks.
+     *          Destroy the container when no longer needed: waterfall.container.destroy()
      */
     static createWaterfall(scene, x, startY, endY, width = 20) {
         const container = scene.add.container(x, startY);

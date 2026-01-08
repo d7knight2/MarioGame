@@ -106,18 +106,38 @@ export default class ParticleEffects {
      * @param {Phaser.GameObjects.GameObject} target - Target object to shimmer
      * @param {object} options - Configuration options
      * @returns {Phaser.Tweens.Tween} The shimmer tween
+     * @note This effect uses color interpolation on every frame. For better performance
+     *       with multiple objects, consider using simpler alpha-only effects or
+     *       setting useSimpleShimmer: true to disable tint updates.
      */
     static createShimmer(scene, target, options = {}) {
         const config = {
             duration: options.duration || 1000,
             intensity: options.intensity || 0.3,
             repeat: options.repeat !== undefined ? options.repeat : -1,
+            useSimpleShimmer: options.useSimpleShimmer || false,
             ...options
         };
         
         // Store original tint if any
         const originalTint = target.tint || 0xffffff;
         
+        // Simple shimmer mode uses only alpha for better performance
+        if (config.useSimpleShimmer) {
+            return scene.tweens.add({
+                targets: target,
+                alpha: 1 - config.intensity,
+                duration: config.duration / 2,
+                yoyo: true,
+                repeat: config.repeat,
+                ease: 'Sine.easeInOut',
+                onComplete: () => {
+                    target.setAlpha(1);
+                }
+            });
+        }
+        
+        // Full shimmer with tint updates (more expensive)
         return scene.tweens.add({
             targets: target,
             alpha: 1 - config.intensity,

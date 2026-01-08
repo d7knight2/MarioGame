@@ -1980,14 +1980,6 @@ export default class GameScene extends Phaser.Scene {
                 count: this.performanceManager.getParticleCount(12),
                 colors: [0xffffff, 0xffff00, 0xffffcc, 0xffaa00]
             });
-        // Add particle effect for coin collection
-        ParticleEffects.coinCollect(this, coin.x, coin.y);
-        
-        // Add score popup
-        ParticleEffects.scorePopup(this, coin.x, coin.y, 10);
-        // Play coin collection sound
-        if (this.audioManager) {
-            this.audioManager.playSound(this.audioManager.soundKeys.coin);
         }
         
         // Coin collection animation - scale up and fade out
