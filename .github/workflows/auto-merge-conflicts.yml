@@ -38,393 +38,59 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: Setup conflict resolution environment
-      run: |
-        # Create logs directory
-        mkdir -p /tmp/conflict-logs
-        echo "Conflict resolution logs directory created"
+    - name: Make script executable
+      run: chmod +x ./scripts/resolve_merge_conflicts.sh
 
     - name: Detect and resolve PR conflicts with AI
+      id: resolve_conflicts
+      continue-on-error: true
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_RUN_ID: ${{ github.run_id }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_SERVER_URL: ${{ github.server_url }}
+        MAX_RETRIES: 3
+        LOG_DIR: /tmp/conflict-logs
       run: |
-        echo "=================================================="
-        echo "Starting AI-Powered PR Conflict Detection"
-        echo "=================================================="
-        echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-        echo ""
-
-        # Configuration
-        MAX_RETRIES=3
-        LOG_DIR="/tmp/conflict-logs"
-        SUMMARY_LOG="$LOG_DIR/resolution-summary.md"
+        # Run the external script
+        ./scripts/resolve_merge_conflicts.sh
+        exit_code=$?
         
-        # Initialize summary log
-        TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
-        WORKFLOW_RUN="${{ github.run_id }}"
+        # Store exit code for conditional steps
+        echo "script_exit_code=$exit_code" >> $GITHUB_OUTPUT
         
-        cat > "$SUMMARY_LOG" << 'EOF_HEADER'
-        # AI-Powered Merge Conflict Resolution Summary
-        
-        EOF_HEADER
-        
-        echo "**Timestamp**: $TIMESTAMP" >> "$SUMMARY_LOG"
-        echo "**Workflow Run**: $WORKFLOW_RUN" >> "$SUMMARY_LOG"
-        echo "" >> "$SUMMARY_LOG"
-        echo "## Overview" >> "$SUMMARY_LOG"
-
-        # Get all open pull requests (limited to 100 for performance)
-        prs=$(gh pr list --state open --json number,headRefName,baseRefName,title,mergeable,author --limit 100)
-        pr_count=$(echo "$prs" | jq '. | length')
-
-        echo "Found $pr_count open pull request(s)"
-        echo "- Total PRs to process: $pr_count" >> "$SUMMARY_LOG"
-        echo "" >> "$SUMMARY_LOG"
-
-        if [ "$pr_count" -eq 0 ]; then
-          echo "No open pull requests found. Exiting."
-          echo "**Status**: No open pull requests" >> "$SUMMARY_LOG"
-          exit 0
-        fi
-
-        # Counters
-        conflicts_detected=0
-        conflicts_resolved=0
-        conflicts_failed=0
-
-        # Process each pull request - using process substitution to avoid subshell
-        while read -r pr; do
-          pr_number=$(echo "$pr" | jq -r '.number')
-          pr_title=$(echo "$pr" | jq -r '.title')
-          head_branch=$(echo "$pr" | jq -r '.headRefName')
-          base_branch=$(echo "$pr" | jq -r '.baseRefName')
-          mergeable=$(echo "$pr" | jq -r '.mergeable')
-          pr_author=$(echo "$pr" | jq -r '.author.login')
-
-          echo ""
-          echo "=================================================="
-          echo "Processing PR #$pr_number: $pr_title"
-          echo "  Author: $pr_author"
-          echo "  Head: $head_branch"
-          echo "  Base: $base_branch"
-          echo "  Mergeable: $mergeable"
-          echo "=================================================="
-
-          # Check if PR has conflicts (mergeable is CONFLICTING)
-          if [ "$mergeable" = "CONFLICTING" ]; then
-            conflicts_detected=$((conflicts_detected + 1))
-            echo "⚠️  CONFLICT DETECTED in PR #$pr_number"
-            
-            # Create PR-specific log file
-            PR_LOG="$LOG_DIR/pr-$pr_number-conflicts.log"
-            echo "=== PR #$pr_number Conflict Resolution Log ===" > "$PR_LOG"
-            echo "Title: $pr_title" >> "$PR_LOG"
-            echo "Author: $pr_author" >> "$PR_LOG"
-            echo "Head Branch: $head_branch" >> "$PR_LOG"
-            echo "Base Branch: $base_branch" >> "$PR_LOG"
-            echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> "$PR_LOG"
-            echo "" >> "$PR_LOG"
-
-            # Retry logic
-            retry_count=0
-            resolution_success=false
-            
-            while [ $retry_count -lt $MAX_RETRIES ] && [ "$resolution_success" = false ]; do
-              retry_count=$((retry_count + 1))
-              echo ""
-              echo "🔄 Attempt $retry_count of $MAX_RETRIES"
-              echo "Attempt $retry_count of $MAX_RETRIES" >> "$PR_LOG"
-              
-              # Fetch latest changes
-              echo "📥 Fetching latest changes..."
-              if ! git fetch origin "$base_branch" 2>&1 | tee -a "$PR_LOG"; then
-                echo "❌ Failed to fetch base branch: $base_branch" | tee -a "$PR_LOG"
-                continue
-              fi
-
-              if ! git fetch origin "$head_branch" 2>&1 | tee -a "$PR_LOG"; then
-                echo "❌ Failed to fetch head branch: $head_branch" | tee -a "$PR_LOG"
-                continue
-              fi
-
-              # Checkout the PR branch
-              echo "🔀 Checking out PR branch..."
-              if ! git checkout -B "$head_branch" "origin/$head_branch" 2>&1 | tee -a "$PR_LOG"; then
-                echo "❌ Failed to checkout branch: $head_branch" | tee -a "$PR_LOG"
-                continue
-              fi
-
-              # Save the current commit hash before merging
-              original_commit=$(git rev-parse HEAD)
-              echo "Original commit: $original_commit" >> "$PR_LOG"
-
-              # Gather context: Get PR comments for additional context
-              echo "" >> "$PR_LOG"
-              echo "=== Context: PR Comments ===" >> "$PR_LOG"
-              gh pr view "$pr_number" --comments 2>&1 | head -n 50 >> "$PR_LOG" || echo "No comments available" >> "$PR_LOG"
-              
-              # Attempt to merge base branch
-              echo "🔀 Merging $base_branch into $head_branch..."
-              merge_msg="chore: AI-powered auto-merge $base_branch to resolve conflicts in PR #$pr_number [attempt $retry_count]"
-              
-              if git merge "origin/$base_branch" -m "$merge_msg" 2>&1 | tee -a "$PR_LOG"; then
-                echo "✅ Merge successful (no conflicts after merge)!"
-                echo "" >> "$PR_LOG"
-                echo "=== Resolution: Clean Merge ===" >> "$PR_LOG"
-                echo "The base branch was merged without conflicts." >> "$PR_LOG"
-                
-                # Run tests to validate the merge
-                echo ""
-                echo "🧪 Running tests to validate merge..."
-                echo "" >> "$PR_LOG"
-                echo "=== Test Execution ===" >> "$PR_LOG"
-                
-                test_passed=true
-                
-                # Run unit tests
-                if npm test 2>&1 | tee -a "$PR_LOG"; then
-                  echo "✅ Unit tests passed" | tee -a "$PR_LOG"
-                else
-                  echo "⚠️  Unit tests failed - manual review required" | tee -a "$PR_LOG"
-                  test_passed=false
-                fi
-                
-                # Run build
-                if npm run build 2>&1 | tee -a "$PR_LOG"; then
-                  echo "✅ Build successful" | tee -a "$PR_LOG"
-                else
-                  echo "⚠️  Build failed - manual review required" | tee -a "$PR_LOG"
-                  test_passed=false
-                fi
-
-                # Push the changes
-                echo ""
-                echo "⬆️  Pushing resolved changes..."
-                if git push origin "$head_branch" 2>&1 | tee -a "$PR_LOG"; then
-                  echo "✅ Successfully pushed conflict resolution for PR #$pr_number"
-                  resolution_success=true
-                  conflicts_resolved=$((conflicts_resolved + 1))
-
-                  # Prepare detailed comment for PR
-                  test_status=""
-                  if [ "$test_passed" = true ]; then
-                    test_status="✅ **All tests and build passed**"
-                  else
-                    test_status="⚠️  **Tests or build had issues - please review**"
-                  fi
-
-                  comment_msg="🤖 **AI-Powered Conflict Resolution** 🚀"$'\n\n'"✨ The base branch (\`$base_branch\`) has been automatically merged into this PR branch using AI-powered conflict resolution."$'\n\n'"**Resolution Details:**"$'\n'"- 🔄 Attempt: $retry_count of $MAX_RETRIES"$'\n'"- 🎯 Method: Clean merge (no manual conflict resolution required)"$'\n'"- 📝 Commit: $merge_msg"$'\n'"- $test_status"$'\n\n'"**Next Steps:**"$'\n'"1. Review the merge commit to ensure correctness"$'\n'"2. Verify that all functionality works as expected"$'\n'"3. Check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details"$'\n\n'"_Automated by GitHub Actions - Workflow Run #${{ github.run_id }}_"
-                  
-                  gh pr comment "$pr_number" --body "$comment_msg" 2>&1 | tee -a "$PR_LOG" || echo "⚠️  Warning: Failed to add comment to PR #$pr_number"
-                  
-                  # Add to summary
-                  echo "### ✅ PR #$pr_number: SUCCESS" >> "$SUMMARY_LOG"
-                  echo "- **Title**: $pr_title" >> "$SUMMARY_LOG"
-                  echo "- **Branch**: $head_branch ← $base_branch" >> "$SUMMARY_LOG"
-                  echo "- **Attempts**: $retry_count" >> "$SUMMARY_LOG"
-                  echo "- **Tests**: $([ "$test_passed" = true ] && echo "Passed" || echo "Failed")" >> "$SUMMARY_LOG"
-                  echo "" >> "$SUMMARY_LOG"
-                else
-                  echo "❌ Failed to push conflict resolution for PR #$pr_number" | tee -a "$PR_LOG"
-                  git reset --hard "$original_commit" 2>&1 | tee -a "$PR_LOG"
-                fi
-              else
-                # Merge failed - conflicts detected
-                echo "⚠️  Merge conflicts detected - gathering conflict context..." | tee -a "$PR_LOG"
-                
-                # Extract conflicted files
-                conflicted_files=$(git diff --name-only --diff-filter=U 2>/dev/null || echo "")
-                
-                if [ -n "$conflicted_files" ]; then
-                  echo "" >> "$PR_LOG"
-                  echo "=== Conflicted Files ===" >> "$PR_LOG"
-                  echo "$conflicted_files" >> "$PR_LOG"
-                  echo "" >> "$PR_LOG"
-                  
-                  # Gather detailed context for each conflicted file
-                  echo "=== Detailed Conflict Analysis ===" >> "$PR_LOG"
-                  while IFS= read -r file; do
-                    if [ -n "$file" ] && [ -f "$file" ]; then
-                      echo "" >> "$PR_LOG"
-                      echo "📄 File: $file" >> "$PR_LOG"
-                      echo "---" >> "$PR_LOG"
-                      
-                      # Show the conflict markers and surrounding context
-                      echo "Conflict Content:" >> "$PR_LOG"
-                      git diff "$file" 2>&1 | head -n 100 >> "$PR_LOG"
-                      
-                      # Get file history for context
-                      echo "" >> "$PR_LOG"
-                      echo "Recent History:" >> "$PR_LOG"
-                      git log --oneline -5 -- "$file" 2>&1 >> "$PR_LOG" || echo "No history available" >> "$PR_LOG"
-                      
-                      # AI-powered resolution strategy
-                      echo "" >> "$PR_LOG"
-                      echo "=== AI Resolution Strategy ===" >> "$PR_LOG"
-                      echo "Analyzing conflict patterns and applying intelligent resolution..." >> "$PR_LOG"
-                      
-                      # Strategy-based approach for common conflict patterns
-                      # In a production implementation, this could call an AI service
-                      if [[ "$file" == "package-lock.json" ]]; then
-                        echo "Strategy: Regenerating $file (dependency lock file)" >> "$PR_LOG"
-                        # Note: For package-lock.json, ideally we should regenerate it
-                        # For now, we'll accept theirs but note this should be regenerated
-                        echo "  Action: Accepting incoming changes and will verify with npm ci" >> "$PR_LOG"
-                        git checkout --theirs "$file" 2>&1 >> "$PR_LOG" || true
-                        git add "$file" 2>&1 >> "$PR_LOG" || true
-                      elif [[ "$file" == *.json ]]; then
-                        echo "Strategy: Using 'theirs' for $file (config/data file)" >> "$PR_LOG"
-                        git checkout --theirs "$file" 2>&1 >> "$PR_LOG" || true
-                        git add "$file" 2>&1 >> "$PR_LOG" || true
-                      else
-                        echo "Strategy: Manual resolution required for $file" >> "$PR_LOG"
-                      fi
-                    fi
-                  done <<< "$conflicted_files"
-                  
-                  # Check if all conflicts are resolved using more reliable method
-                  if [ -z "$(git diff --name-only --diff-filter=U 2>/dev/null)" ]; then
-                    echo "" >> "$PR_LOG"
-                    echo "✅ All conflicts resolved using AI strategies" >> "$PR_LOG"
-                    
-                    # Complete the merge
-                    git commit --no-edit 2>&1 | tee -a "$PR_LOG" || git commit -m "$merge_msg" 2>&1 | tee -a "$PR_LOG"
-                    
-                    # Run tests
-                    echo "" >> "$PR_LOG"
-                    echo "=== Test Execution ===" >> "$PR_LOG"
-                    test_passed=true
-                    
-                    if npm test 2>&1 | tee -a "$PR_LOG"; then
-                      echo "✅ Unit tests passed" | tee -a "$PR_LOG"
-                    else
-                      echo "⚠️  Unit tests failed" | tee -a "$PR_LOG"
-                      test_passed=false
-                    fi
-                    
-                    if npm run build 2>&1 | tee -a "$PR_LOG"; then
-                      echo "✅ Build successful" | tee -a "$PR_LOG"
-                    else
-                      echo "⚠️  Build failed" | tee -a "$PR_LOG"
-                      test_passed=false
-                    fi
-                    
-                    # Push if tests pass
-                    if [ "$test_passed" = true ]; then
-                      if git push origin "$head_branch" 2>&1 | tee -a "$PR_LOG"; then
-                        echo "✅ Successfully pushed AI-resolved conflicts for PR #$pr_number"
-                        resolution_success=true
-                        conflicts_resolved=$((conflicts_resolved + 1))
-                        
-                        comment_msg="🤖 **AI-Powered Conflict Resolution** 🚀"$'\n\n'"✨ Merge conflicts have been automatically resolved using intelligent conflict resolution strategies."$'\n\n'"**Resolution Details:**"$'\n'"- 🔄 Attempt: $retry_count of $MAX_RETRIES"$'\n'"- 📁 Files resolved: $(echo "$conflicted_files" | wc -l)"$'\n'"- 🎯 Strategy: AI-powered pattern analysis"$'\n'"- ✅ Tests: All passed"$'\n'"- ✅ Build: Successful"$'\n\n'"**Resolved Files:**"$'\n'"```"$'\n'"$conflicted_files"$'\n'"```"$'\n\n'"**Next Steps:**"$'\n'"1. Review the conflict resolution in the merge commit"$'\n'"2. Verify that all functionality works as expected"$'\n'"3. Check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed analysis"$'\n\n'"_Automated by GitHub Actions - Workflow Run #${{ github.run_id }}_"
-                        
-                        gh pr comment "$pr_number" --body "$comment_msg" 2>&1 | tee -a "$PR_LOG" || echo "⚠️  Warning: Failed to add comment"
-                        
-                        # Add to summary
-                        echo "### ✅ PR #$pr_number: AI-RESOLVED" >> "$SUMMARY_LOG"
-                        echo "- **Title**: $pr_title" >> "$SUMMARY_LOG"
-                        echo "- **Branch**: $head_branch ← $base_branch" >> "$SUMMARY_LOG"
-                        echo "- **Attempts**: $retry_count" >> "$SUMMARY_LOG"
-                        echo "- **Files Resolved**: $(echo "$conflicted_files" | wc -l)" >> "$SUMMARY_LOG"
-                        echo "- **Tests**: Passed" >> "$SUMMARY_LOG"
-                        echo "" >> "$SUMMARY_LOG"
-                      else
-                        echo "❌ Failed to push changes" | tee -a "$PR_LOG"
-                      fi
-                    else
-                      echo "❌ Tests failed - not pushing changes" | tee -a "$PR_LOG"
-                      git reset --hard "$original_commit" 2>&1 | tee -a "$PR_LOG"
-                    fi
-                  else
-                    # Count remaining conflicts for logging
-                    remaining_conflicts=$(git diff --name-only --diff-filter=U 2>/dev/null | wc -l)
-                    echo "⚠️  Some conflicts remain unresolved ($remaining_conflicts files)" >> "$PR_LOG"
-                  fi
-                fi
-                
-                # Abort merge if not successful
-                if [ "$resolution_success" = false ]; then
-                  git merge --abort 2>&1 | tee -a "$PR_LOG" || true
-                  git reset --hard "$original_commit" 2>&1 | tee -a "$PR_LOG" || true
-                  
-                  # Wait before retry (exponential backoff)
-                  if [ $retry_count -lt $MAX_RETRIES ]; then
-                    sleep_time=$((retry_count * 2))
-                    echo "⏳ Waiting $sleep_time seconds before retry..." | tee -a "$PR_LOG"
-                    sleep $sleep_time
-                  fi
-                fi
-              fi
-              
-              # Clean up if resolution was successful
-              if [ "$resolution_success" = true ]; then
-                break
-              fi
-            done
-            
-            # If all retries failed
-            if [ "$resolution_success" = false ]; then
-              conflicts_failed=$((conflicts_failed + 1))
-              echo "❌ All $MAX_RETRIES attempts failed for PR #$pr_number" | tee -a "$PR_LOG"
-              
-              # Add failure comment to PR
-              comment_msg="🤖 **AI-Powered Conflict Resolution - Manual Review Required** ⚠️"$'\n\n'"After $MAX_RETRIES attempts, the automatic conflict resolution was unable to fully resolve all merge conflicts."$'\n\n'"**Details:**"$'\n'"- 🔄 Attempts: $MAX_RETRIES"$'\n'"- 📋 See [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed analysis"$'\n\n'"**Action Required:**"$'\n'"Please resolve the conflicts manually by:"$'\n'"1. Merging \`$base_branch\` into your branch locally"$'\n'"2. Reviewing the conflicted files"$'\n'"3. Running tests to ensure everything works"$'\n'"4. Pushing the resolved changes"$'\n\n'"_Automated by GitHub Actions - Workflow Run #${{ github.run_id }}_"
-              
-              gh pr comment "$pr_number" --body "$comment_msg" 2>&1 | tee -a "$PR_LOG" || echo "⚠️  Warning: Failed to add comment"
-              
-              # Add to summary
-              echo "### ❌ PR #$pr_number: FAILED" >> "$SUMMARY_LOG"
-              echo "- **Title**: $pr_title" >> "$SUMMARY_LOG"
-              echo "- **Branch**: $head_branch ← $base_branch" >> "$SUMMARY_LOG"
-              echo "- **Attempts**: $MAX_RETRIES" >> "$SUMMARY_LOG"
-              echo "- **Status**: Manual resolution required" >> "$SUMMARY_LOG"
-              echo "" >> "$SUMMARY_LOG"
-            fi
-
-            # Return to base branch
-            git checkout "$base_branch" 2>&1 || true
-            
-            echo ""
-            echo "📋 Full conflict resolution log saved to: $PR_LOG"
-          else
-            echo "✅ No conflicts detected in PR #$pr_number"
-          fi
-        done < <(echo "$prs" | jq -c '.[]')
-
-        # Finalize summary
-        echo "" >> "$SUMMARY_LOG"
-        echo "## Statistics" >> "$SUMMARY_LOG"
-        echo "- **Conflicts Detected**: $conflicts_detected" >> "$SUMMARY_LOG"
-        echo "- **Successfully Resolved**: $conflicts_resolved" >> "$SUMMARY_LOG"
-        echo "- **Failed to Resolve**: $conflicts_failed" >> "$SUMMARY_LOG"
-        
-        # Calculate success rate safely (integer division, truncates decimals)
-        if [[ $conflicts_detected -gt 0 ]]; then
-          success_rate=$((conflicts_resolved * 100 / conflicts_detected))
-          echo "- **Success Rate**: ${success_rate}%" >> "$SUMMARY_LOG"
-        else
-          echo "- **Success Rate**: N/A" >> "$SUMMARY_LOG"
-        fi
-        
-        echo ""
-        echo "=================================================="
-        echo "AI-Powered Conflict Resolution Complete"
-        echo "=================================================="
-        echo "📊 Statistics:"
-        echo "  - Conflicts detected: $conflicts_detected"
-        echo "  - Successfully resolved: $conflicts_resolved"
-        echo "  - Failed to resolve: $conflicts_failed"
-        echo ""
-        echo "📋 Summary log: $SUMMARY_LOG"
-        
-        # Display summary
-        cat "$SUMMARY_LOG"
+        # Exit with the same code from the script
+        exit $exit_code
 
     - name: Upload conflict resolution logs
-      if: always()
+      # Only upload logs when conflicts were detected and processed (exit codes 0 or 3)
+      # Note: GitHub Actions outputs are strings, so we use string comparison
+      if: steps.resolve_conflicts.outputs.script_exit_code == '0' || steps.resolve_conflicts.outputs.script_exit_code == '3'
       uses: actions/upload-artifact@v4
       with:
         name: conflict-resolution-logs
         path: /tmp/conflict-logs/
         retention-days: 30
+
+    - name: Check workflow result
+      if: always()
+      run: |
+        exit_code="${{ steps.resolve_conflicts.outputs.script_exit_code }}"
+        
+        if [[ "$exit_code" == "1" ]]; then
+          echo "✅ No open PRs or no conflicts detected - no action needed"
+          exit 0
+        elif [[ "$exit_code" == "0" ]]; then
+          echo "✅ All conflicts resolved successfully"
+          exit 0
+        elif [[ "$exit_code" == "3" ]]; then
+          echo "❌ Some conflicts could not be resolved"
+          exit 1
+        elif [[ "$exit_code" == "2" ]]; then
+          echo "❌ Configuration or environment error"
+          exit 1
+        else
+          echo "⚠️  Unexpected exit code: $exit_code"
+          exit 1
+        fi
