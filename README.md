@@ -157,16 +157,74 @@ This game implements several mobile-friendly features:
 ```
 src/
 ├── main.js                      # Game initialization and touch control handlers
-└── scenes/
-    ├── LoginScene.js            # User login/register screen
-    ├── MenuScene.js             # Main menu with friends and invite features
-    ├── FriendsScene.js          # Friends list management
-    ├── ModeSelectionScene.js    # Game mode selection (single/multiplayer)
-    ├── CharacterSelectionScene.js # Character selection screen
-    ├── MultiplayerLobbyScene.js # Multiplayer lobby with game codes
-    ├── StartScene.js            # Classic start screen (for guests)
-    └── GameScene.js             # Main gameplay scene
+├── scenes/
+│   ├── LoginScene.js            # User login/register screen
+│   ├── MenuScene.js             # Main menu with friends and invite features
+│   ├── FriendsScene.js          # Friends list management
+│   ├── ModeSelectionScene.js    # Game mode selection (single/multiplayer)
+│   ├── CharacterSelectionScene.js # Character selection screen
+│   ├── MultiplayerLobbyScene.js # Multiplayer lobby with game codes
+│   ├── SettingsScene.js         # Game settings and audio controls
+│   ├── StartScene.js            # Classic start screen (for guests)
+│   └── GameScene.js             # Main gameplay scene
+├── utils/
+│   ├── scoreCalculator.js       # Score calculation utilities
+│   ├── gameCodeGenerator.js     # Game code generation for multiplayer
+│   ├── powerUpUtils.js          # Power-up physics and behavior
+│   ├── playerNameUtils.js       # Player name validation
+│   ├── CheckpointManager.js     # Checkpoint save/load system
+│   ├── AudioManager.js          # Audio and music management
+│   ├── ConnectionMonitor.js     # Network quality monitoring
+│   ├── MultiplayerSync.js       # Multiplayer state synchronization
+│   ├── ChatSystem.js            # In-game chat functionality
+│   ├── ParticleEffects.js       # Particle effect generators
+│   ├── AnimationManager.js      # Animation controllers
+│   ├── BackgroundGenerator.js   # Parallax background system
+│   ├── SpriteFactory.js         # Sprite creation utilities
+│   ├── WaterEffects.js          # Water and liquid effects
+│   └── PerformanceOptimizer.js  # Performance optimization utilities
+└── __tests__/                   # Unit tests (Jest)
+    ├── scoreCalculator.test.js
+    ├── gameCodeGenerator.test.js
+    ├── powerUpUtils.test.js
+    └── ... (19 test suites total)
 ```
+
+### Core Design Patterns
+
+**Test-Driven Development (TDD):**
+- All utility functions are developed using TDD principles
+- 484 unit tests ensure code reliability
+- 80%+ code coverage requirement
+- See [Testing Guide](CONTRIBUTING.md#testing-guidelines)
+
+**Utility-First Architecture:**
+- Core game logic extracted into testable utility functions
+- Pure functions for calculations (score, game codes, etc.)
+- Separation of concerns between scenes and utilities
+- Easy to test and maintain
+
+**Scene-Based Structure:**
+- Each scene handles a specific game state
+- Scenes communicate via Phaser's event system
+- Clean transitions between game states
+
+**Example: Score Calculation**
+```javascript
+import { calculateTotalScore, SCORE_VALUES } from './utils/scoreCalculator.js';
+
+// Pure function - easy to test
+const score = calculateTotalScore({
+  coins: 10,        // 10 × 10 = 100
+  enemies: 3,       // 3 × 50 = 150
+  powerUps: 2,      // 2 × 50 = 100
+  levelsCompleted: 1, // 1 × 100 = 100
+  bossesDefeated: 1   // 1 × 500 = 500
+});
+// Total: 950 points
+```
+
+For detailed API documentation, see [API_DOCUMENTATION.md](API_DOCUMENTATION.md).
 
 ## 💾 Data Storage
 
@@ -184,7 +242,20 @@ MIT License - feel free to use this project for learning or as a base for your o
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome!
+Contributions, issues, and feature requests are welcome! 
+
+Please read our [Contributing Guidelines](CONTRIBUTING.md) for:
+- Code of conduct
+- Development setup
+- Coding standards
+- Testing guidelines
+- Pull request process
+
+### Developer Documentation
+
+- **[API Documentation](API_DOCUMENTATION.md)** - Detailed API reference for all utility functions
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
+- **[Test Coverage](src/__tests__)** - Comprehensive unit tests following TDD principles
 
 ### Continuous Integration
 
