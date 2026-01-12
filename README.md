@@ -187,16 +187,17 @@ src/
     ├── scoreCalculator.test.js
     ├── gameCodeGenerator.test.js
     ├── powerUpUtils.test.js
-    └── ... (19 test suites total)
+    ├── scoringSystemIntegration.test.js
+    └── ... (20 test suites total)
 ```
 
 ### Core Design Patterns
 
 **Test-Driven Development (TDD):**
 - All utility functions are developed using TDD principles
-- 484 unit tests ensure code reliability
+- 497 comprehensive tests ensure code reliability
 - 80%+ code coverage requirement
-- See [Testing Guide](CONTRIBUTING.md#testing-guidelines)
+- See [TDD Guide](TDD_GUIDE.md) for methodology and examples
 
 **Utility-First Architecture:**
 - Core game logic extracted into testable utility functions
@@ -255,6 +256,7 @@ Please read our [Contributing Guidelines](CONTRIBUTING.md) for:
 
 - **[API Documentation](API_DOCUMENTATION.md)** - Detailed API reference for all utility functions
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
+- **[TDD Guide](TDD_GUIDE.md)** - Test-Driven Development practices and examples
 - **[Test Coverage](src/__tests__)** - Comprehensive unit tests following TDD principles
 
 ### Continuous Integration
