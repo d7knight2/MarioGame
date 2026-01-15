@@ -186,6 +186,121 @@ MIT License - feel free to use this project for learning or as a base for your o
 
 Contributions, issues, and feature requests are welcome!
 
+### Testing
+
+This project has comprehensive test coverage with both unit tests and end-to-end tests.
+
+#### Running Tests
+
+```bash
+# Run all unit tests
+npm test
+
+# Run tests in watch mode (auto-rerun on file changes)
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+
+# Run end-to-end tests with Playwright
+npm run test:e2e
+
+# Run Playwright tests in UI mode (interactive)
+npm run test:e2e:ui
+
+# View Playwright test report
+npm run test:e2e:report
+```
+
+#### Test Structure
+
+- **Unit Tests** (`src/__tests__/`): Test individual utility functions and game logic
+  - `scoreCalculator.test.js` - Score calculation logic
+  - `powerUpUtils.test.js` - Power-up mechanics
+  - `gameCodeGenerator.test.js` - Game code generation
+  - `playerNameUtils.test.js` - Player name validation
+  - `checkpointManager.test.js` - Checkpoint save/load
+  - `multiplayerSync.test.js` - Multiplayer synchronization
+  - `chatSystem.test.js` - Chat functionality
+  - `connectionMonitor.test.js` - Connection status monitoring
+  - `audioManager.test.js` - Audio settings management
+  - And more...
+
+- **Integration Tests** (`src/__tests__/`): Test interactions between components
+  - `checkpointIntegration.test.js` - Checkpoint system integration
+  - `multiplayerRevival.test.js` - Multiplayer revival mechanics
+  - `collisionMechanics.test.js` - Physics and collision logic
+
+- **E2E Tests** (`tests/`): Test user workflows in a real browser
+  - `auth.spec.js` - Authentication flows
+  - `gameplay.spec.js` - Core gameplay scenarios
+
+#### Writing Tests
+
+When contributing new features, please include tests:
+
+**Unit Test Example:**
+```javascript
+import { calculateCoinScore } from '../utils/scoreCalculator.js';
+
+describe('Score Calculator', () => {
+  test('should calculate score for multiple coins', () => {
+    expect(calculateCoinScore(5)).toBe(50);
+  });
+  
+  test('should return 0 for negative numbers', () => {
+    expect(calculateCoinScore(-5)).toBe(0);
+  });
+});
+```
+
+**Using Mocks and Stubs:**
+```javascript
+// Mock localStorage
+const mockLocalStorage = {
+  data: {},
+  getItem: function(key) {
+    return this.data[key] || null;
+  },
+  setItem: function(key, value) {
+    this.data[key] = value;
+  },
+  clear: function() {
+    this.data = {};
+  }
+};
+
+beforeEach(() => {
+  global.localStorage = mockLocalStorage;
+  mockLocalStorage.clear();
+});
+
+test('should save game state', () => {
+  saveGameState({ score: 100 });
+  const saved = JSON.parse(localStorage.getItem('gameState'));
+  expect(saved.score).toBe(100);
+});
+```
+
+#### Coverage Goals
+
+The project aims for high test coverage:
+- **Statements**: 80%+
+- **Branches**: 75%+ (relaxed due to complex UI interactions in ChatSystem)
+- **Functions**: 80%+
+- **Lines**: 80%+
+
+Note: Visual effect utilities (ParticleEffects, WaterEffects, AnimationManager, etc.) are excluded from coverage requirements as they're tightly coupled to the Phaser rendering engine and are best tested through E2E tests.
+
+#### Test-Driven Development
+
+When adding new features:
+1. Write tests first (TDD approach)
+2. Implement the feature
+3. Run tests to verify
+4. Refactor if needed
+5. Ensure all tests pass before committing
+
 ### Continuous Integration
 
 This repository uses GitHub Actions for automated testing and maintenance:

@@ -389,5 +389,76 @@ describe('CheckpointManager', () => {
             const checkpoint = checkpointManager.getCheckpoint(999);
             expect(checkpoint).toBeNull();
         });
+
+        test('should not save checkpoint with invalid level number', () => {
+            const state = {
+                x: 100, y: 100, score: 0,
+                isPoweredUp: false, hasFirePower: false,
+                coinsCollected: 0, enemiesDefeated: 0
+            };
+
+            checkpointManager.saveCheckpoint('invalid', state);
+            expect(checkpointManager.hasCheckpoint('invalid')).toBe(false);
+        });
+
+        test('should not save checkpoint with negative level', () => {
+            const state = {
+                x: 100, y: 100, score: 0,
+                isPoweredUp: false, hasFirePower: false,
+                coinsCollected: 0, enemiesDefeated: 0
+            };
+
+            checkpointManager.saveCheckpoint(-1, state);
+            expect(checkpointManager.hasCheckpoint(-1)).toBe(false);
+        });
+
+        test('should not save checkpoint with null state', () => {
+            checkpointManager.saveCheckpoint(1, null);
+            expect(checkpointManager.hasCheckpoint(1)).toBe(false);
+        });
+
+        test('should not save checkpoint with missing required x property', () => {
+            const state = {
+                y: 100, score: 0,
+                isPoweredUp: false, hasFirePower: false,
+                coinsCollected: 0, enemiesDefeated: 0
+            };
+
+            checkpointManager.saveCheckpoint(1, state);
+            expect(checkpointManager.hasCheckpoint(1)).toBe(false);
+        });
+
+        test('should not save checkpoint with missing required isPoweredUp property', () => {
+            const state = {
+                x: 100, y: 100, score: 0,
+                hasFirePower: false,
+                coinsCollected: 0, enemiesDefeated: 0
+            };
+
+            checkpointManager.saveCheckpoint(1, state);
+            expect(checkpointManager.hasCheckpoint(1)).toBe(false);
+        });
+
+        test('should not save checkpoint with invalid score type', () => {
+            const state = {
+                x: 100, y: 100, score: 'invalid',
+                isPoweredUp: false, hasFirePower: false,
+                coinsCollected: 0, enemiesDefeated: 0
+            };
+
+            checkpointManager.saveCheckpoint(1, state);
+            expect(checkpointManager.hasCheckpoint(1)).toBe(false);
+        });
+
+        test('should not save checkpoint with invalid boolean type', () => {
+            const state = {
+                x: 100, y: 100, score: 0,
+                isPoweredUp: 'true', hasFirePower: false,
+                coinsCollected: 0, enemiesDefeated: 0
+            };
+
+            checkpointManager.saveCheckpoint(1, state);
+            expect(checkpointManager.hasCheckpoint(1)).toBe(false);
+        });
     });
 });

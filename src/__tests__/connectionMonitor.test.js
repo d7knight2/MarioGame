@@ -397,5 +397,71 @@ describe('ConnectionMonitor', () => {
 
             expect(monitor.heartbeatTimer).toBeNull();
         });
+
+        test('should detect timeout when sufficient time has passed', () => {
+            monitor.setConnectionState('connected');
+            
+            // Manually set lastHeartbeat to old value
+            monitor.lastHeartbeat = Date.now() - (monitor.heartbeatTimeout + 1000);
+            
+            expect(monitor.hasTimedOut()).toBe(true);
+        });
+    });
+
+    describe('Reconnection', () => {
+        test('should clear reconnect timer', () => {
+            // Manually create a timer
+            monitor.reconnectTimer = setTimeout(() => {}, 1000);
+            monitor.clearReconnectTimer();
+            
+            expect(monitor.reconnectTimer).toBeNull();
+        });
+
+        test('should handle clearing null reconnect timer', () => {
+            expect(() => {
+                monitor.clearReconnectTimer();
+            }).not.toThrow();
+        });
+    });
+
+    describe('Connection State Management', () => {
+        test('should trigger callback when connection state changes', () => {
+            let callbackCalled = false;
+            let newStateArg = null;
+            let oldStateArg = null;
+            
+            monitor.onConnectionChange = (newState, oldState) => {
+                callbackCalled = true;
+                newStateArg = newState;
+                oldStateArg = oldState;
+            };
+            
+            monitor.setConnectionState('connected');
+            
+            expect(callbackCalled).toBe(true);
+            expect(newStateArg).toBe('connected');
+            expect(oldStateArg).toBe('disconnected');
+        });
+
+        test('should not trigger callback if no callback set', () => {
+            expect(() => {
+                monitor.setConnectionState('connected');
+            }).not.toThrow();
+        });
+
+        test('should handle disconnection callback', () => {
+            let disconnectCalled = false;
+            
+            monitor.onConnectionChange = (newState) => {
+                if (newState === 'disconnected') {
+                    disconnectCalled = true;
+                }
+            };
+            
+            monitor.setConnectionState('connected');
+            monitor.handleDisconnected();
+            
+            expect(disconnectCalled).toBe(true);
+        });
     });
 });

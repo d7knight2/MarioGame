@@ -346,6 +346,76 @@ describe('ChatSystem', () => {
             expect(message.icon).toBeDefined();
             expect(message.type).toBe('signal');
         });
+
+        test('should handle signal message with numeric color', () => {
+            chatSystem.createUI();
+            chatSystem.displayMessage({ 
+                type: 'signal', 
+                text: 'Test',
+                color: 0xff0000,
+                sender: 'local' 
+            });
+
+            expect(chatSystem.messages).toHaveLength(0); // displayMessage doesn't add to messages
+        });
+
+        test('should handle signal message with string color', () => {
+            chatSystem.createUI();
+            expect(() => {
+                chatSystem.displayMessage({ 
+                    type: 'signal', 
+                    text: 'Test',
+                    color: 'ff0000',
+                    sender: 'local' 
+                });
+            }).not.toThrow();
+        });
+
+        test('should handle signal message with hex string color', () => {
+            chatSystem.createUI();
+            expect(() => {
+                chatSystem.displayMessage({ 
+                    type: 'signal', 
+                    text: 'Test',
+                    color: '#ff0000',
+                    sender: 'local' 
+                });
+            }).not.toThrow();
+        });
+
+        test('should handle signal message with invalid color', () => {
+            chatSystem.createUI();
+            expect(() => {
+                chatSystem.displayMessage({ 
+                    type: 'signal', 
+                    text: 'Test',
+                    color: 'invalid',
+                    sender: 'local' 
+                });
+            }).not.toThrow();
+        });
+
+        test('should handle system message', () => {
+            chatSystem.createUI();
+            expect(() => {
+                chatSystem.displayMessage({ 
+                    type: 'system', 
+                    text: 'System message',
+                    sender: 'system' 
+                });
+            }).not.toThrow();
+        });
+
+        test('should handle text message', () => {
+            chatSystem.createUI();
+            expect(() => {
+                chatSystem.displayMessage({ 
+                    type: 'text', 
+                    text: 'Regular message',
+                    sender: 'remote' 
+                });
+            }).not.toThrow();
+        });
     });
 
     describe('Message Clearing', () => {
