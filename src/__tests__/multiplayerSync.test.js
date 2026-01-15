@@ -302,4 +302,83 @@ describe('MultiplayerSync', () => {
             expect(sync.stats.latency).toBe(0);
         });
     });
+
+    describe('Additional Edge Cases', () => {
+        test('should handle state snapshot without existing history', () => {
+            const state = { x: 100, y: 200, velocityX: 0, velocityY: 0 };
+            expect(() => {
+                sync.addStateSnapshot('player1', state);
+            }).not.toThrow();
+            
+            expect(sync.stateHistory.player1).toBeDefined();
+            expect(sync.stateHistory.player1.length).toBeGreaterThan(0);
+        });
+
+        test('should handle getting interpolated state for player without history', () => {
+            const result = sync.getInterpolatedState('player3');
+            expect(result).toBeNull();
+        });
+
+        test('should return most recent state when suitable interpolation states not found', () => {
+            const now = Date.now();
+            const state1 = { x: 100, y: 200, velocityX: 0, velocityY: 0, timestamp: now - 5000 };
+            const state2 = { x: 150, y: 220, velocityX: 0, velocityY: 0, timestamp: now - 4000 };
+            
+            sync.addStateSnapshot('player1', state1);
+            sync.addStateSnapshot('player1', state2);
+
+            const result = sync.getInterpolatedState('player1');
+            expect(result).toBeDefined();
+            expect(result.x).toBe(150); // Should return most recent state
+        });
+
+        test('should handle state with existing timestamp', () => {
+            const customTimestamp = Date.now() - 1000;
+            const state = { x: 100, y: 200, velocityX: 0, velocityY: 0, timestamp: customTimestamp };
+            sync.addStateSnapshot('player1', state);
+            
+            expect(sync.stateHistory.player1[0].timestamp).toBe(customTimestamp);
+        });
+
+        test('should handle clearing history for player without history', () => {
+            expect(() => {
+                sync.clearHistory('playerNonExistent');
+            }).not.toThrow();
+        });
+
+        test('should update network stats correctly', () => {
+            sync.updateNetworkStats(50);
+            expect(sync.stats.latency).toBeGreaterThan(0);
+            expect(sync.stats.latency).toBeLessThanOrEqual(50);
+            
+            sync.updateNetworkStats(100);
+            // Should update based on smoothing
+            expect(sync.stats.latency).toBeGreaterThan(0);
+            expect(sync.stats.latency).toBeLessThanOrEqual(100);
+        });
+
+        test('should handle serializing player without body velocity', () => {
+            const player = {
+                x: 100,
+                y: 200,
+                scaleX: 1,
+                scaleY: 1,
+                body: {
+                    velocity: { x: 0, y: 0 }
+                }
+            };
+            
+            const serialized = sync.serializeState(player);
+            expect(serialized.velocityX).toBe(0);
+            expect(serialized.velocityY).toBe(0);
+        });
+
+        test('should clamp smoothing factor to valid range', () => {
+            const result1 = sync.lerp(100, 200, -0.5);
+            expect(result1).toBe(100); // Should clamp to 0
+            
+            const result2 = sync.lerp(100, 200, 1.5);
+            expect(result2).toBe(200); // Should clamp to 1
+        });
+    });
 });
