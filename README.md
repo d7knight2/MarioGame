@@ -286,7 +286,7 @@ test('should save game state', () => {
 
 The project aims for high test coverage:
 - **Statements**: 80%+
-- **Branches**: 80%+
+- **Branches**: 75%+ (relaxed due to complex UI interactions in ChatSystem)
 - **Functions**: 80%+
 - **Lines**: 80%+
 
