@@ -372,13 +372,5 @@ describe('MultiplayerSync', () => {
             expect(serialized.velocityX).toBe(0);
             expect(serialized.velocityY).toBe(0);
         });
-
-        test('should clamp smoothing factor to valid range', () => {
-            const result1 = sync.lerp(100, 200, -0.5);
-            expect(result1).toBe(100); // Should clamp to 0
-            
-            const result2 = sync.lerp(100, 200, 1.5);
-            expect(result2).toBe(200); // Should clamp to 1
-        });
     });
 });

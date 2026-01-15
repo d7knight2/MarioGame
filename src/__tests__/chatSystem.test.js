@@ -361,60 +361,60 @@ describe('ChatSystem', () => {
 
         test('should handle signal message with string color', () => {
             chatSystem.createUI();
-            chatSystem.displayMessage({ 
-                type: 'signal', 
-                text: 'Test',
-                color: 'ff0000',
-                sender: 'local' 
-            });
-
-            expect(true).toBe(true); // Just verify no error
+            expect(() => {
+                chatSystem.displayMessage({ 
+                    type: 'signal', 
+                    text: 'Test',
+                    color: 'ff0000',
+                    sender: 'local' 
+                });
+            }).not.toThrow();
         });
 
         test('should handle signal message with hex string color', () => {
             chatSystem.createUI();
-            chatSystem.displayMessage({ 
-                type: 'signal', 
-                text: 'Test',
-                color: '#ff0000',
-                sender: 'local' 
-            });
-
-            expect(true).toBe(true); // Just verify no error
+            expect(() => {
+                chatSystem.displayMessage({ 
+                    type: 'signal', 
+                    text: 'Test',
+                    color: '#ff0000',
+                    sender: 'local' 
+                });
+            }).not.toThrow();
         });
 
         test('should handle signal message with invalid color', () => {
             chatSystem.createUI();
-            chatSystem.displayMessage({ 
-                type: 'signal', 
-                text: 'Test',
-                color: 'invalid',
-                sender: 'local' 
-            });
-
-            expect(true).toBe(true); // Just verify no error
+            expect(() => {
+                chatSystem.displayMessage({ 
+                    type: 'signal', 
+                    text: 'Test',
+                    color: 'invalid',
+                    sender: 'local' 
+                });
+            }).not.toThrow();
         });
 
         test('should handle system message', () => {
             chatSystem.createUI();
-            chatSystem.displayMessage({ 
-                type: 'system', 
-                text: 'System message',
-                sender: 'system' 
-            });
-
-            expect(true).toBe(true); // Just verify no error
+            expect(() => {
+                chatSystem.displayMessage({ 
+                    type: 'system', 
+                    text: 'System message',
+                    sender: 'system' 
+                });
+            }).not.toThrow();
         });
 
         test('should handle text message', () => {
             chatSystem.createUI();
-            chatSystem.displayMessage({ 
-                type: 'text', 
-                text: 'Regular message',
-                sender: 'remote' 
-            });
-
-            expect(true).toBe(true); // Just verify no error
+            expect(() => {
+                chatSystem.displayMessage({ 
+                    type: 'text', 
+                    text: 'Regular message',
+                    sender: 'remote' 
+                });
+            }).not.toThrow();
         });
     });
 
