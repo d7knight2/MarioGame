@@ -18,6 +18,39 @@ export default class SpriteFactory {
         );
     }
 
+
+    static drawHatLogo(graphics, logo, color) {
+        graphics.fillStyle(color, 1);
+        graphics.lineStyle(1.5, color, 1);
+
+        if (logo === 'M') {
+            graphics.beginPath();
+            graphics.moveTo(17, 9);
+            graphics.lineTo(17, 3);
+            graphics.lineTo(20, 6);
+            graphics.lineTo(23, 3);
+            graphics.lineTo(23, 9);
+            graphics.strokePath();
+            return;
+        }
+
+        if (logo === 'L') {
+            graphics.beginPath();
+            graphics.moveTo(17, 3);
+            graphics.lineTo(17, 9);
+            graphics.lineTo(23, 9);
+            graphics.strokePath();
+            return;
+        }
+
+        graphics.beginPath();
+        graphics.moveTo(17, 4);
+        graphics.lineTo(23, 4);
+        graphics.moveTo(20, 4);
+        graphics.lineTo(20, 9);
+        graphics.strokePath();
+    }
+
     /**
      * Create an enhanced Mario/Luigi/Toad character sprite with animation frames
      * @param {Phaser.Scene} scene - The scene to create sprites in
@@ -108,30 +141,7 @@ export default class SpriteFactory {
         // Logo on hat
         graphics.fillStyle(0xffffff, 1);
         graphics.fillCircle(20, 6, 5);
-        graphics.fillStyle(config.hat === 0x00aa00 ? 0x006600 : 0xaa0000, 1);
-        graphics.lineStyle(1.5, config.hat === 0x00aa00 ? 0x006600 : 0xaa0000, 1);
-        if (config.logo === 'M') {
-            graphics.beginPath();
-            graphics.moveTo(17, 9);
-            graphics.lineTo(17, 3);
-            graphics.lineTo(20, 6);
-            graphics.lineTo(23, 3);
-            graphics.lineTo(23, 9);
-            graphics.strokePath();
-        } else if (config.logo === 'L') {
-            graphics.beginPath();
-            graphics.moveTo(17, 3);
-            graphics.lineTo(17, 9);
-            graphics.lineTo(23, 9);
-            graphics.strokePath();
-        } else {
-            graphics.beginPath();
-            graphics.moveTo(17, 4);
-            graphics.lineTo(23, 4);
-            graphics.moveTo(20, 4);
-            graphics.lineTo(20, 9);
-            graphics.strokePath();
-        }
+        SpriteFactory.drawHatLogo(graphics, config.logo, config.hat === 0x00aa00 ? 0x006600 : 0xaa0000);
 
         graphics.generateTexture(`character_${character}`, 40, 55);
         graphics.destroy();
