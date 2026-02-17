@@ -58,7 +58,7 @@ export default class SpriteFactory {
         // Hat with gradient
         graphics.fillStyle(config.hat, 1);
         graphics.fillEllipse(20, 4, 32, 16);
-        graphics.fillStyle(config.hat - 0x330000, 1);
+        graphics.fillStyle(SpriteFactory.shadeColor(config.hat, -55), 1);
         graphics.fillRect(4, 10, 32, 6);
         
         // Overalls with shading
@@ -109,19 +109,42 @@ export default class SpriteFactory {
         graphics.fillStyle(0xffffff, 1);
         graphics.fillCircle(20, 6, 5);
         graphics.fillStyle(config.hat === 0x00aa00 ? 0x006600 : 0xaa0000, 1);
-        graphics.fillRect(19, 3.5, 2, 5);
-        
-        // Generate texture
+        graphics.lineStyle(1.5, config.hat === 0x00aa00 ? 0x006600 : 0xaa0000, 1);
+        if (config.logo === 'M') {
+            graphics.beginPath();
+            graphics.moveTo(17, 9);
+            graphics.lineTo(17, 3);
+            graphics.lineTo(20, 6);
+            graphics.lineTo(23, 3);
+            graphics.lineTo(23, 9);
+            graphics.strokePath();
+        } else if (config.logo === 'L') {
+            graphics.beginPath();
+            graphics.moveTo(17, 3);
+            graphics.lineTo(17, 9);
+            graphics.lineTo(23, 9);
+            graphics.strokePath();
+        } else {
+            graphics.beginPath();
+            graphics.moveTo(17, 4);
+            graphics.lineTo(23, 4);
+            graphics.moveTo(20, 4);
+            graphics.lineTo(20, 9);
+            graphics.strokePath();
+        }
+
         graphics.generateTexture(`character_${character}`, 40, 55);
         graphics.destroy();
-        
+
         return {
             textureKey: `character_${character}`,
             width: 40,
             height: 55
         };
     }
-    
+        
+
+
     /**
      * Create an enhanced enemy (Goomba) sprite
      * @param {Phaser.Scene} scene - The scene to create sprites in
