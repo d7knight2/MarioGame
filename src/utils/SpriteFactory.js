@@ -3,7 +3,54 @@
  * Uses Phaser's graphics API to generate textured sprites with better visual quality
  */
 
+import Phaser from 'phaser';
+
 export default class SpriteFactory {
+    static shadeColor(color, amount) {
+        const r = Phaser.Display.Color.GetRed(color);
+        const g = Phaser.Display.Color.GetGreen(color);
+        const b = Phaser.Display.Color.GetBlue(color);
+
+        return Phaser.Display.Color.GetColor(
+            Phaser.Math.Clamp(r + amount, 0, 255),
+            Phaser.Math.Clamp(g + amount, 0, 255),
+            Phaser.Math.Clamp(b + amount, 0, 255)
+        );
+    }
+
+
+    static drawHatLogo(graphics, logo, color) {
+        graphics.fillStyle(color, 1);
+        graphics.lineStyle(1.5, color, 1);
+
+        if (logo === 'M') {
+            graphics.beginPath();
+            graphics.moveTo(17, 9);
+            graphics.lineTo(17, 3);
+            graphics.lineTo(20, 6);
+            graphics.lineTo(23, 3);
+            graphics.lineTo(23, 9);
+            graphics.strokePath();
+            return;
+        }
+
+        if (logo === 'L') {
+            graphics.beginPath();
+            graphics.moveTo(17, 3);
+            graphics.lineTo(17, 9);
+            graphics.lineTo(23, 9);
+            graphics.strokePath();
+            return;
+        }
+
+        graphics.beginPath();
+        graphics.moveTo(17, 4);
+        graphics.lineTo(23, 4);
+        graphics.moveTo(20, 4);
+        graphics.lineTo(20, 9);
+        graphics.strokePath();
+    }
+
     /**
      * Create an enhanced Mario/Luigi/Toad character sprite with animation frames
      * @param {Phaser.Scene} scene - The scene to create sprites in
@@ -26,10 +73,14 @@ export default class SpriteFactory {
         // Body with gradient effect
         graphics.fillStyle(config.body, 1);
         graphics.fillRect(6, 18, 28, 32);
+        graphics.lineStyle(2, SpriteFactory.shadeColor(config.body, -55), 0.95);
+        graphics.strokeRect(6, 18, 28, 32);
         
         // Add shading to body
-        graphics.fillStyle(config.body - 0x220000, 0.3);
+        graphics.fillStyle(SpriteFactory.shadeColor(config.body, -40), 0.35);
         graphics.fillRect(10, 20, 8, 28);
+        graphics.fillStyle(SpriteFactory.shadeColor(config.body, 35), 0.4);
+        graphics.fillRect(24, 20, 6, 26);
         
         // Head (skin color with shading)
         graphics.fillStyle(0xffdbac, 1);
@@ -40,7 +91,7 @@ export default class SpriteFactory {
         // Hat with gradient
         graphics.fillStyle(config.hat, 1);
         graphics.fillEllipse(20, 4, 32, 16);
-        graphics.fillStyle(config.hat - 0x330000, 1);
+        graphics.fillStyle(SpriteFactory.shadeColor(config.hat, -55), 1);
         graphics.fillRect(4, 10, 32, 6);
         
         // Overalls with shading
@@ -63,6 +114,13 @@ export default class SpriteFactory {
         graphics.fillStyle(0x000000, 1);
         graphics.fillCircle(16, 12, 3);
         graphics.fillCircle(24, 12, 3);
+
+        // Smile/face detail
+        graphics.lineStyle(2, 0x6e3e21, 1);
+        graphics.beginPath();
+        graphics.moveTo(16, 20);
+        graphics.lineTo(24, 20);
+        graphics.strokePath();
         
         // Mustache (not for Toad)
         if (character !== 'toad') {
@@ -74,21 +132,29 @@ export default class SpriteFactory {
         graphics.fillStyle(0x654321, 1);
         graphics.fillEllipse(12, 50, 10, 6);
         graphics.fillEllipse(28, 50, 10, 6);
+
+        // Gloves for more readable silhouette
+        graphics.fillStyle(0xffffff, 1);
+        graphics.fillCircle(8, 27, 3);
+        graphics.fillCircle(32, 27, 3);
         
         // Logo on hat
         graphics.fillStyle(0xffffff, 1);
-        
-        // Generate texture
+        graphics.fillCircle(20, 6, 5);
+        SpriteFactory.drawHatLogo(graphics, config.logo, config.hat === 0x00aa00 ? 0x006600 : 0xaa0000);
+
         graphics.generateTexture(`character_${character}`, 40, 55);
         graphics.destroy();
-        
+
         return {
             textureKey: `character_${character}`,
             width: 40,
             height: 55
         };
     }
-    
+        
+
+
     /**
      * Create an enhanced enemy (Goomba) sprite
      * @param {Phaser.Scene} scene - The scene to create sprites in
@@ -118,6 +184,16 @@ export default class SpriteFactory {
         graphics.fillStyle(0x000000, 1);
         graphics.fillCircle(14, 18, 4);
         graphics.fillCircle(26, 18, 4);
+
+        // Mouth/fangs
+        graphics.lineStyle(2, 0x2b1a0d, 1);
+        graphics.beginPath();
+        graphics.moveTo(12, 24);
+        graphics.lineTo(28, 24);
+        graphics.strokePath();
+        graphics.fillStyle(0xffffff, 1);
+        graphics.fillTriangle(16, 24, 19, 24, 17.5, 28);
+        graphics.fillTriangle(23, 24, 26, 24, 24.5, 28);
         
         // Eyebrows (angry look)
         graphics.lineStyle(3, 0x654321, 1);
@@ -172,6 +248,12 @@ export default class SpriteFactory {
         // Shading
         graphics.fillStyle(0xffcc00, 0.6);
         graphics.fillCircle(18, 18, 10);
+
+        // Embossed center line + specular glint
+        graphics.fillStyle(0xe09700, 0.8);
+        graphics.fillRect(15, 6, 2, 20);
+        graphics.fillStyle(0xffffff, 0.75);
+        graphics.fillEllipse(10, 9, 6, 4);
         
         graphics.generateTexture('coin_enhanced', 32, 32);
         graphics.destroy();
@@ -299,6 +381,22 @@ export default class SpriteFactory {
         graphics.fillStyle(0xffdd00, 1);
         graphics.fillRect(4, 4, 32, 4);
         graphics.fillRect(4, 4, 4, 32);
+
+        // Iconography and rivets to make block read better at speed
+        graphics.lineStyle(3, 0x8b5a00, 1);
+        graphics.strokeRoundedRect(11, 8, 18, 24, 4);
+        graphics.fillStyle(0x8b5a00, 1);
+        graphics.fillCircle(20, 28, 2.5);
+        graphics.fillRect(18.5, 14, 3, 10);
+        graphics.fillRect(18.5, 21, 6, 3);
+
+        graphics.fillStyle(0xfff1a6, 0.95);
+        [
+            [8, 8],
+            [32, 8],
+            [8, 32],
+            [32, 32]
+        ].forEach(([x, y]) => graphics.fillCircle(x, y, 1.5));
         
         graphics.generateTexture('block_question', 40, 40);
         graphics.destroy();
@@ -382,6 +480,20 @@ export default class SpriteFactory {
         graphics.fillStyle(0xffaa00, 1);
         graphics.fillEllipse(width * 0.3, height * 0.9, width * 0.2, height * 0.12);
         graphics.fillEllipse(width * 0.7, height * 0.9, width * 0.2, height * 0.12);
+
+        // Shell spikes to increase silhouette quality
+        graphics.fillStyle(0xffe1a6, 1);
+        for (let i = 0; i < 4; i++) {
+            const x = width * (0.25 + i * 0.16);
+            graphics.fillTriangle(
+                x,
+                height * 0.45,
+                x + width * 0.06,
+                height * 0.35,
+                x + width * 0.12,
+                height * 0.45
+            );
+        }
         
         const textureKey = `boss_level${level}`;
         graphics.generateTexture(textureKey, width, height);
