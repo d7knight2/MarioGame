@@ -224,4 +224,15 @@ describe('Game Logic Tests', () => {
       expect(score).toBe(280);
     });
   });
+
+  describe('CI Failure Test', () => {
+    test('should intentionally fail to simulate CI failure', () => {
+      // This test is designed to fail to demonstrate CI failure handling
+      const expectedValue = 42;
+      const actualValue = 100;
+      
+      // This will fail because 100 !== 42
+      expect(actualValue).toBe(expectedValue);
+    });
+  });
 });
