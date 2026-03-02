@@ -2095,6 +2095,8 @@ export default class GameScene extends Phaser.Scene {
                 ease: 'Cubic.easeOut',
                 onComplete: () => oneUpText.destroy()
             });
+        }
+        
         // Score popup with performance scaling
         if (this.performanceManager.shouldEnableEffect('medium')) {
             ParticleEffects.scorePopup(this, coin.x, coin.y, 10);
