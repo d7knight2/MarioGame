@@ -1,0 +1,11 @@
+pull_request_rules:
+  - name: auto-merge when Codex or Copilot CI passes
+    conditions:
+      - "#approved-reviews-by>=1"
+      - -draft
+      - or:
+          - check-success=codex
+          - check-success=copilot
+    actions:
+      merge:
+        method: squash
