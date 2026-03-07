@@ -129,3 +129,30 @@ test.describe('Gameplay Mechanics - Player Death', () => {
     expect(hasGameOverMechanism).toBe(true);
   });
 });
+
+
+test.describe('Gameplay Mechanics - New Level', () => {
+  test('should load level 4 with additional platforms', async ({ page }) => {
+    await startSinglePlayerGame(page);
+
+    await page.evaluate(() => {
+      const game = window.Phaser?.GAMES?.[0];
+      if (!game) return;
+      const gameScene = game.scene.getScene('GameScene');
+      game.registry.set('currentLevel', 4);
+      gameScene.scene.restart();
+    });
+
+    await page.waitForTimeout(3000);
+
+    const hasLevel4 = await page.evaluate(() => {
+      const game = window.Phaser?.GAMES?.[0];
+      if (!game) return false;
+      const gameScene = game.scene.getScene('GameScene');
+      if (!gameScene?.platforms) return false;
+      return game.registry.get('currentLevel') === 4 && gameScene.platforms.getLength() > 10;
+    });
+
+    expect(hasLevel4).toBe(true);
+  });
+});
