@@ -6,6 +6,8 @@ export default class LoginScene extends Phaser.Scene {
         super({ key: 'LoginScene' });
         this.username = '';
         this.audioManager = null;
+        this.presenceHeartbeat = null;
+        this.boundPresenceOffline = null;
     }
 
     create() {
@@ -32,6 +34,8 @@ export default class LoginScene extends Phaser.Scene {
         const savedUser = localStorage.getItem('currentUser');
         if (savedUser) {
             this.username = savedUser;
+            this.setUserPresence(true);
+            this.startPresenceHeartbeat();
             // If there's an invite code, handle it
             if (inviteCode) {
                 this.handleInviteCode(inviteCode);
@@ -135,10 +139,14 @@ export default class LoginScene extends Phaser.Scene {
                         username: this.username,
                         friends: [],
                         pendingInvites: [],
+                        isOnline: true,
                         lastOnline: Date.now()
                     };
                     localStorage.setItem(userDataKey, JSON.stringify(userData));
                 }
+
+                this.setUserPresence(true);
+                this.startPresenceHeartbeat();
                 
                 // Check for pending invite code
                 const inviteCode = this.registry.get('pendingInviteCode');
@@ -167,8 +175,41 @@ export default class LoginScene extends Phaser.Scene {
             }
             this.username = 'Guest' + Math.floor(Math.random() * 10000);
             localStorage.setItem('currentUser', this.username);
+            this.setUserPresence(true);
+            this.startPresenceHeartbeat();
             this.scene.start('StartScene');
         });
+    }
+
+    setUserPresence(isOnline) {
+        if (!this.username) return;
+
+        const userDataKey = `userData_${this.username}`;
+        const userData = JSON.parse(localStorage.getItem(userDataKey) || '{}');
+        userData.username = this.username;
+        userData.friends = userData.friends || [];
+        userData.pendingInvites = userData.pendingInvites || [];
+        userData.isOnline = isOnline;
+        userData.lastOnline = Date.now();
+        localStorage.setItem(userDataKey, JSON.stringify(userData));
+    }
+
+    startPresenceHeartbeat() {
+        if (this.presenceHeartbeat) {
+            this.presenceHeartbeat.remove();
+        }
+
+        this.presenceHeartbeat = this.time.addEvent({
+            delay: 30000,
+            loop: true,
+            callback: () => this.setUserPresence(true)
+        });
+
+        if (!this.boundPresenceOffline) {
+            this.boundPresenceOffline = () => this.setUserPresence(false);
+            window.addEventListener('beforeunload', this.boundPresenceOffline);
+            window.addEventListener('pagehide', this.boundPresenceOffline);
+        }
     }
 
     handleInviteCode(inviteCode) {

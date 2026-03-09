@@ -153,13 +153,12 @@ export default class GameScene extends Phaser.Scene {
         const worldHeight = height + 400; // Add vertical space for platforms above
         this.physics.world.setBounds(0, 0, 3200, worldHeight);
         this.cameras.main.setBounds(0, 0, 3200, worldHeight);
-        // Play background music (infrastructure in place for when audio files are added)
-        // For boss levels, use boss music; otherwise use gameplay music
-        // if (currentLevel === 2 || currentLevel === 3) {
-        //     this.audioManager.playMusic(this.audioManager.musicKeys.boss);
-        // } else {
-        //     this.audioManager.playMusic(this.audioManager.musicKeys.gameplay);
-        // }
+        // Play procedural background music
+        if (currentLevel === 2 || currentLevel === 3) {
+            this.audioManager.playMusic(this.audioManager.musicKeys.boss);
+        } else {
+            this.audioManager.playMusic(this.audioManager.musicKeys.gameplay);
+        }
         
         // Extend world bounds for side-scrolling
         this.physics.world.setBounds(0, 0, 3200, height);
@@ -203,9 +202,12 @@ export default class GameScene extends Phaser.Scene {
         } else if (currentLevel === 2) {
             this.createLevel2Platforms();
             this.createLevel2WaterAreas();
-        } else {
+        } else if (currentLevel === 3) {
             this.createLevel3Platforms();
             this.createLevel3WaterAreas();
+        } else {
+            this.createLevel4Platforms();
+            this.createLevel4WaterAreas();
         }
 
         // Create player 1
@@ -620,6 +622,22 @@ export default class GameScene extends Phaser.Scene {
         this.createPlatform(2900, 480, 120, 32, 0x228B22);
     }
 
+    createLevel4Platforms() {
+        // Level 4 - high tempo sky run
+        this.createPlatform(180, 510, 120, 32, 0x228B22);
+        this.createPlatform(420, 440, 120, 32, 0x228B22);
+        this.createPlatform(660, 370, 100, 32, 0x228B22);
+        this.createPlatform(920, 320, 100, 32, 0x228B22);
+        this.createPlatform(1180, 270, 110, 32, 0x228B22);
+        this.createPlatform(1450, 330, 120, 32, 0x228B22);
+        this.createPlatform(1720, 390, 120, 32, 0x228B22);
+        this.createPlatform(1980, 340, 100, 32, 0x228B22);
+        this.createPlatform(2250, 290, 100, 32, 0x228B22);
+        this.createPlatform(2520, 250, 100, 32, 0x228B22);
+        this.createPlatform(2800, 320, 140, 32, 0x228B22);
+        this.createPlatform(3050, 470, 100, 32, 0x228B22);
+    }
+
     createPlatform(x, y, width, height, color) {
         // Create platform with brick-like pattern
         const platform = this.add.graphics();
@@ -714,6 +732,25 @@ export default class GameScene extends Phaser.Scene {
             this.waterSurfaces.push(water2);
         }
     }
+
+    createLevel4WaterAreas() {
+        const height = this.cameras.main.height;
+        if (this.performanceManager.shouldEnableEffect('medium')) {
+            const water1 = WaterEffects.createWaterSurface(this, 840, height - 95, 180, 65, {
+                scrollFactor: 1,
+                depth: -1,
+                waveSpeed: 1800,
+                waveHeight: 5
+            });
+            const water2 = WaterEffects.createWaterSurface(this, 2100, height - 100, 220, 70, {
+                scrollFactor: 1,
+                depth: -1,
+                waveSpeed: 1700,
+                waveHeight: 5
+            });
+            this.waterSurfaces.push(water1, water2);
+        }
+    }
     
     createPowerUpBlocks() {
         this.powerUpBlocks = this.physics.add.staticGroup();
@@ -740,13 +777,20 @@ export default class GameScene extends Phaser.Scene {
                 { x: 1810, y: 380, type: 'star' },         // Centered above platform at (1750, 480)
                 { x: 2700, y: 380, type: 'mushroom' }      // Centered above ledge platform
             ];
-        } else {
+        } else if (currentLevel === 3) {
             // Level 3 boxes centered on platforms
             blockPositions = [
                 { x: 490, y: 320, type: 'mushroom' },      // Centered above platform at (490, 420)
                 { x: 1120, y: 350, type: 'flower' },       // Centered above platform at (1120, 450)
                 { x: 1980, y: 280, type: 'star' },         // Centered above platform at (1980, 380)
                 { x: 2700, y: 250, type: 'flower' }        // Centered above ledge platform
+            ];
+        } else {
+            blockPositions = [
+                { x: 660, y: 280, type: 'mushroom' },
+                { x: 1180, y: 180, type: 'flower' },
+                { x: 1980, y: 250, type: 'star' },
+                { x: 2520, y: 160, type: 'flower' }
             ];
         }
         
@@ -1112,7 +1156,7 @@ export default class GameScene extends Phaser.Scene {
                 { x: 2200, y: 370 }, { x: 2260, y: 370 },
                 { x: 2650, y: 430 }, { x: 2710, y: 430 }
             ];
-        } else {
+        } else if (currentLevel === 3) {
             // Level 3 coins - challenging collection
             coinPositions = [
                 // First section - ascending
@@ -1136,6 +1180,14 @@ export default class GameScene extends Phaser.Scene {
                 // Final section
                 { x: 2600, y: 450 }, { x: 2660, y: 450 },
                 { x: 2900, y: 430 }, { x: 2960, y: 430 }
+            ];
+        } else {
+            coinPositions = [
+                { x: 220, y: 460 }, { x: 280, y: 460 }, { x: 340, y: 460 },
+                { x: 520, y: 390 }, { x: 580, y: 390 }, { x: 760, y: 340 },
+                { x: 1040, y: 290 }, { x: 1320, y: 340 }, { x: 1580, y: 400 },
+                { x: 1860, y: 350 }, { x: 2140, y: 300 }, { x: 2420, y: 250 },
+                { x: 2720, y: 300 }, { x: 3000, y: 430 }
             ];
         }
 
@@ -1226,7 +1278,7 @@ export default class GameScene extends Phaser.Scene {
                 { x: 2100, y: 450, speed: 95 },
                 { x: 2350, y: 500, speed: -70 }
             ];
-        } else {
+        } else if (currentLevel === 3) {
             // Level 3 - most enemies and faster
             enemyPositions = [
                 { x: 250, y: 500, speed: 80 },
@@ -1240,6 +1292,14 @@ export default class GameScene extends Phaser.Scene {
                 { x: 2080, y: 450, speed: 90 },
                 { x: 2260, y: 450, speed: -95 },
                 { x: 2500, y: 500, speed: 85 }
+            ];
+        } else {
+            enemyPositions = [
+                { x: 320, y: 500, speed: 100 }, { x: 640, y: 440, speed: -120 },
+                { x: 920, y: 380, speed: 130 }, { x: 1200, y: 320, speed: -125 },
+                { x: 1500, y: 380, speed: 120 }, { x: 1760, y: 450, speed: -130 },
+                { x: 2080, y: 400, speed: 135 }, { x: 2360, y: 340, speed: -120 },
+                { x: 2680, y: 400, speed: 140 }
             ];
         }
 
@@ -1300,14 +1360,19 @@ export default class GameScene extends Phaser.Scene {
                 { x: 1000, y: height - 100 },  // First checkpoint
                 { x: 2000, y: height - 100 }   // Second checkpoint
             ];
-        } else {
+        } else if (currentLevel === 3) {
             // Level 3
             checkpointPositions = [
                 { x: 1050, y: height - 100 },  // First checkpoint
                 { x: 2050, y: height - 100 }   // Second checkpoint
             ];
+        } else {
+            checkpointPositions = [
+                { x: 1200, y: height - 120 },
+                { x: 2300, y: height - 180 }
+            ];
         }
-        
+
         checkpointPositions.forEach((pos, index) => {
             // Create checkpoint flag pole
             const poleHeight = 80;
@@ -2248,7 +2313,7 @@ export default class GameScene extends Phaser.Scene {
         const nextLevel = currentLevel + 1;
         
         let continueText;
-        if (nextLevel <= 3) {
+        if (nextLevel <= 4) {
             continueText = this.add.text(
                 this.cameras.main.centerX,
                 this.cameras.main.centerY + 120,
@@ -2289,7 +2354,7 @@ export default class GameScene extends Phaser.Scene {
         GameScene.checkpointManager.clearCheckpoint(currentLevel);
         
         this.input.once('pointerdown', () => {
-            if (nextLevel <= 3) {
+            if (nextLevel <= 4) {
                 this.registry.set('currentLevel', nextLevel);
                 this.scene.restart();
                 this.levelComplete = false;
@@ -2297,7 +2362,7 @@ export default class GameScene extends Phaser.Scene {
         });
         
         this.input.keyboard.once('keydown-SPACE', () => {
-            if (nextLevel <= 3) {
+            if (nextLevel <= 4) {
                 this.registry.set('currentLevel', nextLevel);
                 this.scene.restart();
                 this.levelComplete = false;

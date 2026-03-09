@@ -8,6 +8,7 @@ export default class AudioManager {
         this.sounds = {};
         this.music = {};
         this.currentMusic = null;
+        this.musicTimer = null;
         
         // Load audio settings from localStorage
         this.settings = this.loadSettings();
@@ -199,16 +200,32 @@ export default class AudioManager {
             this.stopMusic();
         }
         
-        // For now, we'll skip background music since it requires actual audio files
-        // The infrastructure is in place for when audio files are added
-        console.log(`Background music requested: ${musicKey} (not implemented - requires audio files)`);
-        
-        // In a real implementation with audio files:
-        // this.currentMusic = this.scene.sound.add(musicKey, {
-        //     loop: loop,
-        //     volume: this.settings.masterVolume * this.settings.musicVolume
-        // });
-        // this.currentMusic.play();
+        this.playProceduralMusic(musicKey, loop);
+    }
+
+    playProceduralMusic(musicKey, loop = true) {
+        const patterns = {
+            [this.musicKeys.menu]: [392, 440, 523, 659],
+            [this.musicKeys.gameplay]: [523, 659, 784, 659, 880, 784],
+            [this.musicKeys.boss]: [220, 261, 220, 196, 174],
+            [this.musicKeys.victory]: [523, 659, 784, 1046]
+        };
+
+        const notes = patterns[musicKey] || patterns[this.musicKeys.gameplay];
+        let noteIndex = 0;
+        const noteLength = musicKey === this.musicKeys.boss ? 0.28 : 0.2;
+
+        this.musicTimer = this.scene.time.addEvent({
+            delay: 220,
+            loop,
+            callback: () => {
+                const note = notes[noteIndex % notes.length];
+                this.createBeepSound(note, noteLength, 'triangle');
+                noteIndex += 1;
+            }
+        });
+
+        this.currentMusic = { pendingRemove: false, stop: () => this.stopMusic() };
     }
 
     /**
@@ -216,8 +233,13 @@ export default class AudioManager {
      */
     stopMusic() {
         if (this.currentMusic && !this.currentMusic.pendingRemove) {
-            this.currentMusic.stop();
+            this.currentMusic.pendingRemove = true;
             this.currentMusic = null;
+        }
+
+        if (this.musicTimer) {
+            this.musicTimer.remove();
+            this.musicTimer = null;
         }
     }
 
@@ -225,8 +247,8 @@ export default class AudioManager {
      * Pause current background music
      */
     pauseMusic() {
-        if (this.currentMusic && !this.currentMusic.pendingRemove) {
-            this.currentMusic.pause();
+        if (this.musicTimer) {
+            this.musicTimer.paused = true;
         }
     }
 
@@ -234,8 +256,8 @@ export default class AudioManager {
      * Resume paused background music
      */
     resumeMusic() {
-        if (this.currentMusic && !this.currentMusic.pendingRemove) {
-            this.currentMusic.resume();
+        if (this.musicTimer) {
+            this.musicTimer.paused = false;
         }
     }
 

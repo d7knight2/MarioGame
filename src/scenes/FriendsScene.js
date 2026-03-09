@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import AudioManager from '../utils/AudioManager.js';
+import NotificationManager from '../utils/NotificationManager.js';
 
 export default class FriendsScene extends Phaser.Scene {
     constructor() {
@@ -7,6 +8,9 @@ export default class FriendsScene extends Phaser.Scene {
         this.username = '';
         this.friends = [];
         this.audioManager = null;
+        this.notificationManager = null;
+        this.previousOnlineFriends = new Set();
+        this.onlineThresholdMs = 90000;
     }
 
     create() {
@@ -16,6 +20,8 @@ export default class FriendsScene extends Phaser.Scene {
         // Initialize AudioManager
         this.audioManager = new AudioManager(this);
         this.audioManager.preloadSounds();
+        this.notificationManager = new NotificationManager(this);
+        this.notificationManager.requestPermissionIfNeeded();
 
         // Get current user
         this.username = localStorage.getItem('currentUser') || 'Guest';
@@ -59,6 +65,7 @@ export default class FriendsScene extends Phaser.Scene {
         // Friends list container
         this.friendsContainer = this.add.container(0, 0);
         this.displayFriends();
+        this.watchFriendPresence();
 
         // Back button
         const backBtn = this.add.rectangle(100, height - 40, 150, 40, 0x666666);
@@ -156,7 +163,7 @@ export default class FriendsScene extends Phaser.Scene {
             nameText.setDepth(12);
 
             // Online status indicator (simulated)
-            const isOnline = Math.random() > 0.5;
+            const isOnline = this.isFriendOnline(friend);
             const statusCircle = this.add.circle(120, yPos, 8, isOnline ? 0x00ff00 : 0x666666);
             statusCircle.setDepth(12);
             
@@ -217,6 +224,37 @@ export default class FriendsScene extends Phaser.Scene {
 
             // Add all elements to container
             this.friendsContainer.add([card, statusCircle, nameText, statusText, inviteBtn, inviteText, removeBtn, removeText]);
+        });
+    }
+
+    isFriendOnline(friendName) {
+        const friendData = JSON.parse(localStorage.getItem(`userData_${friendName}`) || '{}');
+        const hasRecentHeartbeat = Date.now() - (friendData.lastOnline || 0) <= this.onlineThresholdMs;
+        return Boolean(friendData.isOnline && hasRecentHeartbeat);
+    }
+
+    watchFriendPresence() {
+        this.time.addEvent({
+            delay: 15000,
+            loop: true,
+            callback: () => {
+                this.friends.forEach(friend => {
+                    const online = this.isFriendOnline(friend);
+                    if (online && !this.previousOnlineFriends.has(friend)) {
+                        this.notificationManager.notify('Friend Online 🎮', {
+                            body: `${friend} is online now. Invite them to play!`
+                        });
+                    }
+
+                    if (online) {
+                        this.previousOnlineFriends.add(friend);
+                    } else {
+                        this.previousOnlineFriends.delete(friend);
+                    }
+                });
+
+                this.displayFriends();
+            }
         });
     }
 
@@ -316,6 +354,10 @@ export default class FriendsScene extends Phaser.Scene {
             });
             
             localStorage.setItem(friendDataKey, JSON.stringify(data));
+
+            this.notificationManager.notify('Invite Sent 🚀', {
+                body: `Invitation sent to ${friendName}. Code: ${inviteCode}`
+            });
             
             // Set up game as host
             this.registry.set('gameMode', 'multiplayer');
