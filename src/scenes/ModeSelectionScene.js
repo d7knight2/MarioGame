@@ -15,6 +15,7 @@ export default class ModeSelectionScene extends Phaser.Scene {
         // Initialize AudioManager
         this.audioManager = new AudioManager(this);
         this.audioManager.preloadSounds();
+        this.game.events.emit('showTouchControls', false);
 
         // Title
         const title = this.add.text(width / 2, height / 5, 'MARIO GAME', {
@@ -92,7 +93,7 @@ export default class ModeSelectionScene extends Phaser.Scene {
         onePlayerBtn.on('pointerout', () => {
             onePlayerBtn.setFillStyle(0x00aa00);
         });
-        onePlayerBtn.on('pointerdown', () => {
+        onePlayerBtn.on('pointerup', () => {
             playClick();
             this.registry.set('gameMode', 'single');
             this.registry.set('playMode', PLAY_MODES.ADVENTURE);
@@ -106,7 +107,7 @@ export default class ModeSelectionScene extends Phaser.Scene {
         twoPlayerBtn.on('pointerout', () => {
             twoPlayerBtn.setFillStyle(0x0066cc);
         });
-        twoPlayerBtn.on('pointerdown', () => {
+        twoPlayerBtn.on('pointerup', () => {
             playClick();
             this.registry.set('gameMode', 'multiplayer');
             this.registry.set('playMode', PLAY_MODES.ADVENTURE);
@@ -120,7 +121,7 @@ export default class ModeSelectionScene extends Phaser.Scene {
         puzzleBtn.on('pointerout', () => {
             puzzleBtn.setFillStyle(0xaa6600);
         });
-        puzzleBtn.on('pointerdown', () => {
+        puzzleBtn.on('pointerup', () => {
             playClick();
             this.registry.set('gameMode', 'single');
             this.registry.set('playMode', PLAY_MODES.PUZZLE);

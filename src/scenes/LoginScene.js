@@ -17,6 +17,7 @@ export default class LoginScene extends Phaser.Scene {
         // Initialize AudioManager
         this.audioManager = new AudioManager(this);
         this.audioManager.preloadSounds();
+        this.game.events.emit('showTouchControls', false);
 
         // Check for invite code in URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -100,11 +101,16 @@ export default class LoginScene extends Phaser.Scene {
         inputText.setOrigin(0.5);
         inputBtn.setInteractive({ useHandCursor: true });
 
-        inputBtn.on('pointerdown', () => {
+        inputBtn.on('pointerup', () => {
             if (this.audioManager) {
                 this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
             }
-            const username = prompt('Enter your username (3-15 characters):');
+            let username = null;
+            try {
+                username = prompt('Enter your username (3-15 characters):');
+            } catch {
+                username = null;
+            }
             if (username && username.trim() && username.trim().length >= 3) {
                 this.username = username.trim().substring(0, 15);
                 usernameDisplay.setText(this.username);
@@ -124,7 +130,7 @@ export default class LoginScene extends Phaser.Scene {
         continueText.setOrigin(0.5);
         continueBtn.setInteractive({ useHandCursor: true });
 
-        continueBtn.on('pointerdown', () => {
+        continueBtn.on('pointerup', () => {
             if (this.username) {
                 if (this.audioManager) {
                     this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
@@ -169,7 +175,7 @@ export default class LoginScene extends Phaser.Scene {
         guestText.setOrigin(0.5);
         guestBtn.setInteractive({ useHandCursor: true });
 
-        guestBtn.on('pointerdown', () => {
+        guestBtn.on('pointerup', () => {
             if (this.audioManager) {
                 this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
             }
@@ -177,7 +183,8 @@ export default class LoginScene extends Phaser.Scene {
             localStorage.setItem('currentUser', this.username);
             this.setUserPresence(true);
             this.startPresenceHeartbeat();
-            this.scene.start('StartScene');
+            // Use mode select (includes Puzzle) instead of legacy start screen
+            this.scene.start('ModeSelectionScene');
         });
     }
 

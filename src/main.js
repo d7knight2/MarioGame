@@ -21,6 +21,12 @@ const config = {
         width: 800,
         height: 600
     },
+    input: {
+        activePointers: 3,
+        mouse: {
+            preventDefaultWheel: false
+        }
+    },
     physics: {
         default: 'arcade',
         arcade: {
@@ -40,68 +46,72 @@ if (typeof window !== 'undefined') {
     window.Phaser.GAMES.push(game);
 }
 
-// Handle mobile controls
+function bindHoldButton(el, onDown, onUp) {
+    if (!el) return;
+    const down = (e) => {
+        e.preventDefault();
+        onDown();
+    };
+    const up = (e) => {
+        e.preventDefault();
+        onUp();
+    };
+    el.addEventListener('touchstart', down, { passive: false });
+    el.addEventListener('touchend', up, { passive: false });
+    el.addEventListener('touchcancel', up, { passive: false });
+    el.addEventListener('mousedown', down);
+    el.addEventListener('mouseup', up);
+    el.addEventListener('mouseleave', up);
+}
+
+// Handle mobile controls + menu clickability
 window.addEventListener('load', () => {
+    const touchControls = document.getElementById('touch-controls');
     const leftBtn = document.getElementById('left-btn');
     const rightBtn = document.getElementById('right-btn');
     const jumpBtn = document.getElementById('jump-btn');
     const fireBtn = document.getElementById('fire-btn');
-    
-    // Hide fire button initially
+
+    const setTouchControlsVisible = (visible) => {
+        if (!touchControls) return;
+        touchControls.classList.toggle('controls--visible', !!visible);
+    };
+
+    // Hidden on menus by default
+    setTouchControlsVisible(false);
+
+    game.events.on('showTouchControls', setTouchControlsVisible);
+
     if (fireBtn) {
         fireBtn.style.display = 'none';
     }
-    
-    // Listen for power-up changes to show/hide fire button
+
     game.events.on('hasFirePower', (hasFire) => {
         if (fireBtn) {
             fireBtn.style.display = hasFire ? 'flex' : 'none';
         }
     });
-    
-    if (leftBtn) {
-        leftBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            game.registry.set('moveLeft', true);
-        });
-        leftBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            game.registry.set('moveLeft', false);
-        });
-    }
-    
-    if (rightBtn) {
-        rightBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            game.registry.set('moveRight', true);
-        });
-        rightBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            game.registry.set('moveRight', false);
-        });
-    }
-    
-    if (jumpBtn) {
-        jumpBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            game.registry.set('jump', true);
-        });
-        jumpBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            game.registry.set('jump', false);
-        });
-    }
-    
-    if (fireBtn) {
-        fireBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            game.registry.set('fire', true);
-        });
-        fireBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            game.registry.set('fire', false);
-        });
-    }
+
+    bindHoldButton(
+        leftBtn,
+        () => game.registry.set('moveLeft', true),
+        () => game.registry.set('moveLeft', false)
+    );
+    bindHoldButton(
+        rightBtn,
+        () => game.registry.set('moveRight', true),
+        () => game.registry.set('moveRight', false)
+    );
+    bindHoldButton(
+        jumpBtn,
+        () => game.registry.set('jump', true),
+        () => game.registry.set('jump', false)
+    );
+    bindHoldButton(
+        fireBtn,
+        () => game.registry.set('fire', true),
+        () => game.registry.set('fire', false)
+    );
 });
 
 export default game;

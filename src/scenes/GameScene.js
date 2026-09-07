@@ -145,7 +145,9 @@ export default class GameScene extends Phaser.Scene {
             if (this.gamepadManager) {
                 this.gamepadManager.stop();
             }
+            this.game.events.emit('showTouchControls', false);
         });
+        this.game.events.emit('showTouchControls', true);
         
         // Get game mode and player names from registry
         // gameMode can be either string ('single', 'multiplayer', 'puzzle') or number (1, 2)

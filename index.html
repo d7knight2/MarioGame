@@ -31,28 +31,39 @@
             align-items: center;
         }
         
-        canvas {
-            display: block;
-            margin: 0 auto;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        }
-        
-        /* Touch controls styling */
+        /* Touch controls — hidden by default so they never block menus on Mac/desktop */
         .controls {
             position: fixed;
             bottom: 20px;
             left: 0;
             right: 0;
-            display: flex;
+            display: none;
             justify-content: space-between;
             padding: 0 20px;
             pointer-events: none;
             z-index: 1000;
         }
+
+        .controls.controls--visible {
+            display: flex;
+        }
+
+        /* Never show touch pads on fine-pointer devices (Mac trackpad/mouse) */
+        @media (pointer: fine) {
+            .controls.controls--visible {
+                display: none !important;
+            }
+        }
+
+        .left-controls,
+        .right-controls {
+            pointer-events: none;
+            display: flex;
+            gap: 15px;
+        }
         
         .control-btn {
-            pointer-events: all;
+            pointer-events: auto;
             width: 70px;
             height: 70px;
             border-radius: 50%;
@@ -75,16 +86,6 @@
             transform: scale(0.95);
         }
         
-        .left-controls {
-            display: flex;
-            gap: 15px;
-        }
-        
-        .right-controls {
-            display: flex;
-            gap: 15px;
-        }
-        
         @media (max-width: 768px) {
             .control-btn {
                 width: 60px;
@@ -92,20 +93,21 @@
                 font-size: 20px;
             }
         }
-        
-        /* Hide controls on desktop */
-        @media (min-width: 1024px) {
-            .controls {
-                display: none;
-            }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            touch-action: none;
         }
     </style>
 </head>
 <body>
     <div id="game-container"></div>
     
-    <!-- Mobile touch controls -->
-    <div class="controls">
+    <!-- Mobile touch controls (shown only during gameplay on touch devices) -->
+    <div class="controls" id="touch-controls">
         <div class="left-controls">
             <div class="control-btn" id="left-btn">←</div>
             <div class="control-btn" id="right-btn">→</div>
