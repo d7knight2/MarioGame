@@ -90,6 +90,7 @@ Choose your game mode:
 - **1 Player**: Play solo and control one character
 - **2 Players (Local)**: Play cooperatively with a friend on the same device
 - **2 Players (Multiplayer)**: Host or join a game with a friend online (via game codes)
+- **Puzzle Mode**: Solo puzzle-platformer levels — hit switches or find a key to open the gate, then reach the flag
 
 ### Character Selection
 Choose from three characters:
@@ -103,17 +104,22 @@ Choose from three characters:
 - **Arrow Keys** (↑ ↓ ← →): Move and jump
 - **X**: Shoot fireballs (when powered up with Fire Flower)
 - **Mobile**: Use on-screen touch buttons
+- **Controller / Joy-Con**: Pair over Bluetooth, then press a button in-game (A jump, X/B fire, stick or D-pad move)
 
 **2-Player Mode:**
 
 **Player 1:**
 - **W/A/S/D**: Move and jump
 - **Left Shift**: Shoot fireballs (when powered up with Fire Flower)
+- **Gamepad 1**: Same actions as above when a controller is connected
 
 **Player 2:**
 - **Arrow Keys** (↑ ↓ ← →): Move and jump
 - **X**: Shoot fireballs (when powered up with Fire Flower)
 - **Mobile**: Use on-screen touch buttons (controls Player 2)
+- **Gamepad 2**: Second connected controller
+
+> **Note:** Joy-Con pairing depends on your phone/OS. Android often works; iPhone support is limited. Any Bluetooth gamepad the browser exposes via the Gamepad API will work.
 
 ### Desktop Controls (All Modes)
 - **Space**: Start game / Restart after game over

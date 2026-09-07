@@ -8,14 +8,21 @@ describe('Game Mode Handling Tests', () => {
   describe('Game Mode Value Conversion', () => {
     test('should convert string "single" to number 1', () => {
       const gameModeValue = 'single';
-      const gameMode = (gameModeValue === 'single' || gameModeValue === 1) ? 1 : 2;
+      const gameMode = (gameModeValue === 'single' || gameModeValue === 'puzzle' || gameModeValue === 1) ? 1 : 2;
+      
+      expect(gameMode).toBe(1);
+    });
+
+    test('should convert string "puzzle" to number 1', () => {
+      const gameModeValue = 'puzzle';
+      const gameMode = (gameModeValue === 'single' || gameModeValue === 'puzzle' || gameModeValue === 1) ? 1 : 2;
       
       expect(gameMode).toBe(1);
     });
 
     test('should convert string "multiplayer" to number 2', () => {
       const gameModeValue = 'multiplayer';
-      const gameMode = (gameModeValue === 'single' || gameModeValue === 1) ? 1 : 2;
+      const gameMode = (gameModeValue === 'single' || gameModeValue === 'puzzle' || gameModeValue === 1) ? 1 : 2;
       
       expect(gameMode).toBe(2);
     });

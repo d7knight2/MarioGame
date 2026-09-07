@@ -5,25 +5,29 @@
 
 describe('Mode Selection Tests', () => {
   describe('Game Mode Options', () => {
-    test('should have two game modes available', () => {
+    test('should have three game modes available', () => {
       const modes = [
         { key: 'single', label: '1 PLAYER' },
-        { key: 'multiplayer', label: '2 PLAYERS' }
+        { key: 'multiplayer', label: '2 PLAYERS' },
+        { key: 'puzzle', label: 'PUZZLE MODE' }
       ];
       
-      expect(modes).toHaveLength(2);
+      expect(modes).toHaveLength(3);
       expect(modes[0].key).toBe('single');
       expect(modes[1].key).toBe('multiplayer');
+      expect(modes[2].key).toBe('puzzle');
     });
 
     test('should have correct button labels', () => {
       const buttonLabels = {
         singlePlayer: '1 PLAYER',
-        multiPlayer: '2 PLAYERS'
+        multiPlayer: '2 PLAYERS',
+        puzzle: 'PUZZLE MODE'
       };
       
       expect(buttonLabels.singlePlayer).toBe('1 PLAYER');
       expect(buttonLabels.multiPlayer).toBe('2 PLAYERS');
+      expect(buttonLabels.puzzle).toBe('PUZZLE MODE');
     });
   });
 

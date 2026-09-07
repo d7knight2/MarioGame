@@ -10,6 +10,9 @@ import ChatSystem from '../utils/ChatSystem.js';
 import ConnectionMonitor from '../utils/ConnectionMonitor.js';
 import MultiplayerSync from '../utils/MultiplayerSync.js';
 import AudioManager from '../utils/AudioManager.js';
+import GamepadManager from '../utils/GamepadManager.js';
+import { normalizePlayerCount, isPuzzlePlayMode, ADVENTURE_MAX_LEVEL } from '../utils/gameModeUtils.js';
+import { getPuzzleLevel, PUZZLE_MAX_LEVEL } from '../utils/puzzleLevels.js';
 
 // Game constants
 const POWER_UP_SPAWN_DELAY_MS = 300; // Delay before power-ups start moving horizontally
@@ -110,6 +113,21 @@ export default class GameScene extends Phaser.Scene {
         this.isMultiplayerOnline = false; // Flag to indicate if this is online multiplayer
         // Audio manager
         this.audioManager = null;
+        // Controllers / Joy-Cons
+        this.gamepadManager = null;
+        this.gamepadHintShown = false;
+        this.lastFirePressedPad1 = false;
+        this.lastFirePressedPad2 = false;
+        // Puzzle mode state
+        this.isPuzzleMode = false;
+        this.puzzleLevelData = null;
+        this.puzzleGate = null;
+        this.puzzleGateOpen = false;
+        this.puzzleSwitches = null;
+        this.puzzleKeys = null;
+        this.puzzleKeysCollected = 0;
+        this.puzzleSwitchesActivated = 0;
+        this.puzzleObjectiveText = null;
     }
 
     create() {
@@ -119,16 +137,28 @@ export default class GameScene extends Phaser.Scene {
         // Initialize AudioManager
         this.audioManager = new AudioManager(this);
         this.audioManager.preloadSounds();
+
+        // Controllers / Joy-Cons via Gamepad API
+        this.gamepadManager = new GamepadManager();
+        this.gamepadManager.start();
+        this.events.once('shutdown', () => {
+            if (this.gamepadManager) {
+                this.gamepadManager.stop();
+            }
+        });
         
         // Get game mode and player names from registry
-        // gameMode can be either string ('single', 'multiplayer') or number (1, 2)
+        // gameMode can be either string ('single', 'multiplayer', 'puzzle') or number (1, 2)
         const gameModeValue = this.registry.get('gameMode') || 1;
-        this.gameMode = (gameModeValue === 'single' || gameModeValue === 1) ? 1 : 2;
+        const playMode = this.registry.get('playMode');
+        this.isPuzzleMode = isPuzzlePlayMode(playMode) || gameModeValue === 'puzzle';
+        this.gameMode = normalizePlayerCount(gameModeValue, playMode);
         this.player1Name = this.registry.get('player1Name') || 'Player 1';
         this.player2Name = this.registry.get('player2Name') || 'Player 2';
         
         // Get current level and score from registry
         const currentLevel = this.registry.get('currentLevel') || 1;
+        this.puzzleLevelData = this.isPuzzleMode ? getPuzzleLevel(currentLevel) : null;
         this.score = this.registry.get('score') || 0;
         
         // Restore game stats
@@ -196,7 +226,9 @@ export default class GameScene extends Phaser.Scene {
         this.createPlatform(0, height - 32, 3200, 64, 0x8B4513);
         
         // Create level-specific layouts
-        if (currentLevel === 1) {
+        if (this.isPuzzleMode && this.puzzleLevelData) {
+            this.createPuzzlePlatforms(this.puzzleLevelData);
+        } else if (currentLevel === 1) {
             this.createLevel1Platforms();
             this.createLevel1WaterAreas();
         } else if (currentLevel === 2) {
@@ -246,8 +278,14 @@ export default class GameScene extends Phaser.Scene {
         // Create checkpoints
         this.createCheckpoints();
         
-        // Create finish flag or boss
-        if (currentLevel === 2 || currentLevel === 3) {
+        // Create finish flag or boss (puzzle always uses flag behind a gate)
+        if (this.isPuzzleMode && this.puzzleLevelData) {
+            this.createPuzzleElements(this.puzzleLevelData);
+            this.createFinishFlagAt(
+                this.puzzleLevelData.flag.x,
+                this.puzzleLevelData.flag.y
+            );
+        } else if (currentLevel === 2 || currentLevel === 3) {
             this.createBoss();
         } else {
             this.createFinishFlag();
@@ -289,7 +327,13 @@ export default class GameScene extends Phaser.Scene {
         this.scoreText.setDepth(UI_DEPTH.hud);
         
         // Level text - fixed to camera
-        this.levelText = this.add.text(UI_LAYOUT.levelX, UI_LAYOUT.levelY, 'Level: ' + currentLevel, {
+        this.levelText = this.add.text(
+            UI_LAYOUT.levelX,
+            UI_LAYOUT.levelY,
+            this.isPuzzleMode
+                ? `Puzzle: ${currentLevel}/${PUZZLE_MAX_LEVEL}`
+                : 'Level: ' + currentLevel,
+            {
             fontSize: '28px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -397,8 +441,9 @@ export default class GameScene extends Phaser.Scene {
             this.physics.add.overlap(this.player2, this.checkpoints, this.reachCheckpoint, null, this);
         }
         
-        // Overlap with finish flag (if not boss level)
-        if (currentLevel !== 2) {
+        // Overlap with finish flag (if not adventure boss level)
+        const isAdventureBossLevel = !this.isPuzzleMode && (currentLevel === 2 || currentLevel === 3) && this.boss;
+        if (!isAdventureBossLevel && this.finishFlag) {
             this.physics.add.overlap(this.player, this.finishFlag, this.reachFlag, null, this);
             if (this.gameMode === 2) {
                 this.physics.add.overlap(this.player2, this.finishFlag, this.reachFlag, null, this);
@@ -441,9 +486,42 @@ export default class GameScene extends Phaser.Scene {
         this.registry.set('moveRight', false);
         this.registry.set('jump', false);
         this.registry.set('fire', false);
+
+        // Brief gamepad / Joy-Con hint
+        if (this.gamepadManager && this.gamepadManager.getConnectedCount() > 0) {
+            this.showGamepadConnectedHint();
+        }
         
         // Setup cleanup on scene shutdown
         this.events.once('shutdown', this.cleanupVisualEffects, this);
+    }
+
+    showGamepadConnectedHint() {
+        if (this.gamepadHintShown) return;
+        this.gamepadHintShown = true;
+        const hint = this.add.text(
+            this.cameras.main.centerX,
+            this.cameras.main.height - 70,
+            'Controller connected — A jump · X/B fire · stick/D-pad move',
+            {
+                fontSize: '16px',
+                fontFamily: 'Arial',
+                color: '#00ffcc',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        );
+        hint.setOrigin(0.5);
+        hint.setScrollFactor(0);
+        hint.setDepth(200);
+        this.tweens.add({
+            targets: hint,
+            alpha: 0,
+            delay: 3500,
+            duration: 800,
+            onComplete: () => hint.destroy()
+        });
     }
     
     cleanupVisualEffects() {
@@ -757,8 +835,14 @@ export default class GameScene extends Phaser.Scene {
         
         const currentLevel = this.registry.get('currentLevel') || 1;
         let blockPositions;
-        
-        if (currentLevel === 1) {
+
+        if (this.isPuzzleMode) {
+            // Light power-ups so puzzle levels stay solvable but rewarding
+            blockPositions = [
+                { x: 500, y: 340, type: 'mushroom' },
+                { x: 1600, y: 320, type: 'flower' }
+            ];
+        } else if (currentLevel === 1) {
             // Boxes centered on platforms above where Mario can jump
             // Platform centers: (300+75=375, 480), (550+75=625, 420), (150+75=225, 380)
             // (900+100=1000, 450), (1200+75=1275, 400), (1800+75=1875, 420), (2300+75=2375, 450)
@@ -1112,8 +1196,10 @@ export default class GameScene extends Phaser.Scene {
         
         const currentLevel = this.registry.get('currentLevel') || 1;
         let coinPositions;
-        
-        if (currentLevel === 1) {
+
+        if (this.isPuzzleMode && this.puzzleLevelData) {
+            coinPositions = this.puzzleLevelData.coins || [];
+        } else if (currentLevel === 1) {
             coinPositions = [
                 // First section - 60px horizontal spacing
                 { x: 300, y: 430 }, { x: 360, y: 430 }, { x: 420, y: 430 },
@@ -1255,8 +1341,10 @@ export default class GameScene extends Phaser.Scene {
         
         const currentLevel = this.registry.get('currentLevel') || 1;
         let enemyPositions;
-        
-        if (currentLevel === 1) {
+
+        if (this.isPuzzleMode && this.puzzleLevelData) {
+            enemyPositions = this.puzzleLevelData.enemies || [];
+        } else if (currentLevel === 1) {
             enemyPositions = [
                 { x: 450, y: 450, speed: 80 },
                 { x: 700, y: 500, speed: -60 },
@@ -1350,7 +1438,12 @@ export default class GameScene extends Phaser.Scene {
         
         // Define checkpoint positions for each level
         // Checkpoints are placed at strategic points (roughly 1/3 and 2/3 through each level)
-        if (currentLevel === 1) {
+        if (this.isPuzzleMode) {
+            checkpointPositions = [
+                { x: 1100, y: height - 100 },
+                { x: 2100, y: height - 100 }
+            ];
+        } else if (currentLevel === 1) {
             checkpointPositions = [
                 { x: 1100, y: height - 100 },  // First checkpoint around 1/3 of level
                 { x: 2100, y: height - 100 }   // Second checkpoint around 2/3 of level
@@ -1423,10 +1516,10 @@ export default class GameScene extends Phaser.Scene {
     }
     
     createFinishFlag() {
-        // Flag pole position near end of level
-        const flagX = 3050;
-        const flagY = this.cameras.main.height - 32;
-        
+        this.createFinishFlagAt(3050, this.cameras.main.height - 32);
+    }
+
+    createFinishFlagAt(flagX, flagY) {
         // Pole
         const pole = this.add.rectangle(flagX, flagY - 150, 8, 300, 0xcccccc);
         
@@ -1438,12 +1531,12 @@ export default class GameScene extends Phaser.Scene {
         ], 0xff0000);
         
         // Add white circle in flag
-        const flagCircle = this.add.circle(flagX + 20, flagY - 265, 8, 0xffffff);
+        this.add.circle(flagX + 20, flagY - 265, 8, 0xffffff);
         
         // Top of pole
-        const poleTop = this.add.circle(flagX, flagY - 300, 6, 0xffff00);
+        this.add.circle(flagX, flagY - 300, 6, 0xffff00);
         
-        // Create finish flag container
+        // Create finish flag container (physics sensor; visuals are world-positioned like adventure flags)
         this.finishFlag = this.add.container(flagX, flagY - 150);
         this.physics.add.existing(this.finishFlag);
         this.finishFlag.body.setAllowGravity(false);
@@ -1458,6 +1551,192 @@ export default class GameScene extends Phaser.Scene {
             yoyo: true,
             repeat: -1
         });
+    }
+
+    createPuzzlePlatforms(levelData) {
+        (levelData.platforms || []).forEach((p) => {
+            this.createPlatform(p.x, p.y, p.w, p.h, p.color || 0x228B22);
+        });
+    }
+
+    createPuzzleElements(levelData) {
+        this.puzzleGateOpen = false;
+        this.puzzleKeysCollected = 0;
+        this.puzzleSwitchesActivated = 0;
+        this.puzzleSwitches = this.physics.add.staticGroup();
+        this.puzzleKeys = this.physics.add.group();
+
+        // Objective HUD
+        this.puzzleObjectiveText = this.add.text(
+            this.cameras.main.width / 2,
+            52,
+            levelData.objective || 'Solve the puzzle',
+            {
+                fontSize: '18px',
+                fontFamily: 'Arial',
+                color: '#ffff00',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4,
+                align: 'center'
+            }
+        );
+        this.puzzleObjectiveText.setOrigin(0.5, 0);
+        this.puzzleObjectiveText.setScrollFactor(0);
+        this.puzzleObjectiveText.setDepth(100);
+
+        // Gate blocking the flag
+        const g = levelData.gate;
+        const gateGfx = this.add.graphics();
+        gateGfx.fillStyle(0x663399, 1);
+        gateGfx.fillRect(0, 0, g.w, g.h);
+        gateGfx.lineStyle(3, 0xffd700, 1);
+        gateGfx.strokeRect(0, 0, g.w, g.h);
+        gateGfx.generateTexture('puzzle_gate_' + g.x, g.w, g.h);
+        gateGfx.destroy();
+
+        this.puzzleGate = this.add.image(g.x + g.w / 2, g.y + g.h / 2, 'puzzle_gate_' + g.x);
+        this.physics.add.existing(this.puzzleGate, true);
+        this.platforms.add(this.puzzleGate);
+
+        const lockLabel = this.add.text(g.x + g.w / 2, g.y + 20, 'LOCKED', {
+            fontSize: '12px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        });
+        lockLabel.setOrigin(0.5);
+        this.puzzleGate.lockLabel = lockLabel;
+
+        if (levelData.puzzleType === 'switches' && levelData.switches) {
+            levelData.switches.forEach((s, index) => {
+                const plate = this.add.rectangle(s.x, s.y, 48, 12, 0x888888);
+                plate.setStrokeStyle(2, 0xcccccc);
+                this.physics.add.existing(plate, true);
+                plate.switchIndex = index;
+                plate.activated = false;
+                this.puzzleSwitches.add(plate);
+
+                const label = this.add.text(s.x, s.y - 22, 'SWITCH', {
+                    fontSize: '12px',
+                    fontFamily: 'Arial',
+                    color: '#ffffff',
+                    stroke: '#000000',
+                    strokeThickness: 3
+                });
+                label.setOrigin(0.5);
+                plate.label = label;
+            });
+
+            this.physics.add.overlap(this.player, this.puzzleSwitches, this.activatePuzzleSwitch, null, this);
+        }
+
+        if (levelData.puzzleType === 'key' && levelData.keys) {
+            levelData.keys.forEach((k) => {
+                const key = this.add.container(k.x, k.y);
+                const head = this.add.circle(0, -4, 10, 0xffd700);
+                const shaft = this.add.rectangle(0, 10, 6, 18, 0xffd700);
+                const tooth = this.add.rectangle(6, 16, 8, 6, 0xffd700);
+                key.add([head, shaft, tooth]);
+                this.physics.add.existing(key);
+                key.body.setAllowGravity(false);
+                key.body.setSize(24, 32);
+                key.body.setOffset(-12, -16);
+                this.puzzleKeys.add(key);
+
+                this.tweens.add({
+                    targets: key,
+                    y: k.y - 8,
+                    duration: 700,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            });
+
+            this.physics.add.overlap(this.player, this.puzzleKeys, this.collectPuzzleKey, null, this);
+        }
+    }
+
+    activatePuzzleSwitch(player, switchPlate) {
+        if (!switchPlate || switchPlate.activated || this.puzzleGateOpen) return;
+
+        switchPlate.activated = true;
+        switchPlate.setFillStyle(0x00ff66);
+        if (switchPlate.label) {
+            switchPlate.label.setText('ON');
+            switchPlate.label.setColor('#00ff66');
+        }
+        this.puzzleSwitchesActivated += 1;
+
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.6);
+        }
+
+        const required = (this.puzzleLevelData && this.puzzleLevelData.switchesRequired) || 2;
+        if (this.puzzleObjectiveText) {
+            this.puzzleObjectiveText.setText(
+                `Switches: ${this.puzzleSwitchesActivated}/${required}`
+            );
+        }
+
+        if (this.puzzleSwitchesActivated >= required) {
+            this.openPuzzleGate();
+        }
+    }
+
+    collectPuzzleKey(player, key) {
+        if (!key || !key.active) return;
+
+        key.destroy();
+        this.puzzleKeysCollected += 1;
+
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.7);
+        }
+
+        if (this.puzzleObjectiveText) {
+            this.puzzleObjectiveText.setText('Key collected! Gate unlocked');
+        }
+
+        this.openPuzzleGate();
+    }
+
+    openPuzzleGate() {
+        if (this.puzzleGateOpen || !this.puzzleGate) return;
+        this.puzzleGateOpen = true;
+
+        if (this.puzzleGate.lockLabel) {
+            this.puzzleGate.lockLabel.destroy();
+            this.puzzleGate.lockLabel = null;
+        }
+
+        this.tweens.add({
+            targets: this.puzzleGate,
+            alpha: 0,
+            y: this.puzzleGate.y - 120,
+            duration: 600,
+            ease: 'Cubic.easeIn',
+            onComplete: () => {
+                if (this.puzzleGate) {
+                    if (this.platforms && this.platforms.contains(this.puzzleGate)) {
+                        this.platforms.remove(this.puzzleGate, true, true);
+                    } else {
+                        this.puzzleGate.destroy();
+                    }
+                    this.puzzleGate = null;
+                }
+            }
+        });
+
+        if (this.puzzleObjectiveText) {
+            this.puzzleObjectiveText.setText('Gate open — reach the flag!');
+            this.puzzleObjectiveText.setColor('#00ff00');
+        }
+
+        if (this.audioManager) {
+            this.audioManager.playSound(this.audioManager.soundKeys.levelComplete, 0.4);
+        }
     }
     
     createBoss() {
@@ -2311,13 +2590,16 @@ export default class GameScene extends Phaser.Scene {
         
         const currentLevel = this.registry.get('currentLevel') || 1;
         const nextLevel = currentLevel + 1;
+        const maxLevel = this.isPuzzleMode ? PUZZLE_MAX_LEVEL : ADVENTURE_MAX_LEVEL;
         
         let continueText;
-        if (nextLevel <= 4) {
+        if (nextLevel <= maxLevel) {
             continueText = this.add.text(
                 this.cameras.main.centerX,
                 this.cameras.main.centerY + 120,
-                'Tap to Continue to Level ' + nextLevel,
+                this.isPuzzleMode
+                    ? 'Tap to Continue to Puzzle ' + nextLevel
+                    : 'Tap to Continue to Level ' + nextLevel,
                 {
                     fontSize: '28px',
                     fontFamily: 'Arial',
@@ -2329,7 +2611,7 @@ export default class GameScene extends Phaser.Scene {
                 }
             );
         } else {
-            // Level 3 completed - show stats and credits
+            // All levels completed - show stats and credits
             this.showGameCompleteScreen();
             return; // Exit early to not set up default handlers
         }
@@ -2354,7 +2636,7 @@ export default class GameScene extends Phaser.Scene {
         GameScene.checkpointManager.clearCheckpoint(currentLevel);
         
         this.input.once('pointerdown', () => {
-            if (nextLevel <= 4) {
+            if (nextLevel <= maxLevel) {
                 this.registry.set('currentLevel', nextLevel);
                 this.scene.restart();
                 this.levelComplete = false;
@@ -2362,7 +2644,7 @@ export default class GameScene extends Phaser.Scene {
         });
         
         this.input.keyboard.once('keydown-SPACE', () => {
-            if (nextLevel <= 4) {
+            if (nextLevel <= maxLevel) {
                 this.registry.set('currentLevel', nextLevel);
                 this.scene.restart();
                 this.levelComplete = false;
@@ -2402,7 +2684,7 @@ export default class GameScene extends Phaser.Scene {
             'Final Score: ' + this.score + '\n' +
             'Coins Collected: ' + this.coinsCollected + '\n' +
             'Enemies Defeated: ' + this.enemiesDefeated + '\n' +
-            'Levels Completed: 3\n' +
+            'Levels Completed: ' + (this.isPuzzleMode ? PUZZLE_MAX_LEVEL : ADVENTURE_MAX_LEVEL) + '\n' +
             (this.gameMode === 2 ? 'Players: ' + this.player1Name + ' & ' + this.player2Name : 'Player: ' + this.player1Name),
             {
                 fontSize: '24px',
@@ -3634,14 +3916,26 @@ export default class GameScene extends Phaser.Scene {
             });
         }
 
-        // Get touch controls from registry
-        const moveLeft = this.registry.get('moveLeft');
-        const moveRight = this.registry.get('moveRight');
-        const jumpPressed = this.registry.get('jump');
-        const firePressed = this.registry.get('fire');
+        // Poll controllers / Joy-Cons (Gamepad API)
+        const pad1 = this.gamepadManager ? this.gamepadManager.poll(0) : null;
+        const pad2 = this.gamepadManager ? this.gamepadManager.poll(1) : null;
+        if (pad1 && pad1.connected && !this.gamepadHintShown) {
+            this.showGamepadConnectedHint();
+        }
+
+        // Touch flags clear on release; merge with gamepad each frame (no sticky registry writes)
+        const touchLeft = this.registry.get('moveLeft');
+        const touchRight = this.registry.get('moveRight');
+        const touchJump = this.registry.get('jump');
+        const touchFire = this.registry.get('fire');
+
+        const moveLeft = !!(touchLeft || (this.gameMode === 1 && pad1 && pad1.left) || (this.gameMode === 2 && pad2 && pad2.left));
+        const moveRight = !!(touchRight || (this.gameMode === 1 && pad1 && pad1.right) || (this.gameMode === 2 && pad2 && pad2.right));
+        const jumpPressed = !!(touchJump || (this.gameMode === 1 && pad1 && pad1.jump) || (this.gameMode === 2 && pad2 && pad2.jump));
+        const firePressed = !!(touchFire || (this.gameMode === 1 && pad1 && pad1.fire) || (this.gameMode === 2 && pad2 && pad2.fire));
 
         if (this.gameMode === 1) {
-            // 1-Player mode: Player 1 uses Arrow keys or touch controls
+            // 1-Player mode: Player 1 uses Arrow keys, touch, or gamepad
             if (!this.player1Dead) {
                 const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
                 const scaleY = this.isPoweredUp ? 1.3 : 1;
@@ -3765,13 +4059,13 @@ export default class GameScene extends Phaser.Scene {
                 this.lastFirePressed = firePressed;
             }
         } else {
-            // 2-Player mode: Player 1 uses WASD, Player 2 uses Arrow keys or touch
+            // 2-Player mode: Player 1 uses WASD or gamepad 1, Player 2 uses Arrow keys / touch / gamepad 2
             if (!this.player1Dead) {
                 const scaleX = this.isPoweredUp ? (this.player.scaleX < 0 ? -1.3 : 1.3) : 1;
                 const scaleY = this.isPoweredUp ? 1.3 : 1;
                 
-                const isMovingLeft = this.wasdKeys.left.isDown;
-                const isMovingRight = this.wasdKeys.right.isDown;
+                const isMovingLeft = this.wasdKeys.left.isDown || (pad1 && pad1.left);
+                const isMovingRight = this.wasdKeys.right.isDown || (pad1 && pad1.right);
                 const isMovingHorizontally = isMovingLeft || isMovingRight;
                 
                 if (isMovingLeft) {
@@ -3822,8 +4116,9 @@ export default class GameScene extends Phaser.Scene {
                     }
                 }
 
-                // Jump - W key for player 1 (variable jump height with momentum)
-                if (this.wasdKeys.up.isDown && this.player.body.touching.down) {
+                // Jump - W key or gamepad A for player 1 (variable jump height with momentum)
+                const p1JumpHeld = this.wasdKeys.up.isDown || (pad1 && pad1.jump);
+                if (p1JumpHeld && this.player.body.touching.down) {
                     // Base jump velocity
                     this.player.body.setVelocityY(-400);
                     // Add horizontal momentum boost (running jump goes further)
@@ -3834,7 +4129,7 @@ export default class GameScene extends Phaser.Scene {
                     }
                     this.isJumping = true;
                     this.jumpHoldTime = 0;
-                } else if (!this.wasdKeys.up.isDown && this.isJumping) {
+                } else if (!p1JumpHeld && this.isJumping) {
                     // Button released early - cut jump short
                     if (this.player.body.velocity.y < 0) {
                         this.player.body.setVelocityY(this.player.body.velocity.y * 0.5);
@@ -3843,7 +4138,7 @@ export default class GameScene extends Phaser.Scene {
                 }
                 
                 // Track jump hold time
-                if (this.isJumping && this.wasdKeys.up.isDown) {
+                if (this.isJumping && p1JumpHeld) {
                     this.jumpHoldTime += this.game.loop.delta;
                     if (this.jumpHoldTime >= this.MAX_JUMP_HOLD_TIME) {
                         this.isJumping = false;
@@ -3883,13 +4178,15 @@ export default class GameScene extends Phaser.Scene {
                 }
                 this.player.wasOnGround = this.player.body.touching.down;
                 
-                // Fire - Shift key for player 1
-                if (Phaser.Input.Keyboard.JustDown(this.fireKey)) {
+                // Fire - Shift key or gamepad for player 1
+                const pad1Fire = pad1 && pad1.fire;
+                if (Phaser.Input.Keyboard.JustDown(this.fireKey) || (pad1Fire && !this.lastFirePressedPad1)) {
                     this.shootFireball();
                 }
+                this.lastFirePressedPad1 = !!pad1Fire;
             }
             
-            // Player 2 movement - Arrow keys or touch
+            // Player 2 movement - Arrow keys, touch, or second gamepad
             if (!this.player2Dead) {
                 const scaleX2 = this.isPoweredUp2 ? (this.player2.scaleX < 0 ? -1.3 : 1.3) : 1;
                 const scaleY2 = this.isPoweredUp2 ? 1.3 : 1;

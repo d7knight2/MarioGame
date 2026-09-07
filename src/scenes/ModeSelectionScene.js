@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import AudioManager from '../utils/AudioManager.js';
+import { PLAY_MODES } from '../utils/gameModeUtils.js';
 
 export default class ModeSelectionScene extends Phaser.Scene {
     constructor() {
@@ -16,8 +17,8 @@ export default class ModeSelectionScene extends Phaser.Scene {
         this.audioManager.preloadSounds();
 
         // Title
-        const title = this.add.text(width / 2, height / 4, 'MARIO GAME', {
-            fontSize: '64px',
+        const title = this.add.text(width / 2, height / 5, 'MARIO GAME', {
+            fontSize: '56px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold',
@@ -27,8 +28,8 @@ export default class ModeSelectionScene extends Phaser.Scene {
         title.setOrigin(0.5);
 
         // Subtitle
-        const subtitle = this.add.text(width / 2, height / 3, 'Select Game Mode', {
-            fontSize: '32px',
+        const subtitle = this.add.text(width / 2, height / 5 + 55, 'Select Game Mode', {
+            fontSize: '28px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffff00',
             fontStyle: 'bold',
@@ -37,10 +38,16 @@ export default class ModeSelectionScene extends Phaser.Scene {
         });
         subtitle.setOrigin(0.5);
 
+        const buttonY = [
+            height / 2 - 40,
+            height / 2 + 60,
+            height / 2 + 160
+        ];
+
         // 1 Player Button
-        const onePlayerBtn = this.add.rectangle(width / 2, height / 2, 300, 80, 0x00aa00);
-        const onePlayerText = this.add.text(width / 2, height / 2, '1 PLAYER', {
-            fontSize: '32px',
+        const onePlayerBtn = this.add.rectangle(width / 2, buttonY[0], 300, 70, 0x00aa00);
+        const onePlayerText = this.add.text(width / 2, buttonY[0], '1 PLAYER', {
+            fontSize: '28px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold'
@@ -48,18 +55,35 @@ export default class ModeSelectionScene extends Phaser.Scene {
         onePlayerText.setOrigin(0.5);
 
         // 2 Player Button
-        const twoPlayerBtn = this.add.rectangle(width / 2, height / 2 + 100, 300, 80, 0x0066cc);
-        const twoPlayerText = this.add.text(width / 2, height / 2 + 100, '2 PLAYERS', {
-            fontSize: '32px',
+        const twoPlayerBtn = this.add.rectangle(width / 2, buttonY[1], 300, 70, 0x0066cc);
+        const twoPlayerText = this.add.text(width / 2, buttonY[1], '2 PLAYERS', {
+            fontSize: '28px',
             fontFamily: 'Arial, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold'
         });
         twoPlayerText.setOrigin(0.5);
 
+        // Puzzle Mode Button
+        const puzzleBtn = this.add.rectangle(width / 2, buttonY[2], 300, 70, 0xaa6600);
+        const puzzleText = this.add.text(width / 2, buttonY[2], 'PUZZLE MODE', {
+            fontSize: '28px',
+            fontFamily: 'Arial, sans-serif',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        });
+        puzzleText.setOrigin(0.5);
+
         // Make buttons interactive
         onePlayerBtn.setInteractive({ useHandCursor: true });
         twoPlayerBtn.setInteractive({ useHandCursor: true });
+        puzzleBtn.setInteractive({ useHandCursor: true });
+
+        const playClick = () => {
+            if (this.audioManager) {
+                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
+            }
+        };
 
         // Hover effects for 1 Player
         onePlayerBtn.on('pointerover', () => {
@@ -69,10 +93,9 @@ export default class ModeSelectionScene extends Phaser.Scene {
             onePlayerBtn.setFillStyle(0x00aa00);
         });
         onePlayerBtn.on('pointerdown', () => {
-            if (this.audioManager) {
-                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
-            }
+            playClick();
             this.registry.set('gameMode', 'single');
+            this.registry.set('playMode', PLAY_MODES.ADVENTURE);
             this.scene.start('CharacterSelectionScene');
         });
 
@@ -84,22 +107,40 @@ export default class ModeSelectionScene extends Phaser.Scene {
             twoPlayerBtn.setFillStyle(0x0066cc);
         });
         twoPlayerBtn.on('pointerdown', () => {
-            if (this.audioManager) {
-                this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
-            }
+            playClick();
             this.registry.set('gameMode', 'multiplayer');
+            this.registry.set('playMode', PLAY_MODES.ADVENTURE);
             this.scene.start('MultiplayerLobbyScene');
         });
 
-        // Instructions
-        const instructions = this.add.text(width / 2, height - 50, 'Click to select game mode', {
-            fontSize: '20px',
-            fontFamily: 'Arial, sans-serif',
-            color: '#ffffff',
-            align: 'center',
-            stroke: '#000000',
-            strokeThickness: 4
+        // Hover effects for Puzzle
+        puzzleBtn.on('pointerover', () => {
+            puzzleBtn.setFillStyle(0xdd8800);
         });
+        puzzleBtn.on('pointerout', () => {
+            puzzleBtn.setFillStyle(0xaa6600);
+        });
+        puzzleBtn.on('pointerdown', () => {
+            playClick();
+            this.registry.set('gameMode', 'single');
+            this.registry.set('playMode', PLAY_MODES.PUZZLE);
+            this.scene.start('CharacterSelectionScene');
+        });
+
+        // Instructions
+        const instructions = this.add.text(
+            width / 2,
+            height - 40,
+            'Controllers & Joy-Cons: pair via Bluetooth, then press a button in-game',
+            {
+                fontSize: '14px',
+                fontFamily: 'Arial, sans-serif',
+                color: '#ffffff',
+                align: 'center',
+                stroke: '#000000',
+                strokeThickness: 3
+            }
+        );
         instructions.setOrigin(0.5);
     }
 }
