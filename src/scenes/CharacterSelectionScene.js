@@ -100,7 +100,9 @@ export default class CharacterSelectionScene extends Phaser.Scene {
         this.startBtn.on('pointerout', () => {
             this.startBtn.setFillStyle(0x00aa00);
         });
-        this.startBtn.on('pointerdown', () => {
+        this.startBtn.on('pointerup', () => {
+            if (this._starting) return;
+            this._starting = true;
             if (this.audioManager) {
                 this.audioManager.playSound(this.audioManager.soundKeys.coin, 0.5);
             }
